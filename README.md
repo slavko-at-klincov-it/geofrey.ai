@@ -113,10 +113,18 @@ pnpm dev
 
 #### Claude Code CLI
 
-Requires [Claude Code](https://docs.anthropic.com/en/docs/claude-code) installed with an active Pro/Max subscription.
+Requires [Claude Code](https://docs.anthropic.com/en/docs/claude-code) installed. Two authentication methods:
+
+| Method | Setup | Cost |
+|--------|-------|------|
+| **Subscription** (recommended) | `claude login` — Pro/Max/Teams/Enterprise | Included in subscription |
+| **API Key** | `ANTHROPIC_API_KEY=sk-ant-...` in `.env` | Pay-per-use |
+
+geofrey.ai checks authentication on startup and shows actionable instructions if setup is incomplete.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
+| `ANTHROPIC_API_KEY` | — | API key (alternative to subscription login) |
 | `CLAUDE_CODE_ENABLED` | `true` | Enable/disable Claude Code integration |
 | `CLAUDE_CODE_SKIP_PERMISSIONS` | `true` | Use `--dangerously-skip-permissions` (required for non-interactive) |
 | `CLAUDE_CODE_MODEL` | `claude-sonnet-4-5-20250929` | Model for coding tasks |
@@ -169,6 +177,8 @@ src/
 ├── db/
 │   ├── client.ts             # SQLite + Drizzle ORM setup
 │   └── schema.ts             # Table definitions
+├── onboarding/
+│   └── check.ts              # Claude Code startup check + onboarding messages
 └── config/
     ├── defaults.ts           # Env var loader
     └── schema.ts             # Zod config validation

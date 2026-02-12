@@ -77,6 +77,19 @@ describe("configSchema", () => {
     assert.equal(result.claude.toolProfiles.full, "Read Glob Grep Edit Write Bash");
   });
 
+  it("accepts claude.apiKey", () => {
+    const result = configSchema.parse({
+      ...minimal,
+      claude: { apiKey: "sk-ant-api03-test" },
+    });
+    assert.equal(result.claude.apiKey, "sk-ant-api03-test");
+  });
+
+  it("defaults claude.apiKey to undefined", () => {
+    const result = configSchema.parse(minimal);
+    assert.equal(result.claude.apiKey, undefined);
+  });
+
   it("rejects invalid outputFormat", () => {
     assert.throws(() => {
       configSchema.parse({ ...minimal, claude: { outputFormat: "xml" } });

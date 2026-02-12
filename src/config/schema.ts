@@ -43,6 +43,7 @@ export const configSchema = z.object({
     sessionTtlMs: z.coerce.number().int().default(3_600_000),
     timeoutMs: z.coerce.number().int().default(600_000),
     defaultDirs: z.array(z.string()).default([]),
+    apiKey: z.string().optional(),
     mcpConfigPath: z.string().optional(),
     toolProfiles: z.object({
       readOnly: z.string().default("Read Glob Grep"),

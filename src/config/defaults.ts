@@ -50,6 +50,7 @@ export function loadConfig(): Config {
       defaultDirs: process.env.CLAUDE_CODE_DEFAULT_DIRS
         ? process.env.CLAUDE_CODE_DEFAULT_DIRS.split(",").map((s) => s.trim())
         : undefined,
+      apiKey: process.env.ANTHROPIC_API_KEY,
       mcpConfigPath: process.env.CLAUDE_CODE_MCP_CONFIG,
     },
     mcp: {

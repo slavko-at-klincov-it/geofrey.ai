@@ -57,6 +57,7 @@ User (Telegram) → Orchestrator (Qwen3 8B) → Hybrid Risk Classifier (L0-L3)
 | `docs/ORCHESTRATOR_PROMPT.md` | System prompts for Qwen3 orchestrator (3 focused prompts) |
 | `src/` | Source code (TypeScript) |
 | `system_prompts_leaks-main/` | Reference: 109 leaked system prompts |
+| `src/onboarding/check.ts` | Claude Code startup check + onboarding messages |
 
 ## Project Structure
 ```
@@ -91,6 +92,8 @@ src/
 ├── db/
 │   ├── client.ts            # better-sqlite3 + Drizzle setup
 │   └── schema.ts            # Drizzle table definitions
+├── onboarding/
+│   └── check.ts             # Claude Code startup check + onboarding messages
 └── config/
     ├── defaults.ts          # Default settings
     └── schema.ts            # Zod config validation
@@ -127,6 +130,7 @@ src/
 - [x] Claude Code streaming integration (live Telegram updates)
 - [x] Session tracking + audit log extension
 - [x] Multi-platform messaging (Telegram + WhatsApp + Signal)
+- [x] Onboarding: ANTHROPIC_API_KEY support + Claude Code startup check
 - [ ] End-to-end testing
 
 ## Conventions
@@ -165,3 +169,5 @@ src/
 | 2026-02-12 | Multi-platform messaging abstraction | MessagingPlatform interface enables Telegram, WhatsApp, Signal with same orchestrator |
 | 2026-02-12 | WhatsApp Business Cloud API | Official API, interactive buttons (max 3), native fetch — no heavy dependency |
 | 2026-02-12 | Signal via signal-cli JSON-RPC | No inline buttons → text-based approvals ("1 = Genehmigen, 2 = Ablehnen") |
+| 2026-02-12 | ANTHROPIC_API_KEY support | Alternative to subscription — passed via env to Claude Code subprocess |
+| 2026-02-12 | Onboarding startup check | Checks CLI availability + auth status, shows actionable instructions |

@@ -274,7 +274,10 @@ async function runClaudeProcess(
     cwd: invocation.cwd,
     timeout: cfg.timeoutMs,
     reject: false,
-    env: { CLAUDE_CODE_MAX_OUTPUT_TOKENS: "64000" },
+    env: {
+      CLAUDE_CODE_MAX_OUTPUT_TOKENS: "64000",
+      ...(cfg.apiKey ? { ANTHROPIC_API_KEY: cfg.apiKey } : {}),
+    },
   });
 
   let resultText = "";

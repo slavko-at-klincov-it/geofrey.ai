@@ -6,6 +6,7 @@ import { disconnectAll, connectMcpServer } from "./tools/mcp-client.js";
 import { getDb, closeDb } from "./db/client.js";
 import { setDbUrl } from "./orchestrator/conversation.js";
 import { initClaudeCode } from "./tools/claude-code.js";
+import { checkClaudeCodeReady } from "./onboarding/check.js";
 import { runAgentLoopStreaming } from "./orchestrator/agent-loop.js";
 import type { PlatformCallbacks } from "./messaging/platform.js";
 
@@ -64,6 +65,13 @@ async function main() {
 
   // Initialize Claude Code driver
   initClaudeCode(config.claude);
+
+  // Claude Code onboarding check
+  const claudeStatus = await checkClaudeCodeReady(config.claude);
+  console.log(claudeStatus.message);
+  if (!claudeStatus.ready && config.claude.enabled) {
+    console.warn("Claude Code nicht verfügbar — Ollama-Tools funktionieren weiterhin.");
+  }
 
   // Health check Ollama (non-blocking)
   await healthCheckOllama(config.ollama.baseUrl);
