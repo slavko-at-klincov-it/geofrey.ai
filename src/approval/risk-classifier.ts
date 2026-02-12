@@ -15,16 +15,7 @@ export interface Classification {
   deterministic: boolean;
 }
 
-// Deterministic patterns — no LLM call needed
-const L0_TOOLS = new Set([
-  "read_file", "list_dir", "search", "git_status", "git_log", "git_diff",
-]);
-
-const L3_COMMANDS = /\b(sudo|rm\s+-rf|curl|wget|nc|ssh|scp|telnet|eval|exec|alias)\b/;
-const INJECTION_PATTERN = /[`]|\$\(|&&|\|\||(?<![|]);/;
-const SENSITIVE_PATHS = /\.(env|ssh|pem|key|credentials|secret)/i;
-const CONFIG_FILES = /\.(github\/workflows|package\.json|tsconfig\.json|Dockerfile|\.eslintrc|\.prettierrc)/;
-const FORCE_PUSH = /git\s+push\s+.*--force/;
+const VALID_LEVELS = new Set([RiskLevel.L0, RiskLevel.L1, RiskLevel.L2, RiskLevel.L3]);
 
 const RISK_CLASSIFIER_PROMPT = `You are a security risk classifier for an AI agent system. Your ONLY job is to classify tool/command requests into risk levels and return JSON.
 
@@ -45,11 +36,21 @@ Escalation Rules:
 
 If you cannot confidently classify, default to L2.`;
 
+// Deterministic patterns — no LLM call needed
+const L0_TOOLS = new Set([
+  "read_file", "list_dir", "search", "git_status", "git_log", "git_diff",
+]);
+
+const L3_COMMANDS = /\b(sudo|rm\s+-rf|curl|wget|nc|ssh|scp|telnet|eval|exec|alias)\b/;
+const INJECTION_PATTERN = /[`]|\$\(|&&|\|\||(?<![|]);/;
+const SENSITIVE_PATHS = /\.(env|ssh|pem|key|credentials|secret)/i;
+const CONFIG_FILES = /\.(github\/workflows|package\.json|tsconfig\.json|Dockerfile|\.eslintrc|\.prettierrc)/;
+const FORCE_PUSH = /git\s+push\s+.*--force/;
+
 export function classifyDeterministic(
   toolName: string,
   args: Record<string, unknown>,
 ): Classification | null {
-  // L0: read-only tools
   if (L0_TOOLS.has(toolName)) {
     return { level: RiskLevel.L0, reason: "Nur lesen, keine Änderung", deterministic: true };
   }
@@ -57,63 +58,86 @@ export function classifyDeterministic(
   const command = typeof args.command === "string" ? args.command : "";
   const path = typeof args.path === "string" ? args.path : "";
 
-  // L3: banned commands
   if (L3_COMMANDS.test(command)) {
     return { level: RiskLevel.L3, reason: "Gesperrter Befehl", deterministic: true };
   }
 
-  // L3: injection patterns
   if (INJECTION_PATTERN.test(command)) {
     return { level: RiskLevel.L3, reason: "Injection-Muster erkannt", deterministic: true };
   }
 
-  // L3: force push
   if (FORCE_PUSH.test(command)) {
     return { level: RiskLevel.L3, reason: "Force-Push überschreibt Remote irreversibel", deterministic: true };
   }
 
-  // Escalation: sensitive paths
   if (SENSITIVE_PATHS.test(path) || SENSITIVE_PATHS.test(command)) {
     return { level: RiskLevel.L3, reason: "Zugriff auf sensible Datei", deterministic: true };
   }
 
-  // Escalation: config files → L2 minimum
   if (CONFIG_FILES.test(path) || CONFIG_FILES.test(command)) {
     return { level: RiskLevel.L2, reason: "Config-Datei — Genehmigung erforderlich", deterministic: true };
   }
 
-  // Not deterministically classifiable — needs LLM
   return null;
 }
+
+const JSON_EXTRACT = /\{[^{}]*"level"\s*:\s*"L[0-3]"[^{}]*\}/;
+
+function tryParseClassification(text: string): { level: RiskLevel; reason: string } | null {
+  // Try direct JSON parse first
+  try {
+    const parsed = JSON.parse(text);
+    if (VALID_LEVELS.has(parsed.level)) {
+      return { level: parsed.level, reason: parsed.reason ?? "Keine Begründung" };
+    }
+  } catch { /* fall through to regex extraction */ }
+
+  // LLMs sometimes wrap JSON in markdown or thinking tags — extract it
+  const match = JSON_EXTRACT.exec(text);
+  if (match) {
+    try {
+      const parsed = JSON.parse(match[0]);
+      if (VALID_LEVELS.has(parsed.level)) {
+        return { level: parsed.level, reason: parsed.reason ?? "Keine Begründung" };
+      }
+    } catch { /* give up */ }
+  }
+
+  return null;
+}
+
+const MAX_LLM_RETRIES = 2;
 
 export async function classifyWithLlm(
   toolName: string,
   args: Record<string, unknown>,
   config: Config,
 ): Promise<Classification> {
-  try {
-    const ollama = createOllama({ baseURL: config.ollama.baseUrl });
+  const ollama = createOllama({ baseURL: config.ollama.baseUrl });
+  const prompt = `Classify: tool=${toolName}, args=${JSON.stringify(args)}`;
 
-    const result = await generateText({
-      model: ollama(config.ollama.model),
-      system: RISK_CLASSIFIER_PROMPT,
-      prompt: `Classify: tool=${toolName}, args=${JSON.stringify(args)}`,
-    });
+  for (let attempt = 0; attempt < MAX_LLM_RETRIES; attempt++) {
+    try {
+      const result = await generateText({
+        model: ollama(config.ollama.model),
+        system: RISK_CLASSIFIER_PROMPT,
+        prompt: attempt === 0
+          ? prompt
+          : `${prompt}\n\nIMPORTANT: Respond with ONLY valid JSON, no other text.`,
+      });
 
-    const parsed = JSON.parse(result.text);
-    const level = parsed.level as string;
-    const reason = parsed.reason as string;
+      const parsed = tryParseClassification(result.text);
+      if (parsed) {
+        return { level: parsed.level, reason: parsed.reason, deterministic: false };
+      }
 
-    // Validate level is one of L0/L1/L2/L3
-    if (!["L0", "L1", "L2", "L3"].includes(level)) {
-      return { level: RiskLevel.L2, reason: "Ungültige Klassifikation — Fallback L2", deterministic: false };
+      console.warn(`LLM risk classifier returned unparseable response (attempt ${attempt + 1}): ${result.text.slice(0, 100)}`);
+    } catch (err) {
+      console.warn(`LLM risk classifier error (attempt ${attempt + 1}):`, err);
     }
-
-    return { level: level as RiskLevel, reason, deterministic: false };
-  } catch (error) {
-    // Fallback to L2 on any error (JSON parse, network, etc.)
-    return { level: RiskLevel.L2, reason: "LLM-Klassifikation fehlgeschlagen — Fallback L2", deterministic: false };
   }
+
+  return { level: RiskLevel.L2, reason: "LLM-Klassifikation fehlgeschlagen — Fallback L2", deterministic: false };
 }
 
 export async function classifyRisk(
