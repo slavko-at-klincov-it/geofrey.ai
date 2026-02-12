@@ -1,3 +1,7 @@
+import { eq, desc } from "drizzle-orm";
+import { getDb } from "../db/client.js";
+import { conversations, messages } from "../db/schema.js";
+
 export interface Message {
   id: string;
   role: "user" | "assistant" | "system" | "tool";
@@ -14,12 +18,53 @@ export interface Conversation {
   updatedAt: Date;
 }
 
-// In-memory conversation state (persisted to SQLite on write)
 const active = new Map<number, Conversation>();
+
+let db: ReturnType<typeof getDb> | null = null;
+
+export function setDbUrl(url: string) {
+  db = getDb(url);
+}
 
 export function getOrCreate(chatId: number): Conversation {
   let conv = active.get(chatId);
   if (!conv) {
+    if (db) {
+      const existing = db
+        .select()
+        .from(conversations)
+        .where(eq(conversations.telegramChatId, chatId))
+        .orderBy(desc(conversations.updatedAt))
+        .limit(1)
+        .all();
+
+      if (existing.length > 0) {
+        const dbConv = existing[0];
+        const dbMessages = db
+          .select()
+          .from(messages)
+          .where(eq(messages.conversationId, dbConv.id))
+          .orderBy(messages.createdAt)
+          .all();
+
+        conv = {
+          id: dbConv.id,
+          telegramChatId: dbConv.telegramChatId,
+          messages: dbMessages.map((m) => ({
+            id: m.id,
+            role: m.role,
+            content: m.content,
+            toolCallId: m.toolCallId ?? undefined,
+            createdAt: m.createdAt,
+          })),
+          createdAt: dbConv.createdAt,
+          updatedAt: dbConv.updatedAt,
+        };
+        active.set(chatId, conv);
+        return conv;
+      }
+    }
+
     conv = {
       id: crypto.randomUUID(),
       telegramChatId: chatId,
@@ -28,6 +73,15 @@ export function getOrCreate(chatId: number): Conversation {
       updatedAt: new Date(),
     };
     active.set(chatId, conv);
+
+    if (db) {
+      db.insert(conversations).values({
+        id: conv.id,
+        telegramChatId: conv.telegramChatId,
+        createdAt: conv.createdAt,
+        updatedAt: conv.updatedAt,
+      }).run();
+    }
   }
   return conv;
 }
@@ -41,6 +95,23 @@ export function addMessage(chatId: number, message: Omit<Message, "id" | "create
   };
   conv.messages.push(msg);
   conv.updatedAt = new Date();
+
+  if (db) {
+    db.insert(messages).values({
+      id: msg.id,
+      conversationId: conv.id,
+      role: msg.role,
+      content: msg.content,
+      toolCallId: msg.toolCallId ?? null,
+      createdAt: msg.createdAt,
+    }).run();
+
+    db.update(conversations)
+      .set({ updatedAt: conv.updatedAt })
+      .where(eq(conversations.id, conv.id))
+      .run();
+  }
+
   return msg;
 }
 
