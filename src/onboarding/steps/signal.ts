@@ -1,4 +1,5 @@
 import { existsSync } from "node:fs";
+import { platform } from "node:os";
 import { stepHeader, success, fail, info, spinner } from "../utils/ui.js";
 import { askText, askYesNo } from "../utils/prompt.js";
 
@@ -8,15 +9,18 @@ export interface SignalConfig {
   botPhone: string;
 }
 
-const DEFAULT_SOCKET = "/var/run/signal-cli/socket";
+const DEFAULT_SOCKET = platform() === "win32"
+  ? "\\\\.\\pipe\\signal-cli"
+  : "/var/run/signal-cli/socket";
 
 export async function setupSignal(): Promise<SignalConfig | null> {
   stepHeader(2, "Signal einrichten");
 
+  const isWindows = platform() === "win32";
   console.log(`
   Voraussetzungen:
   1. signal-cli installiert und registriert
-  2. signal-cli im JSON-RPC Modus gestartet
+  2. signal-cli im JSON-RPC Modus gestartet${isWindows ? "\n     (Windows: signal-cli --output=json jsonRpc --socket \\\\.\\pipe\\signal-cli)" : ""}
   → Docs: https://github.com/AsamK/signal-cli
 `);
 

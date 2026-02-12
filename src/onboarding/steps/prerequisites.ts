@@ -1,4 +1,5 @@
 import { execa } from "execa";
+import { platform } from "node:os";
 import { stepHeader, success, warn, fail, info, spinner } from "../utils/ui.js";
 import { askYesNo } from "../utils/prompt.js";
 import { validateOllamaConnection } from "../utils/validate.js";
@@ -53,9 +54,14 @@ export async function runPrerequisites(model = "qwen3:8b", ollamaUrl = "http://l
     const startOllama = await askYesNo("→ Ollama starten? (ollama serve)");
     if (startOllama) {
       try {
-        // Start ollama serve detached
-        const child = execa("ollama", ["serve"], { detached: true, stdio: "ignore" });
-        child.unref();
+        // Start ollama serve detached (Windows: use cmd /c start to detach)
+        if (platform() === "win32") {
+          const child = execa("cmd", ["/c", "start", "/b", "ollama", "serve"], { stdio: "ignore" });
+          child.unref();
+        } else {
+          const child = execa("ollama", ["serve"], { detached: true, stdio: "ignore" });
+          child.unref();
+        }
         // Wait a bit for it to start
         const spin = spinner("Ollama startet...");
         await new Promise((r) => setTimeout(r, 3000));

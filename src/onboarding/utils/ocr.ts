@@ -15,10 +15,22 @@ export async function captureScreenshot(): Promise<string | null> {
   const outPath = join(tmpdir(), `geofrey-ocr-${Date.now()}.png`);
 
   try {
-    if (platform() === "darwin") {
+    const os = platform();
+    if (os === "darwin") {
       await execa("screencapture", ["-i", outPath]);
+    } else if (os === "win32") {
+      // PowerShell: SnippingTool or fallback to clipboard capture
+      const psScript = `
+        Add-Type -AssemblyName System.Windows.Forms
+        Start-Process -FilePath "SnippingTool" -ArgumentList "/clip" -Wait -ErrorAction SilentlyContinue
+        if ([System.Windows.Forms.Clipboard]::ContainsImage()) {
+          $img = [System.Windows.Forms.Clipboard]::GetImage()
+          $img.Save("${outPath.replace(/\\/g, "\\\\")}")
+        }
+      `.trim();
+      await execa("powershell", ["-NoProfile", "-Command", psScript], { timeout: 60_000 });
     } else {
-      // Try gnome-screenshot first, fallback to scrot
+      // Linux: try gnome-screenshot first, fallback to scrot
       try {
         await execa("gnome-screenshot", ["-a", "-f", outPath]);
       } catch {
