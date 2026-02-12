@@ -156,11 +156,14 @@ The orchestrator handles intent classification, risk assessment, and task decomp
 |--------------|----------|------------|
 | **Network exposure** | Web UI on public ports (42K exposed instances) | No web UI, messaging only (Telegram/WhatsApp/Signal) |
 | **RCE via browser** | CVE-2026-25253 (CVSS 8.8) | No browser interface, no WebSocket |
-| **Command injection** | CVE-2026-25157 | L3 blocks + shlex decomposition (each segment classified individually) |
+| **Command injection** | CVE-2026-25157, CVE-2026-24763 (Docker sandbox PATH injection) | L3 blocks + shlex decomposition (each segment classified individually) |
 | **Approval bypass** | `elevated: "full"` skips all checks | No bypass mode exists |
-| **Marketplace malware** | 7.1% of ClawHub skills leak credentials | No marketplace, explicit tool registry |
+| **Marketplace malware** | 7.1% of ClawHub skills leak credentials | No marketplace, explicit tool registry + MCP allowlist |
 | **Prompt injection** | No specific defense | 3-layer defense + MCP output sanitization |
 | **LLM classifier evasion** | JSON parsing fragile with small models | XML output (reliable with Qwen3 8B) + JSON fallback |
+| **Secret handling** | Plaintext credentials in local files (infostealer target) | Env-only, Zod-validated, no token logging, subprocess env isolation |
+| **Filesystem access** | Unrestricted (agent can read `/etc/passwd`, `.ssh/`) | `confine()` rejects paths outside `process.cwd()` |
+| **MCP output trust** | Unsafe type assertions on tool responses | Zod schema validation (`safeParse`) + instruction filtering |
 | **Audit trail** | Basic logs | Hash-chained JSONL (SHA-256, tamper-evident, cost tracking) |
 
 ### OWASP Agentic AI Top 10 Coverage
@@ -169,14 +172,42 @@ The orchestrator handles intent classification, risk assessment, and task decomp
 |---|------|---------------|
 | ASI01 | Agent Goal Hijack | Local orchestrator reviews all instructions; prompt injection defense |
 | ASI02 | Tool Misuse | Hybrid risk classifier + structural approval gate |
-| ASI03 | Identity & Privilege Abuse | No cloud credentials stored; local-first; no elevated bypass |
-| ASI04 | Supply Chain Vulnerabilities | No marketplace; explicit tool registry + MCP whitelist |
+| ASI03 | Identity & Privilege Abuse | No cloud credentials stored; env-only secrets; subprocess env isolation; no elevated bypass |
+| ASI04 | Supply Chain Vulnerabilities | No marketplace; explicit tool registry + MCP whitelist; Zod response validation |
 | ASI05 | Unexpected Code Execution | L2/L3 classification for all shell/code execution |
 | ASI06 | Memory & Context Poisoning | Hash-chained audit log; conversation isolation |
 | ASI07 | Insecure Inter-Agent Communication | Single orchestrator; downstream output treated as DATA |
 | ASI08 | Cascading Failures | Isolated error handling per tool; max 15 iterations; 60s timeout |
 | ASI09 | Human-Agent Trust Exploitation | Explicit approval for every high-risk action |
 | ASI10 | Rogue Agents | Local orchestrator as safety layer; iteration + token limits |
+
+### Secret Handling & Credential Isolation
+
+Unlike OpenClaw, where plaintext credentials in local files provide an easy target for infostealer malware, geofrey.ai enforces strict credential isolation:
+
+1. **Environment-only secrets** — all credentials (`TELEGRAM_BOT_TOKEN`, `ANTHROPIC_API_KEY`, etc.) loaded exclusively from environment variables, validated at startup with Zod schemas that map missing values to human-readable error messages (e.g., "Missing `TELEGRAM_BOT_TOKEN` (env: TELEGRAM_BOT_TOKEN)")
+2. **No token logging** — no `console.log`, error handler, or audit entry ever contains credential values
+3. **Subprocess env isolation** — `ANTHROPIC_API_KEY` passed to Claude Code as a process environment variable (not a CLI argument), making it invisible in `ps` output and process lists
+4. **Sensitive path escalation** — file paths matching `.env`, `.ssh`, `.pem`, `credentials`, and similar patterns are automatically escalated to L3 (blocked) — the agent cannot read its own credential files
+5. **No persistent credential storage** — credentials live only in process memory and the `.env` file (which the agent itself cannot access due to L3 classification)
+
+### Filesystem Confinement
+
+All filesystem operations (`read_file`, `write_file`, `delete_file`, `list_directory`) pass through `confine()`, which resolves paths via `node:path.resolve()` and rejects anything outside `process.cwd()`. This prevents:
+
+- Path traversal attacks (`../../../etc/passwd`)
+- Symlink-based escapes (resolved before boundary check)
+- Agent accessing system files, SSH keys, or credentials outside the project directory
+
+### MCP Response Validation
+
+MCP tool responses are validated with `mcpContentSchema.safeParse()` (Zod) instead of unsafe `as` type assertions. Additionally, MCP output is sanitized before reaching the orchestrator:
+
+- **Instruction filtering** — phrases like "you must", "execute", "call the tool" are stripped
+- **Fake XML tag removal** — tags like `<system>`, `<instruction>`, `<tool_call>` are removed
+- **DATA boundary wrapping** — sanitized output wrapped in `<mcp_data>` tags, which the orchestrator system prompt treats as data-only (never as instructions)
+
+This three-step pipeline prevents prompt injection via compromised or malicious MCP tool servers.
 
 ---
 
