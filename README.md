@@ -280,7 +280,10 @@ pnpm db:generate  # Generate Drizzle migrations
 - [x] Hash-chained audit log (with Claude Code cost/token/session tracking)
 - [x] SQLite persistence (conversations, Claude Code sessions)
 - [x] Security hardening (obfuscation-resistant L3 patterns, pipe-to-shell detection)
+- [x] Security: filesystem directory confinement + MCP Zod response validation
 - [x] Interactive setup wizard (`pnpm setup` — auto-detection, OCR, clipboard, real-time validation)
+- [x] Windows compatibility (shell executor, Signal named pipes, OCR, risk classifier)
+- [x] Graceful shutdown (Signal pending request rejection, schema versioning)
 - [ ] End-to-end test suite
 - [ ] Web dashboard (read-only audit viewer)
 

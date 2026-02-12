@@ -148,6 +148,11 @@ src/
 - [x] Multi-platform messaging (Telegram + WhatsApp + Signal)
 - [x] Onboarding: ANTHROPIC_API_KEY support + Claude Code startup check
 - [x] Interactive setup wizard (`pnpm setup`) — auto-detection, OCR, clipboard, validation
+- [x] Windows compatibility (shell executor, Signal named pipes, OCR, detached processes)
+- [x] Security: filesystem directory confinement (reject paths outside cwd)
+- [x] Security: MCP response validation (Zod schema instead of unsafe type assertions)
+- [x] Signal adapter graceful shutdown (reject pending JSON-RPC requests)
+- [x] DB schema versioning (`schema_version` table for future migrations)
 - [ ] End-to-end testing
 
 ## Conventions
@@ -191,3 +196,7 @@ src/
 | 2026-02-12 | Interactive setup wizard | `pnpm setup` — auto-detection, OCR, clipboard, real-time validation; better UX than OpenClaw |
 | 2026-02-12 | @inquirer/prompts + chalk + ora | Modern ESM CLI toolkit — tree-shakeable, German prompts |
 | 2026-02-12 | tesseract.js for OCR | Pure WASM, lazy-loaded (~60MB first use) — extract tokens from screenshots |
+| 2026-02-12 | Windows compatibility | shell.ts: cmd /c, Signal: named pipes, OCR: PowerShell SnippingTool, prerequisites: cmd start /b |
+| 2026-02-12 | Filesystem directory confinement | `confine()` rejects paths outside `process.cwd()` — prevents path traversal |
+| 2026-02-12 | MCP Zod response validation | `mcpContentSchema.safeParse()` replaces unsafe `as` assertions on MCP tool output |
+| 2026-02-12 | Schema version tracking | `schema_version` table with version + applied_at — foundation for future DB migrations |
