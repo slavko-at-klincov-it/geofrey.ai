@@ -1,5 +1,6 @@
 import type { MessagingPlatform, ChatId, MessageRef } from "./platform.js";
 import type { StreamEvent } from "../tools/claude-code.js";
+import { t } from "../i18n/index.js";
 
 const MIN_EDIT_INTERVAL_MS = 1000;
 
@@ -102,7 +103,7 @@ export function createClaudeCodeStream(platform: MessagingPlatform, chatId: Chat
 
   return {
     async start() {
-      const ref = await platform.sendMessage(chatId, "Claude Code arbeitet...");
+      const ref = await platform.sendMessage(chatId, t("messaging.claudeWorking"));
       state = {
         chatId,
         messageRef: ref,
@@ -149,7 +150,7 @@ export function createClaudeCodeStream(platform: MessagingPlatform, chatId: Chat
         state.timer = null;
       }
       const maxLen = platform.maxMessageLength;
-      const finalText = (resultBuffer || state.buffer || "(no output)").slice(0, maxLen);
+      const finalText = (resultBuffer || state.buffer || t("messaging.noOutput")).slice(0, maxLen);
       try {
         if (platform.supportsEdit) {
           await platform.editMessage(state.chatId, state.messageRef, finalText);
@@ -159,7 +160,7 @@ export function createClaudeCodeStream(platform: MessagingPlatform, chatId: Chat
       } catch {
         // ignore
       }
-      return resultBuffer || state.buffer || "(no output)";
+      return resultBuffer || state.buffer || t("messaging.noOutput");
     },
   };
 }

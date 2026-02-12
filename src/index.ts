@@ -1,5 +1,7 @@
 import { mkdir } from "node:fs/promises";
 import { loadConfig } from "./config/defaults.js";
+import { setLocale } from "./i18n/index.js";
+import { t } from "./i18n/index.js";
 import { createPlatform } from "./messaging/create-platform.js";
 import { rejectAllPending, resolveApproval } from "./approval/approval-gate.js";
 import { disconnectAll, connectMcpServer } from "./tools/mcp-client.js";
@@ -53,6 +55,7 @@ async function main() {
   console.log("geofrey.ai starting...");
 
   const config = loadConfig();
+  setLocale(config.locale);
   console.log(`Orchestrator model: ${config.ollama.model}`);
   console.log(`Platform: ${config.platform}`);
 
@@ -70,7 +73,7 @@ async function main() {
   const claudeStatus = await checkClaudeCodeReady(config.claude);
   console.log(claudeStatus.message);
   if (!claudeStatus.ready && config.claude.enabled) {
-    console.warn("Claude Code nicht verfügbar — Ollama-Tools funktionieren weiterhin.");
+    console.warn(t("app.claudeUnavailable"));
   }
 
   // Health check Ollama (non-blocking)

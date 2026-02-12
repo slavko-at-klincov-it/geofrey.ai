@@ -2,6 +2,7 @@ import { configSchema, type Config } from "./schema.js";
 
 export function loadConfig(): Config {
   return configSchema.parse({
+    locale: process.env.LOCALE,
     platform: process.env.PLATFORM,
     telegram: {
       botToken: process.env.TELEGRAM_BOT_TOKEN,

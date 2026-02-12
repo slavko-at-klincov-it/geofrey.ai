@@ -1,6 +1,7 @@
 import { createConnection, type Socket } from "node:net";
 import type { Classification } from "../../approval/risk-classifier.js";
 import type { MessagingPlatform, PlatformCallbacks, ChatId, MessageRef } from "../platform.js";
+import { t } from "../../i18n/index.js";
 
 interface SignalConfig {
   signalCliSocket: string;
@@ -147,13 +148,13 @@ export function createSignalPlatform(
     ): Promise<void> {
       const argsStr = JSON.stringify(args).slice(0, 200);
       const text = [
-        `Genehmigung erforderlich [#${nonce}]`,
+        `${t("messaging.approvalRequired")} [#${nonce}]`,
         ``,
-        `Aktion: ${toolName}`,
-        `Risiko: ${classification.level} — ${classification.reason}`,
-        `Details: ${argsStr}`,
+        `${t("messaging.actionLabel")} ${toolName}`,
+        `${t("messaging.riskLabel")} ${classification.level} — ${classification.reason}`,
+        `${t("messaging.detailsLabel")} ${argsStr}`,
         ``,
-        `Antworten Sie mit: 1 = Genehmigen, 2 = Ablehnen`,
+        t("messaging.signalInstruction"),
       ].join("\n");
 
       pendingTextApprovals.set(chatId, nonce);

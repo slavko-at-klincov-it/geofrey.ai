@@ -1,5 +1,6 @@
 import { execa } from "execa";
 import type { Config } from "../config/schema.js";
+import { t } from "../i18n/index.js";
 
 export interface OnboardingResult {
   ready: boolean;
@@ -14,7 +15,7 @@ export async function checkClaudeCodeReady(
     return {
       ready: true,
       authMethod: "none",
-      message: "Claude Code: Deaktiviert (CLAUDE_CODE_ENABLED=false)",
+      message: t("check.disabled"),
     };
   }
 
@@ -26,9 +27,9 @@ export async function checkClaudeCodeReady(
       ready: false,
       authMethod: "none",
       message: [
-        "Claude Code: FEHLER — 'claude' nicht gefunden",
-        "  → Installieren: npm install -g @anthropic-ai/claude-code",
-        "  → Docs: https://docs.anthropic.com/en/docs/claude-code",
+        t("check.notFound"),
+        t("check.notFoundInstall"),
+        t("check.notFoundDocs"),
       ].join("\n"),
     };
   }
@@ -38,11 +39,18 @@ export async function checkClaudeCodeReady(
     return {
       ready: true,
       authMethod: "api_key",
-      message: `Claude Code: OK (API Key, ${config.model})`,
+      message: t("check.okApiKey", { model: config.model }),
     };
   }
 
   // Subscription mode — test with a quick ping
+  const noAuthMessage = [
+    t("check.noAuth"),
+    t("check.authOptionA"),
+    t("check.authOptionB"),
+    t("check.authCreateKey"),
+  ].join("\n");
+
   try {
     const result = await execa("claude", [
       "--print",
@@ -55,31 +63,20 @@ export async function checkClaudeCodeReady(
       return {
         ready: true,
         authMethod: "subscription",
-        message: `Claude Code: OK (Subscription, ${config.model})`,
+        message: t("check.okSubscription", { model: config.model }),
       };
     }
 
-    // Non-zero exit → auth issue
     return {
       ready: false,
       authMethod: "none",
-      message: [
-        "Claude Code: FEHLER — Keine Authentifizierung",
-        "  → Option A: Claude Pro/Max/Teams/Enterprise Subscription → 'claude login'",
-        "  → Option B: API Key → ANTHROPIC_API_KEY in .env setzen",
-        "  → API Key erstellen: https://console.anthropic.com/settings/keys",
-      ].join("\n"),
+      message: noAuthMessage,
     };
   } catch {
     return {
       ready: false,
       authMethod: "none",
-      message: [
-        "Claude Code: FEHLER — Keine Authentifizierung",
-        "  → Option A: Claude Pro/Max/Teams/Enterprise Subscription → 'claude login'",
-        "  → Option B: API Key → ANTHROPIC_API_KEY in .env setzen",
-        "  → API Key erstellen: https://console.anthropic.com/settings/keys",
-      ].join("\n"),
+      message: noAuthMessage,
     };
   }
 }

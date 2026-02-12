@@ -2,6 +2,7 @@ import { tool } from "ai";
 import { z, type ZodSchema } from "zod";
 import { classifyDeterministic, RiskLevel } from "../approval/risk-classifier.js";
 import { trackInflight } from "../index.js";
+import { t } from "../i18n/index.js";
 
 export interface ToolDefinition<T = unknown> {
   name: string;
@@ -55,14 +56,14 @@ export function getAiSdkTools() {
         execute: async (input: unknown) => {
           const classification = classifyDeterministic(name, input as Record<string, unknown>);
           if (classification?.level === RiskLevel.L3) {
-            throw new Error(`L3: Aktion blockiert — ${classification.reason}`);
+            throw new Error(t("tools.l3Blocked", { reason: classification.reason }));
           }
           trackInflight(1);
           try {
             return await toolDef.execute(input);
           } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
-            return `ERROR: ${name} fehlgeschlagen — ${msg}`;
+            return t("tools.executionFailed", { name, msg });
           } finally {
             trackInflight(-1);
           }

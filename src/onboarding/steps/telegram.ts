@@ -4,6 +4,7 @@ import { askChoice, askSecret, askText, askYesNo } from "../utils/prompt.js";
 import { isValidTelegramToken, validateTelegramToken } from "../utils/validate.js";
 import { readTokenFromClipboard } from "../utils/clipboard.js";
 import { captureScreenshot, extractTokenFromImage, cleanupScreenshot } from "../utils/ocr.js";
+import { t } from "../../i18n/index.js";
 
 export interface TelegramConfig {
   botToken: string;
@@ -14,45 +15,45 @@ export interface TelegramConfig {
 const TELEGRAM_TOKEN_PATTERN = /\d{8,12}:[A-Za-z0-9_-]{35}/;
 
 async function getToken(): Promise<string | null> {
-  const method = await askChoice("Wie möchtest du den Bot-Token eingeben?", [
-    { name: "Direkt eintippen/einfügen", value: "direct" },
-    { name: "Aus der Zwischenablage lesen", value: "clipboard" },
-    { name: "Aus einem Screenshot extrahieren (OCR)", value: "ocr" },
+  const method = await askChoice(t("onboarding.tokenInputMethod"), [
+    { name: t("onboarding.tokenDirect"), value: "direct" },
+    { name: t("onboarding.tokenClipboard"), value: "clipboard" },
+    { name: t("onboarding.tokenOcr"), value: "ocr" },
   ]);
 
   if (method === "direct") {
-    const token = await askSecret("Bot-Token:");
+    const token = await askSecret(t("onboarding.tokenPrompt"));
     return token.trim();
   }
 
   if (method === "clipboard") {
-    const spin = spinner("Zwischenablage wird gelesen...");
+    const spin = spinner(t("onboarding.clipboardReading"));
     const token = await readTokenFromClipboard(TELEGRAM_TOKEN_PATTERN);
     if (token) {
-      spin.succeed("Token in Zwischenablage gefunden");
-      const use = await askYesNo(`Token verwenden? (${token.slice(0, 10)}...)`);
+      spin.succeed(t("onboarding.clipboardFound"));
+      const use = await askYesNo(t("onboarding.tokenUseConfirm", { preview: token.slice(0, 10) }));
       return use ? token : null;
     }
-    spin.fail("Kein Token in der Zwischenablage gefunden");
+    spin.fail(t("onboarding.clipboardNotFound"));
     return null;
   }
 
   if (method === "ocr") {
-    info("Erstelle einen Screenshot des Bot-Tokens...");
+    info(t("onboarding.ocrHint"));
     const path = await captureScreenshot();
     if (!path) {
-      fail("Screenshot konnte nicht erstellt werden");
+      fail(t("onboarding.screenshotFailed"));
       return null;
     }
-    const spin = spinner("Token wird aus Screenshot extrahiert...");
+    const spin = spinner(t("onboarding.ocrExtracting"));
     const token = await extractTokenFromImage(path, "telegram");
     cleanupScreenshot(path);
     if (token) {
-      spin.succeed("Token extrahiert");
-      const use = await askYesNo(`Token verwenden? (${token.slice(0, 10)}...)`);
+      spin.succeed(t("onboarding.ocrExtracted"));
+      const use = await askYesNo(t("onboarding.tokenUseConfirm", { preview: token.slice(0, 10) }));
       return use ? token : null;
     }
-    spin.fail("Kein Token im Screenshot gefunden");
+    spin.fail(t("onboarding.ocrNotFound"));
     return null;
   }
 
@@ -60,8 +61,8 @@ async function getToken(): Promise<string | null> {
 }
 
 async function autoDetectOwnerId(botToken: string, botUsername: string): Promise<number | null> {
-  console.log(`\nIch starte den Bot kurz — sende ihm eine Nachricht in Telegram.`);
-  info(`→ Öffne: https://t.me/${botUsername}`);
+  console.log(`\n${t("onboarding.autoDetectSend")}`);
+  info(t("onboarding.autoDetectOpen", { username: botUsername }));
 
   const bot = new Bot(botToken);
 
@@ -81,16 +82,16 @@ async function autoDetectOwnerId(botToken: string, botUsername: string): Promise
       resolve(null);
     }, 120_000);
 
-    const spin = spinner(`Warte auf Nachricht an @${botUsername}...`);
+    const spin = spinner(t("onboarding.autoDetectWaiting", { username: botUsername }));
 
     bot.on("message", async (ctx) => {
       clearTimeout(timeout);
       const userId = ctx.from.id;
       const userName = ctx.from.first_name;
-      spin.succeed(`Nachricht empfangen von: ${userName}`);
+      spin.succeed(t("onboarding.autoDetectReceived", { name: userName }));
 
       try {
-        await ctx.reply(`Deine ID (${userId}) wurde erkannt! 🎉`);
+        await ctx.reply(t("onboarding.autoDetectReply", { id: String(userId) }));
       } catch {
         // ignore send error
       }
@@ -101,29 +102,22 @@ async function autoDetectOwnerId(botToken: string, botUsername: string): Promise
 
     bot.start().catch(() => {
       clearTimeout(timeout);
-      spin.fail("Bot konnte nicht gestartet werden");
+      spin.fail(t("onboarding.autoDetectBotFail"));
       resolve(null);
     });
   });
 }
 
 export async function setupTelegram(): Promise<TelegramConfig | null> {
-  stepHeader(2, "Telegram einrichten");
+  stepHeader(2, t("onboarding.telegramTitle"));
 
-  const hasBot = await askChoice("Hast du bereits einen Telegram-Bot?", [
-    { name: "Ja, ich habe einen Token", value: "yes" },
-    { name: "Nein, ich brauche Anleitung", value: "no" },
+  const hasBot = await askChoice(t("onboarding.telegramHasBot"), [
+    { name: t("onboarding.telegramHasBotYes"), value: "yes" },
+    { name: t("onboarding.telegramHasBotNo"), value: "no" },
   ]);
 
   if (hasBot === "no") {
-    console.log(`
-  So erstellst du einen Telegram-Bot:
-  1. Öffne Telegram und suche nach @BotFather
-  2. Sende /newbot
-  3. Wähle einen Namen (z.B. "Geofrey AI")
-  4. Wähle einen Username (z.B. "mein_geofrey_bot")
-  5. BotFather gibt dir einen Token — kopiere ihn
-`);
+    console.log(t("onboarding.telegramCreateGuide"));
   }
 
   // Get token with retry
@@ -133,46 +127,46 @@ export async function setupTelegram(): Promise<TelegramConfig | null> {
   while (!botToken) {
     const token = await getToken();
     if (!token) {
-      const retry = await askYesNo("Erneut versuchen?");
+      const retry = await askYesNo(t("onboarding.retryPrompt"));
       if (!retry) return null;
       continue;
     }
 
     if (!isValidTelegramToken(token)) {
-      fail("Ungültiges Token-Format (erwartet: 12345678:ABCD...)");
+      fail(t("onboarding.tokenInvalid"));
       continue;
     }
 
-    const spin = spinner("Token wird validiert...");
+    const spin = spinner(t("onboarding.tokenValidating"));
     const botInfo = await validateTelegramToken(token);
     if (botInfo) {
-      spin.succeed(`Bot gefunden: @${botInfo.username} (${botInfo.name})`);
+      spin.succeed(t("onboarding.tokenBotFound", { username: botInfo.username, name: botInfo.name }));
       botToken = token;
       botUsername = botInfo.username;
     } else {
-      spin.fail("Token ungültig — Telegram hat den Token abgelehnt");
+      spin.fail(t("onboarding.tokenRejected"));
     }
   }
 
   // Auto-detect owner ID
   let ownerId: number | null = null;
 
-  const detectAuto = await askYesNo("Telegram-User-ID automatisch erkennen?");
+  const detectAuto = await askYesNo(t("onboarding.autoDetectId"));
   if (detectAuto) {
     ownerId = await autoDetectOwnerId(botToken, botUsername);
   }
 
   if (ownerId) {
-    const confirm = await askYesNo(`Deine Telegram-ID: ${ownerId} — korrekt?`);
+    const confirm = await askYesNo(t("onboarding.idConfirm", { id: String(ownerId) }));
     if (!confirm) ownerId = null;
   }
 
   if (!ownerId) {
-    info("Alternativ: Sende /start an @userinfobot um deine ID zu erfahren");
-    const idStr = await askText("Telegram-User-ID:");
+    info(t("onboarding.idManualHint"));
+    const idStr = await askText(t("onboarding.idManualPrompt"));
     ownerId = parseInt(idStr, 10);
     if (isNaN(ownerId) || ownerId <= 0) {
-      fail("Ungültige User-ID");
+      fail(t("onboarding.idInvalid"));
       return null;
     }
   }

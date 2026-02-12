@@ -4,6 +4,7 @@ import { askChoice, askSecret, askYesNo } from "../utils/prompt.js";
 import { isValidAnthropicKey, validateAnthropicKey } from "../utils/validate.js";
 import { readTokenFromClipboard } from "../utils/clipboard.js";
 import { captureScreenshot, extractTokenFromImage, cleanupScreenshot } from "../utils/ocr.js";
+import { t } from "../../i18n/index.js";
 
 export interface ClaudeAuthResult {
   enabled: boolean;
@@ -14,42 +15,42 @@ export interface ClaudeAuthResult {
 const ANTHROPIC_KEY_PATTERN = /sk-ant-[A-Za-z0-9_-]{20,}/;
 
 async function getApiKey(): Promise<string | null> {
-  const method = await askChoice("Wie möchtest du den API Key eingeben?", [
-    { name: "Direkt eintippen/einfügen", value: "direct" },
-    { name: "Aus der Zwischenablage lesen", value: "clipboard" },
-    { name: "Aus einem Screenshot extrahieren (OCR)", value: "ocr" },
+  const method = await askChoice(t("onboarding.apiKeyInputMethod"), [
+    { name: t("onboarding.apiKeyDirect"), value: "direct" },
+    { name: t("onboarding.apiKeyClipboard"), value: "clipboard" },
+    { name: t("onboarding.apiKeyOcr"), value: "ocr" },
   ]);
 
   if (method === "direct") {
-    const key = await askSecret("API Key:");
+    const key = await askSecret(t("onboarding.apiKeyPrompt"));
     return key.trim();
   }
 
   if (method === "clipboard") {
-    const spin = spinner("Zwischenablage wird gelesen...");
+    const spin = spinner(t("onboarding.clipboardReading"));
     const key = await readTokenFromClipboard(ANTHROPIC_KEY_PATTERN);
     if (key) {
-      spin.succeed("API Key in Zwischenablage gefunden");
-      const use = await askYesNo(`Key verwenden? (${key.slice(0, 12)}...)`);
+      spin.succeed(t("onboarding.apiKeyClipboardFound"));
+      const use = await askYesNo(t("onboarding.apiKeyUseConfirm", { preview: key.slice(0, 12) }));
       return use ? key : null;
     }
-    spin.fail("Kein API Key in der Zwischenablage gefunden");
+    spin.fail(t("onboarding.apiKeyClipboardNotFound"));
     return null;
   }
 
   if (method === "ocr") {
-    info("Erstelle einen Screenshot des API Keys...");
+    info(t("onboarding.apiKeyOcrHint"));
     const path = await captureScreenshot();
-    if (!path) { fail("Screenshot konnte nicht erstellt werden"); return null; }
-    const spin = spinner("API Key wird aus Screenshot extrahiert...");
+    if (!path) { fail(t("onboarding.screenshotFailed")); return null; }
+    const spin = spinner(t("onboarding.apiKeyOcrExtracting"));
     const key = await extractTokenFromImage(path, "anthropic");
     cleanupScreenshot(path);
     if (key) {
-      spin.succeed("API Key extrahiert");
-      const use = await askYesNo(`Key verwenden? (${key.slice(0, 12)}...)`);
+      spin.succeed(t("onboarding.apiKeyOcrExtracted"));
+      const use = await askYesNo(t("onboarding.apiKeyUseConfirm", { preview: key.slice(0, 12) }));
       return use ? key : null;
     }
-    spin.fail("Kein API Key im Screenshot gefunden");
+    spin.fail(t("onboarding.apiKeyOcrNotFound"));
     return null;
   }
 
@@ -57,12 +58,12 @@ async function getApiKey(): Promise<string | null> {
 }
 
 export async function setupClaudeAuth(cliAvailable: boolean): Promise<ClaudeAuthResult> {
-  stepHeader(3, "Claude Code");
+  stepHeader(3, t("onboarding.claudeTitle"));
 
-  const authMethod = await askChoice("Claude Code Authentifizierung:", [
-    { name: "API Key (ANTHROPIC_API_KEY)", value: "api_key" as const },
-    { name: "Subscription (claude login)", value: "subscription" as const },
-    { name: "Überspringen", value: "none" as const },
+  const authMethod = await askChoice(t("onboarding.claudeAuthPrompt"), [
+    { name: t("onboarding.claudeAuthApiKey"), value: "api_key" as const },
+    { name: t("onboarding.claudeAuthSubscription"), value: "subscription" as const },
+    { name: t("onboarding.claudeAuthSkip"), value: "none" as const },
   ]);
 
   if (authMethod === "none") {
@@ -75,23 +76,23 @@ export async function setupClaudeAuth(cliAvailable: boolean): Promise<ClaudeAuth
     while (!apiKey) {
       const key = await getApiKey();
       if (!key) {
-        const retry = await askYesNo("Erneut versuchen?");
+        const retry = await askYesNo(t("onboarding.retryPrompt"));
         if (!retry) return { enabled: false, authMethod: "none" };
         continue;
       }
 
       if (!isValidAnthropicKey(key)) {
-        fail("Ungültiges Key-Format (erwartet: sk-ant-...)");
+        fail(t("onboarding.apiKeyInvalid"));
         continue;
       }
 
-      const spin = spinner("API Key wird validiert...");
+      const spin = spinner(t("onboarding.apiKeyValidating"));
       const valid = await validateAnthropicKey(key);
       if (valid) {
-        spin.succeed("API Key gültig");
+        spin.succeed(t("onboarding.apiKeyValid"));
         apiKey = key;
       } else {
-        spin.fail("API Key ungültig — von Anthropic abgelehnt");
+        spin.fail(t("onboarding.apiKeyRejected"));
       }
     }
 
@@ -100,30 +101,29 @@ export async function setupClaudeAuth(cliAvailable: boolean): Promise<ClaudeAuth
 
   // Subscription
   if (!cliAvailable) {
-    fail("Claude Code CLI nicht installiert — Subscription-Login nicht möglich");
+    fail(t("onboarding.claudeCliMissing"));
     info("→ npm install -g @anthropic-ai/claude-code");
     return { enabled: false, authMethod: "none" };
   }
 
-  console.log("\n  Führe 'claude login' in einem anderen Terminal aus.");
-  console.log("  Drücke Enter wenn du eingeloggt bist.\n");
+  console.log(`\n  ${t("onboarding.subscriptionLogin")}\n`);
 
-  await askYesNo("Login abgeschlossen?");
+  await askYesNo(t("onboarding.loginDone"));
 
   // Verify login
-  const spin = spinner("Login wird geprüft...");
+  const spin = spinner(t("onboarding.loginChecking"));
   try {
     const result = await execa("claude", [
       "--print", "--output-format", "json", "--max-turns", "1", "ping",
     ], { timeout: 30_000, reject: false });
 
     if (result.exitCode === 0) {
-      spin.succeed("Claude Code Subscription aktiv");
+      spin.succeed(t("onboarding.subscriptionActive"));
       return { enabled: true, authMethod: "subscription" };
     }
-    spin.fail("Login nicht erkannt — prüfe mit 'claude --version'");
+    spin.fail(t("onboarding.loginNotRecognized"));
   } catch {
-    spin.fail("Prüfung fehlgeschlagen");
+    spin.fail(t("onboarding.loginCheckFailed"));
   }
 
   return { enabled: false, authMethod: "none" };

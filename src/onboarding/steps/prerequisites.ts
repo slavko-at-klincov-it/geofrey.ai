@@ -3,6 +3,7 @@ import { platform } from "node:os";
 import { stepHeader, success, warn, fail, info, spinner } from "../utils/ui.js";
 import { askYesNo } from "../utils/prompt.js";
 import { validateOllamaConnection } from "../utils/validate.js";
+import { t } from "../../i18n/index.js";
 
 export interface PrerequisiteResult {
   nodeOk: boolean;
@@ -13,7 +14,7 @@ export interface PrerequisiteResult {
 }
 
 export async function runPrerequisites(model = "qwen3:8b", ollamaUrl = "http://localhost:11434"): Promise<PrerequisiteResult> {
-  stepHeader(0, "Voraussetzungen");
+  stepHeader(0, t("onboarding.prereqTitle"));
 
   const result: PrerequisiteResult = {
     nodeOk: false,
@@ -29,7 +30,7 @@ export async function runPrerequisites(model = "qwen3:8b", ollamaUrl = "http://l
     success(`Node.js ${process.version}`);
     result.nodeOk = true;
   } else {
-    fail(`Node.js ${process.version} — Version 22+ erforderlich`);
+    fail(t("onboarding.nodeVersionFail", { version: process.version }));
     info("→ nvm install 22");
     return result;
   }
@@ -40,21 +41,20 @@ export async function runPrerequisites(model = "qwen3:8b", ollamaUrl = "http://l
     success(`pnpm ${stdout.trim()}`);
     result.pnpmOk = true;
   } catch {
-    warn("pnpm nicht gefunden");
+    warn(t("onboarding.pnpmNotFound"));
     info("→ npm install -g pnpm");
   }
 
   // 3. Ollama
   let ollamaStatus = await validateOllamaConnection(ollamaUrl);
   if (ollamaStatus.connected) {
-    success(`Ollama läuft (${ollamaUrl})`);
+    success(t("onboarding.ollamaRunning", { url: ollamaUrl }));
     result.ollamaOk = true;
   } else {
-    warn("Ollama nicht erreichbar");
-    const startOllama = await askYesNo("→ Ollama starten? (ollama serve)");
+    warn(t("onboarding.ollamaNotReachable"));
+    const startOllama = await askYesNo(`→ ${t("onboarding.ollamaStart")}`);
     if (startOllama) {
       try {
-        // Start ollama serve detached (Windows: use cmd /c start to detach)
         if (platform() === "win32") {
           const child = execa("cmd", ["/c", "start", "/b", "ollama", "serve"], { stdio: "ignore" });
           child.unref();
@@ -62,20 +62,19 @@ export async function runPrerequisites(model = "qwen3:8b", ollamaUrl = "http://l
           const child = execa("ollama", ["serve"], { detached: true, stdio: "ignore" });
           child.unref();
         }
-        // Wait a bit for it to start
-        const spin = spinner("Ollama startet...");
+        const spin = spinner(t("onboarding.ollamaStarting"));
         await new Promise((r) => setTimeout(r, 3000));
         ollamaStatus = await validateOllamaConnection(ollamaUrl);
         if (ollamaStatus.connected) {
-          spin.succeed("Ollama läuft");
+          spin.succeed(t("onboarding.ollamaStarted"));
           result.ollamaOk = true;
         } else {
-          spin.fail("Ollama konnte nicht gestartet werden");
-          info("→ Starte manuell: ollama serve");
+          spin.fail(t("onboarding.ollamaStartFailed"));
+          info(`→ ${t("onboarding.ollamaStartManual")}`);
         }
       } catch {
-        fail("Fehler beim Starten von Ollama");
-        info("→ Installieren: https://ollama.com");
+        fail(t("onboarding.ollamaStartError"));
+        info(`→ ${t("onboarding.ollamaInstallHint")}`);
       }
     }
   }
@@ -83,19 +82,19 @@ export async function runPrerequisites(model = "qwen3:8b", ollamaUrl = "http://l
   // 4. Model check
   if (result.ollamaOk) {
     if (ollamaStatus.models.some((m) => m.startsWith(model.split(":")[0]))) {
-      success(`${model} geladen`);
+      success(t("onboarding.modelLoaded", { model }));
       result.modelLoaded = true;
     } else {
-      warn(`Modell '${model}' nicht geladen`);
-      const pullModel = await askYesNo(`→ Modell herunterladen? (~5 GB)`);
+      warn(t("onboarding.modelNotLoaded", { model }));
+      const pullModel = await askYesNo(`→ ${t("onboarding.modelDownload")}`);
       if (pullModel) {
-        const spin = spinner(`${model} wird heruntergeladen...`);
+        const spin = spinner(t("onboarding.modelDownloading", { model }));
         try {
           await execa("ollama", ["pull", model], { timeout: 600_000 });
-          spin.succeed(`${model} geladen`);
+          spin.succeed(t("onboarding.modelLoaded", { model }));
           result.modelLoaded = true;
         } catch {
-          spin.fail(`Fehler beim Herunterladen von ${model}`);
+          spin.fail(t("onboarding.modelDownloadFailed", { model }));
         }
       }
     }
@@ -104,19 +103,19 @@ export async function runPrerequisites(model = "qwen3:8b", ollamaUrl = "http://l
   // 5. Claude Code CLI
   try {
     const { stdout } = await execa("claude", ["--version"]);
-    success(`Claude Code CLI ${stdout.trim()}`);
+    success(t("onboarding.claudeCliFound", { version: stdout.trim() }));
     result.claudeCliOk = true;
   } catch {
-    warn("Claude Code CLI nicht gefunden");
-    const install = await askYesNo("→ Claude Code installieren?");
+    warn(t("onboarding.claudeCliNotFound"));
+    const install = await askYesNo(`→ ${t("onboarding.claudeCliInstall")}`);
     if (install) {
-      const spin = spinner("Claude Code wird installiert...");
+      const spin = spinner(t("onboarding.claudeCliInstalling"));
       try {
         await execa("npm", ["install", "-g", "@anthropic-ai/claude-code"], { timeout: 120_000 });
-        spin.succeed("Claude Code installiert");
+        spin.succeed(t("onboarding.claudeCliInstalled"));
         result.claudeCliOk = true;
       } catch {
-        spin.fail("Installation fehlgeschlagen");
+        spin.fail(t("onboarding.claudeCliInstallFailed"));
         info("→ npm install -g @anthropic-ai/claude-code");
       }
     }

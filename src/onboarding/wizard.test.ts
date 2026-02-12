@@ -7,6 +7,7 @@ describe("WizardState", () => {
     const state: WizardState = {
       platform: "telegram",
       telegram: { botToken: "123:abc", ownerId: 42, botUsername: "bot" },
+      locale: "de",
       ollamaUrl: "http://localhost:11434",
       model: "qwen3:8b",
     };
@@ -18,6 +19,7 @@ describe("WizardState", () => {
     const state: WizardState = {
       platform: "whatsapp",
       whatsapp: { phoneNumberId: "1", accessToken: "t", verifyToken: "v", ownerPhone: "49123", webhookPort: 3000 },
+      locale: "de",
       ollamaUrl: "http://localhost:11434",
       model: "qwen3:8b",
     };
@@ -29,6 +31,7 @@ describe("WizardState", () => {
     const state: WizardState = {
       platform: "signal",
       signal: { signalCliSocket: "/tmp/socket", ownerPhone: "+49123", botPhone: "+49456" },
+      locale: "de",
       ollamaUrl: "http://localhost:11434",
       model: "qwen3:8b",
     };
@@ -40,6 +43,7 @@ describe("WizardState", () => {
     const state: WizardState = {
       platform: "telegram",
       telegram: { botToken: "123:abc", ownerId: 42, botUsername: "bot" },
+      locale: "de",
       ollamaUrl: "http://localhost:11434",
       model: "qwen3:8b",
     };

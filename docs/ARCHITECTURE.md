@@ -5,14 +5,14 @@
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                        USER DEVICES                             │
-│  Telegram (primary) · future: WhatsApp, Discord                 │
+│  Telegram · WhatsApp · Signal                                   │
 └──────────────────────┬──────────────────────────────────────────┘
                        │ messages + approval callbacks
                        ▼
 ┌──────────────────────────────────────────────────────────────────┐
 │                    MESSAGING LAYER                                │
-│  grammY (Telegram) · Long Polling · Owner-only middleware        │
-│  InlineKeyboard for approvals · Streaming via message edits      │
+│  grammY (Telegram) · Cloud API (WhatsApp) · signal-cli (Signal)  │
+│  InlineKeyboard/buttons for approvals · Streaming via edits      │
 └──────────────────────┬───────────────────────────────────────────┘
                        │
                        ▼
@@ -82,6 +82,7 @@
 | **State/Persistence** | SQLite (better-sqlite3) + Drizzle ORM | Type-safe queries, schema migrations, zero runtime overhead |
 | **Audit Log** | Append-only JSONL with SHA-256 hash chain | Tamper-evident, queryable, human-readable |
 | **Validation** | Zod | Standard Schema compatible, integrates with AI SDK + Drizzle |
+| **i18n** | Typed key-value maps (`src/i18n/`) | No external library; `t()` function with `satisfies` compile-time completeness; `de` + `en` locales |
 | **Package Manager** | pnpm | Fast, disk-efficient, strict dependency isolation |
 
 ## Risk Classification (4-Tier, Hybrid)
@@ -266,10 +267,20 @@ openClawNurBesser/
 │   │   ├── approval-gate.ts     # Promise-based blocking gate with nonce IDs
 │   │   ├── action-registry.ts   # Action definitions + escalation rules
 │   │   └── execution-guard.ts   # Final revocation check before exec
+│   ├── i18n/
+│   │   ├── index.ts             # t(), setLocale(), getLocale()
+│   │   ├── keys.ts              # TranslationKey union type
+│   │   └── locales/
+│   │       ├── de.ts            # German translations
+│   │       └── en.ts            # English translations
 │   ├── messaging/
-│   │   ├── telegram.ts          # grammY bot setup + handlers
-│   │   ├── approval-ui.ts       # InlineKeyboard message formatting
-│   │   └── streamer.ts          # Stream LLM tokens via message edits
+│   │   ├── platform.ts          # MessagingPlatform interface
+│   │   ├── create-platform.ts   # Async factory: config → adapter
+│   │   ├── streamer.ts          # Platform-agnostic token streaming
+│   │   └── adapters/
+│   │       ├── telegram.ts      # grammY bot + approval UI
+│   │       ├── whatsapp.ts      # WhatsApp Business API
+│   │       └── signal.ts        # signal-cli JSON-RPC
 │   ├── tools/
 │   │   ├── tool-registry.ts     # Tool schema + handler registry (native + MCP)
 │   │   ├── mcp-client.ts        # MCP server discovery + tool wrapping

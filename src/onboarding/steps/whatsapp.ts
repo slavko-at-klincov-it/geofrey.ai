@@ -1,5 +1,6 @@
 import { stepHeader, success, fail, info, spinner } from "../utils/ui.js";
 import { askText, askSecret, askYesNo } from "../utils/prompt.js";
+import { t } from "../../i18n/index.js";
 
 export interface WhatsAppConfig {
   phoneNumberId: string;
@@ -10,50 +11,44 @@ export interface WhatsAppConfig {
 }
 
 export async function setupWhatsApp(): Promise<WhatsAppConfig | null> {
-  stepHeader(2, "WhatsApp Business einrichten");
+  stepHeader(2, t("onboarding.whatsappTitle"));
 
-  console.log(`
-  Voraussetzungen:
-  1. Meta Business Account + App erstellt
-  2. WhatsApp Business API aktiviert
-  3. Permanenter Access Token generiert
-  → Docs: https://developers.facebook.com/docs/whatsapp/cloud-api
-`);
+  console.log(t("onboarding.whatsappPrereqs"));
 
-  const phoneNumberId = await askText("Phone Number ID:");
-  if (!phoneNumberId.trim()) { fail("Phone Number ID fehlt"); return null; }
+  const phoneNumberId = await askText(t("onboarding.phoneNumberId"));
+  if (!phoneNumberId.trim()) { fail(t("onboarding.phoneNumberIdMissing")); return null; }
 
-  const accessToken = await askSecret("Access Token:");
-  if (!accessToken.trim()) { fail("Access Token fehlt"); return null; }
+  const accessToken = await askSecret(t("onboarding.accessTokenPrompt"));
+  if (!accessToken.trim()) { fail(t("onboarding.accessTokenMissing")); return null; }
 
   // Validate via Graph API
-  const spin = spinner("Verbindung wird geprüft...");
+  const spin = spinner(t("onboarding.connectionCheck"));
   try {
     const res = await fetch(`https://graph.facebook.com/v21.0/${phoneNumberId}`, {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
     if (res.ok) {
-      spin.succeed("WhatsApp Business API verbunden");
+      spin.succeed(t("onboarding.whatsappConnected"));
     } else {
-      spin.fail("API-Verbindung fehlgeschlagen — prüfe Phone Number ID und Access Token");
-      const cont = await askYesNo("Trotzdem fortfahren?", false);
+      spin.fail(t("onboarding.whatsappConnectionFailed"));
+      const cont = await askYesNo(t("onboarding.continueAnyway"), false);
       if (!cont) return null;
     }
   } catch {
-    spin.fail("Netzwerkfehler bei der Validierung");
-    const cont = await askYesNo("Trotzdem fortfahren?", false);
+    spin.fail(t("onboarding.networkError"));
+    const cont = await askYesNo(t("onboarding.continueAnyway"), false);
     if (!cont) return null;
   }
 
-  const verifyToken = await askText("Webhook Verify Token (frei wählbar):", `geofrey-${Date.now()}`);
-  const ownerPhone = await askText("Deine Telefonnummer (mit Ländercode, z.B. 491234567890):");
-  if (!ownerPhone.trim()) { fail("Telefonnummer fehlt"); return null; }
+  const verifyToken = await askText(t("onboarding.verifyTokenPrompt"), `geofrey-${Date.now()}`);
+  const ownerPhone = await askText(t("onboarding.ownerPhonePrompt"));
+  if (!ownerPhone.trim()) { fail(t("onboarding.phoneMissing")); return null; }
 
-  const portStr = await askText("Webhook Port:", "3000");
+  const portStr = await askText(t("onboarding.webhookPortPrompt"), "3000");
   const webhookPort = parseInt(portStr, 10);
 
-  info("WICHTIG: Aktiviere 'Erweiterten Chat-Datenschutz' in WhatsApp");
-  info("→ Einstellungen > Datenschutz > Erweiterter Chat-Datenschutz");
+  info(t("onboarding.whatsappPrivacyHint"));
+  info(t("onboarding.whatsappPrivacyPath"));
 
   return { phoneNumberId, accessToken, verifyToken, ownerPhone, webhookPort };
 }

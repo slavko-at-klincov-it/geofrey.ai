@@ -1,6 +1,7 @@
 import { generateText } from "ai";
 import { createOllama } from "ai-sdk-ollama";
 import type { Config } from "../config/schema.js";
+import { t } from "../i18n/index.js";
 
 export enum RiskLevel {
   L0 = "L0",
@@ -17,10 +18,12 @@ export interface Classification {
 
 const VALID_LEVELS = new Set([RiskLevel.L0, RiskLevel.L1, RiskLevel.L2, RiskLevel.L3]);
 
-const RISK_CLASSIFIER_PROMPT = `You are a security risk classifier for an AI agent system. Your ONLY job is to classify tool/command requests into risk levels.
+function buildRiskClassifierPrompt(): string {
+  const language = t("approval.classifierLanguage");
+  return `You are a security risk classifier for an AI agent system. Your ONLY job is to classify tool/command requests into risk levels.
 
 ALWAYS respond with exactly this XML structure, nothing else:
-<classification><level>L0|L1|L2|L3</level><reason>one-line explanation in German</reason></classification>
+<classification><level>L0|L1|L2|L3</level><reason>one-line explanation in ${language}</reason></classification>
 
 Risk Levels:
 - L0 AUTO_APPROVE: Read-only operations (read_file, list_dir, search, git status/log/diff, pwd, ls, cat, head, tail, wc)
@@ -35,6 +38,7 @@ Escalation Rules:
 - Unknown/ambiguous → L2
 
 If you cannot confidently classify, default to L2.`;
+}
 
 // Deterministic patterns — no LLM call needed
 const L0_TOOLS = new Set([
@@ -145,47 +149,47 @@ export function decomposeCommand(command: string): string[] {
 
 export function classifySingleCommand(command: string): Classification | null {
   if (L3_COMMANDS.test(command)) {
-    return { level: RiskLevel.L3, reason: "Gesperrter Befehl", deterministic: true };
+    return { level: RiskLevel.L3, reason: t("approval.blockedCommand"), deterministic: true };
   }
 
   if (L3_PATH_COMMANDS.test(command)) {
-    return { level: RiskLevel.L3, reason: "Gesperrter Befehl (Pfad-Variante)", deterministic: true };
+    return { level: RiskLevel.L3, reason: t("approval.blockedCommandPath"), deterministic: true };
   }
 
   if (L3_SCRIPT_NETWORK.test(command)) {
-    return { level: RiskLevel.L3, reason: "Netzwerkzugriff via Script-Sprache", deterministic: true };
+    return { level: RiskLevel.L3, reason: t("approval.scriptNetwork"), deterministic: true };
   }
 
   if (L3_BASE64_EXEC.test(command)) {
-    return { level: RiskLevel.L3, reason: "Base64-Decode erkannt — mögliche Payload", deterministic: true };
+    return { level: RiskLevel.L3, reason: t("approval.base64Decode"), deterministic: true };
   }
 
   if (L3_CHMOD_EXEC.test(command)) {
-    return { level: RiskLevel.L3, reason: "Ausführbar machen — Download-and-Run Muster", deterministic: true };
+    return { level: RiskLevel.L3, reason: t("approval.chmodExec"), deterministic: true };
   }
 
   if (L3_PROC_SUBST.test(command)) {
-    return { level: RiskLevel.L3, reason: "Prozess-Substitution erkannt", deterministic: true };
+    return { level: RiskLevel.L3, reason: t("approval.procSubstitution"), deterministic: true };
   }
 
   if (SINGLE_CMD_INJECTION.test(command)) {
-    return { level: RiskLevel.L3, reason: "Injection-Muster erkannt", deterministic: true };
+    return { level: RiskLevel.L3, reason: t("approval.injectionPattern"), deterministic: true };
   }
 
   if (FORCE_PUSH.test(command)) {
-    return { level: RiskLevel.L3, reason: "Force-Push überschreibt Remote irreversibel", deterministic: true };
+    return { level: RiskLevel.L3, reason: t("approval.forcePush"), deterministic: true };
   }
 
   if (L3_BARE_SHELL.test(command)) {
-    return { level: RiskLevel.L3, reason: "Shell-Interpreter als Pipe-Ziel", deterministic: true };
+    return { level: RiskLevel.L3, reason: t("approval.bareShell"), deterministic: true };
   }
 
   if (SENSITIVE_PATHS.test(command)) {
-    return { level: RiskLevel.L3, reason: "Zugriff auf sensible Datei", deterministic: true };
+    return { level: RiskLevel.L3, reason: t("approval.sensitivePath"), deterministic: true };
   }
 
   if (CONFIG_FILES.test(command)) {
-    return { level: RiskLevel.L2, reason: "Config-Datei — Genehmigung erforderlich", deterministic: true };
+    return { level: RiskLevel.L2, reason: t("approval.configFile"), deterministic: true };
   }
 
   return null;
@@ -196,7 +200,7 @@ export function classifyDeterministic(
   args: Record<string, unknown>,
 ): Classification | null {
   if (L0_TOOLS.has(toolName)) {
-    return { level: RiskLevel.L0, reason: "Nur lesen, keine Änderung", deterministic: true };
+    return { level: RiskLevel.L0, reason: t("approval.readOnly"), deterministic: true };
   }
 
   const command = typeof args.command === "string" ? args.command : "";
@@ -222,11 +226,11 @@ export function classifyDeterministic(
 
   // Path-based checks (not command-based)
   if (SENSITIVE_PATHS.test(path)) {
-    return { level: RiskLevel.L3, reason: "Zugriff auf sensible Datei", deterministic: true };
+    return { level: RiskLevel.L3, reason: t("approval.sensitivePath"), deterministic: true };
   }
 
   if (CONFIG_FILES.test(path)) {
-    return { level: RiskLevel.L2, reason: "Config-Datei — Genehmigung erforderlich", deterministic: true };
+    return { level: RiskLevel.L2, reason: t("approval.configFile"), deterministic: true };
   }
 
   return null;
@@ -241,7 +245,7 @@ export function tryParseXmlClassification(text: string): { level: RiskLevel; rea
   const level = levelMatch[1] as RiskLevel;
   if (!VALID_LEVELS.has(level)) return null;
   const reasonMatch = XML_REASON.exec(text);
-  const reason = reasonMatch ? reasonMatch[1].trim() : "Keine Begründung";
+  const reason = reasonMatch ? reasonMatch[1].trim() : t("approval.noReason");
   return { level, reason };
 }
 
@@ -252,7 +256,7 @@ export function tryParseClassification(text: string): { level: RiskLevel; reason
   try {
     const parsed = JSON.parse(text);
     if (VALID_LEVELS.has(parsed.level)) {
-      return { level: parsed.level, reason: parsed.reason ?? "Keine Begründung" };
+      return { level: parsed.level, reason: parsed.reason ?? t("approval.noReason") };
     }
   } catch { /* fall through to regex extraction */ }
 
@@ -262,7 +266,7 @@ export function tryParseClassification(text: string): { level: RiskLevel; reason
     try {
       const parsed = JSON.parse(match[0]);
       if (VALID_LEVELS.has(parsed.level)) {
-        return { level: parsed.level, reason: parsed.reason ?? "Keine Begründung" };
+        return { level: parsed.level, reason: parsed.reason ?? t("approval.noReason") };
       }
     } catch { /* give up */ }
   }
@@ -284,7 +288,7 @@ export async function classifyWithLlm(
     try {
       const result = await generateText({
         model: ollama(config.ollama.model),
-        system: RISK_CLASSIFIER_PROMPT,
+        system: buildRiskClassifierPrompt(),
         prompt: attempt === 0
           ? prompt
           : `${prompt}\n\nIMPORTANT: Respond with ONLY the XML classification tags, no other text.`,
@@ -302,7 +306,7 @@ export async function classifyWithLlm(
     }
   }
 
-  return { level: RiskLevel.L2, reason: "LLM-Klassifikation fehlgeschlagen — Fallback L2", deterministic: false };
+  return { level: RiskLevel.L2, reason: t("approval.llmFallback"), deterministic: false };
 }
 
 export async function classifyRisk(

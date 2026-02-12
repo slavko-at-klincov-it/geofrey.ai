@@ -2,12 +2,18 @@ import { existsSync, copyFileSync, writeFileSync } from "node:fs";
 import { stepHeader, success, info, box } from "../utils/ui.js";
 import { askYesNo } from "../utils/prompt.js";
 import type { WizardState } from "../wizard.js";
+import { t } from "../../i18n/index.js";
 
 export function generateEnv(state: WizardState): string {
   const lines: string[] = [
     "# geofrey.ai — generiert von pnpm setup",
     "",
   ];
+
+  // Locale
+  lines.push("# Locale");
+  lines.push(`LOCALE=${state.locale}`);
+  lines.push("");
 
   // Platform
   lines.push("# Platform");
@@ -71,31 +77,31 @@ export function generateEnv(state: WizardState): string {
 
 function buildSummaryLines(state: WizardState): string[] {
   const lines: string[] = [];
-  lines.push(`Plattform:     ${state.platform}`);
+  lines.push(`${t("onboarding.summaryPlatform").padEnd(15)}${state.platform}`);
 
   if (state.telegram) {
-    lines.push(`Bot:           @${state.telegram.botUsername}`);
-    lines.push(`Owner-ID:      ${state.telegram.ownerId}`);
+    lines.push(`${t("onboarding.summaryBot").padEnd(15)}@${state.telegram.botUsername}`);
+    lines.push(`${t("onboarding.summaryOwnerId").padEnd(15)}${state.telegram.ownerId}`);
   }
   if (state.whatsapp) {
-    lines.push(`Phone-ID:      ${state.whatsapp.phoneNumberId}`);
-    lines.push(`Owner:         ${state.whatsapp.ownerPhone}`);
+    lines.push(`${t("onboarding.summaryPhoneId").padEnd(15)}${state.whatsapp.phoneNumberId}`);
+    lines.push(`${t("onboarding.summaryOwner").padEnd(15)}${state.whatsapp.ownerPhone}`);
   }
   if (state.signal) {
-    lines.push(`Owner:         ${state.signal.ownerPhone}`);
-    lines.push(`Bot:           ${state.signal.botPhone}`);
+    lines.push(`${t("onboarding.summaryOwner").padEnd(15)}${state.signal.ownerPhone}`);
+    lines.push(`${t("onboarding.summaryBot").padEnd(15)}${state.signal.botPhone}`);
   }
 
-  lines.push(`Ollama:        ${state.ollamaUrl}`);
-  lines.push(`Modell:        ${state.model}`);
+  lines.push(`${t("onboarding.summaryOllama").padEnd(15)}${state.ollamaUrl}`);
+  lines.push(`${t("onboarding.summaryModel").padEnd(15)}${state.model}`);
 
   if (state.claude) {
     if (state.claude.authMethod === "api_key" && state.claude.apiKey) {
-      lines.push(`Claude Code:   API Key (${state.claude.apiKey.slice(0, 10)}...)`);
+      lines.push(t("onboarding.summaryClaudeApiKey", { preview: state.claude.apiKey.slice(0, 10) }));
     } else if (state.claude.authMethod === "subscription") {
-      lines.push(`Claude Code:   Subscription`);
+      lines.push(t("onboarding.summaryClaudeSubscription"));
     } else {
-      lines.push(`Claude Code:   Deaktiviert`);
+      lines.push(t("onboarding.summaryClaudeDisabled"));
     }
   }
 
@@ -103,23 +109,23 @@ function buildSummaryLines(state: WizardState): string[] {
 }
 
 export async function showSummary(state: WizardState, envPath = ".env"): Promise<boolean> {
-  stepHeader(4, "Konfiguration");
+  stepHeader(4, t("onboarding.summaryTitle"));
 
   box(buildSummaryLines(state));
 
-  const save = await askYesNo("\nKonfiguration in .env speichern?");
+  const save = await askYesNo(`\n${t("onboarding.savePrompt")}`);
   if (!save) return false;
 
   // Backup existing .env
   if (existsSync(envPath)) {
     const backup = `${envPath}.backup.${Date.now()}`;
     copyFileSync(envPath, backup);
-    info(`Backup erstellt: ${backup}`);
+    info(t("onboarding.backupCreated", { path: backup }));
   }
 
   const envContent = generateEnv(state);
   writeFileSync(envPath, envContent, "utf-8");
-  success(".env wurde erstellt");
+  success(t("onboarding.envSaved"));
 
   return true;
 }

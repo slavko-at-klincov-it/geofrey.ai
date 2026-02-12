@@ -8,6 +8,7 @@ import { tmpdir } from "node:os";
 
 function makeState(overrides: Partial<WizardState> = {}): WizardState {
   return {
+    locale: "de",
     platform: "telegram",
     telegram: { botToken: "12345678:ABCDefgh_ijklmnopqrstuvwxyz12345678", ownerId: 42, botUsername: "test_bot" },
     ollamaUrl: "http://localhost:11434",

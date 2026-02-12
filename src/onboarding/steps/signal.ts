@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import { platform } from "node:os";
 import { stepHeader, success, fail, info, spinner } from "../utils/ui.js";
 import { askText, askYesNo } from "../utils/prompt.js";
+import { t } from "../../i18n/index.js";
 
 export interface SignalConfig {
   signalCliSocket: string;
@@ -14,32 +15,33 @@ const DEFAULT_SOCKET = platform() === "win32"
   : "/var/run/signal-cli/socket";
 
 export async function setupSignal(): Promise<SignalConfig | null> {
-  stepHeader(2, "Signal einrichten");
+  stepHeader(2, t("onboarding.signalTitle"));
 
   const isWindows = platform() === "win32";
-  console.log(`
-  Voraussetzungen:
-  1. signal-cli installiert und registriert
-  2. signal-cli im JSON-RPC Modus gestartet${isWindows ? "\n     (Windows: signal-cli --output=json jsonRpc --socket \\\\.\\pipe\\signal-cli)" : ""}
-  → Docs: https://github.com/AsamK/signal-cli
-`);
+  let prereqText = t("onboarding.signalPrereqs");
+  if (isWindows) {
+    prereqText = prereqText.replace(
+      "→ Docs:",
+      `(Windows: signal-cli --output=json jsonRpc --socket \\\\.\\pipe\\signal-cli)\n  → Docs:`,
+    );
+  }
+  console.log(prereqText);
 
   // Socket path
   let signalCliSocket = DEFAULT_SOCKET;
   if (existsSync(DEFAULT_SOCKET)) {
-    success(`signal-cli Socket gefunden: ${DEFAULT_SOCKET}`);
+    success(t("onboarding.signalSocketFound", { path: DEFAULT_SOCKET }));
   } else {
-    info(`Standard-Socket nicht gefunden: ${DEFAULT_SOCKET}`);
-    signalCliSocket = await askText("Pfad zum signal-cli Socket:", DEFAULT_SOCKET);
+    info(t("onboarding.signalSocketNotFound", { path: DEFAULT_SOCKET }));
+    signalCliSocket = await askText(t("onboarding.signalSocketPrompt"), DEFAULT_SOCKET);
   }
 
   // Validate socket
-  const spin = spinner("Verbindung wird geprüft...");
+  const spin = spinner(t("onboarding.connectionCheck"));
   try {
     const net = await import("node:net");
     const connected = await new Promise<boolean>((resolve) => {
       const client = net.createConnection(signalCliSocket, () => {
-        // Send JSON-RPC version request
         client.write(JSON.stringify({ jsonrpc: "2.0", method: "version", id: 1 }) + "\n");
       });
       client.on("data", () => { client.destroy(); resolve(true); });
@@ -48,23 +50,23 @@ export async function setupSignal(): Promise<SignalConfig | null> {
     });
 
     if (connected) {
-      spin.succeed("signal-cli verbunden");
+      spin.succeed(t("onboarding.signalConnected"));
     } else {
-      spin.fail("Verbindung fehlgeschlagen");
-      const cont = await askYesNo("Trotzdem fortfahren?", false);
+      spin.fail(t("onboarding.signalConnectionFailed"));
+      const cont = await askYesNo(t("onboarding.continueAnyway"), false);
       if (!cont) return null;
     }
   } catch {
-    spin.fail("Verbindung fehlgeschlagen");
-    const cont = await askYesNo("Trotzdem fortfahren?", false);
+    spin.fail(t("onboarding.signalConnectionFailed"));
+    const cont = await askYesNo(t("onboarding.continueAnyway"), false);
     if (!cont) return null;
   }
 
-  const ownerPhone = await askText("Deine Telefonnummer (z.B. +491234567890):");
-  if (!ownerPhone.trim()) { fail("Telefonnummer fehlt"); return null; }
+  const ownerPhone = await askText(t("onboarding.signalOwnerPhone"));
+  if (!ownerPhone.trim()) { fail(t("onboarding.phoneMissing")); return null; }
 
-  const botPhone = await askText("Bot-Telefonnummer (registriert bei signal-cli):");
-  if (!botPhone.trim()) { fail("Bot-Nummer fehlt"); return null; }
+  const botPhone = await askText(t("onboarding.signalBotPhone"));
+  if (!botPhone.trim()) { fail(t("onboarding.signalBotPhoneMissing")); return null; }
 
   return { signalCliSocket, ownerPhone, botPhone };
 }

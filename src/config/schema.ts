@@ -6,6 +6,7 @@ const DEFAULT_SIGNAL_SOCKET = platform() === "win32"
   : "/var/run/signal-cli/socket";
 
 export const configSchema = z.object({
+  locale: z.enum(["de", "en"]).default("de"),
   platform: z.enum(["telegram", "whatsapp", "signal"]).default("telegram"),
   telegram: z.object({
     botToken: z.string().min(1),

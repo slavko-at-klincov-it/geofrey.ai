@@ -1,6 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { classifyDeterministic, tryParseClassification, tryParseXmlClassification, decomposeCommand, riskOrdinal, RiskLevel } from "./risk-classifier.js";
+import { t } from "../i18n/index.js";
 
 describe("classifyDeterministic", () => {
   it("classifies L0 tools", () => {
@@ -19,7 +20,7 @@ describe("classifyDeterministic", () => {
   it("detects injection patterns", () => {
     const r = classifyDeterministic("shell_exec", { command: "echo $(cat /etc/passwd)" });
     assert.equal(r?.level, RiskLevel.L3);
-    assert.ok(r?.reason.includes("Injection"));
+    assert.equal(r?.reason, t("approval.injectionPattern"));
   });
 
   it("detects force push", () => {
@@ -122,7 +123,7 @@ describe("tryParseClassification", () => {
 
   it("provides default reason when missing", () => {
     const r = tryParseClassification('{"level":"L2"}');
-    assert.equal(r?.reason, "Keine Begründung");
+    assert.equal(r?.reason, t("approval.noReason"));
   });
 });
 
@@ -155,7 +156,7 @@ describe("tryParseXmlClassification", () => {
   it("provides default reason when reason tag missing", () => {
     const r = tryParseXmlClassification('<classification><level>L3</level></classification>');
     assert.equal(r?.level, RiskLevel.L3);
-    assert.equal(r?.reason, "Keine Begründung");
+    assert.equal(r?.reason, t("approval.noReason"));
   });
 });
 

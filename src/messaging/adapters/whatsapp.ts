@@ -2,6 +2,7 @@ import { createServer, type Server, type IncomingMessage, type ServerResponse } 
 import { createHmac } from "node:crypto";
 import type { Classification } from "../../approval/risk-classifier.js";
 import type { MessagingPlatform, PlatformCallbacks, ChatId, MessageRef } from "../platform.js";
+import { t } from "../../i18n/index.js";
 
 interface WhatsAppConfig {
   phoneNumberId: string;
@@ -155,11 +156,11 @@ export function createWhatsAppPlatform(
     ): Promise<void> {
       const argsStr = JSON.stringify(args).slice(0, 200);
       const bodyText = [
-        `*Genehmigung erforderlich* [#${nonce}]`,
+        `*${t("messaging.approvalRequired")}* [#${nonce}]`,
         ``,
-        `*Aktion:* ${toolName}`,
-        `*Risiko:* ${classification.level} — ${classification.reason}`,
-        `*Details:* ${argsStr}`,
+        `*${t("messaging.actionLabel")}* ${toolName}`,
+        `*${t("messaging.riskLabel")}* ${classification.level} — ${classification.reason}`,
+        `*${t("messaging.detailsLabel")}* ${argsStr}`,
       ].join("\n");
 
       await callApi("messages", {
@@ -171,8 +172,8 @@ export function createWhatsAppPlatform(
           body: { text: bodyText },
           action: {
             buttons: [
-              { type: "reply", reply: { id: `approve:${nonce}`, title: "Genehmigen" } },
-              { type: "reply", reply: { id: `deny:${nonce}`, title: "Ablehnen" } },
+              { type: "reply", reply: { id: `approve:${nonce}`, title: t("messaging.approve") } },
+              { type: "reply", reply: { id: `deny:${nonce}`, title: t("messaging.deny") } },
             ],
           },
         },

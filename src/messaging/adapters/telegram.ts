@@ -1,6 +1,7 @@
 import { Bot, InlineKeyboard } from "grammy";
 import type { Classification } from "../../approval/risk-classifier.js";
 import type { MessagingPlatform, PlatformCallbacks, ChatId, MessageRef } from "../platform.js";
+import { t } from "../../i18n/index.js";
 
 interface TelegramConfig {
   botToken: string;
@@ -18,16 +19,16 @@ function formatApprovalMessage(
   classification: Classification,
 ): { text: string; keyboard: InlineKeyboard } {
   const text = [
-    `*Genehmigung erforderlich* \\[#${nonce}\\]`,
+    `*${escapeMarkdown(t("messaging.approvalRequired"))}* \\[#${nonce}\\]`,
     ``,
-    `*Aktion:* \`${toolName}\``,
-    `*Risiko:* ${classification.level} — ${escapeMarkdown(classification.reason)}`,
-    `*Details:* \`${escapeMarkdown(JSON.stringify(args).slice(0, 200))}\``,
+    `*${escapeMarkdown(t("messaging.actionLabel"))}* \`${toolName}\``,
+    `*${escapeMarkdown(t("messaging.riskLabel"))}* ${classification.level} — ${escapeMarkdown(classification.reason)}`,
+    `*${escapeMarkdown(t("messaging.detailsLabel"))}* \`${escapeMarkdown(JSON.stringify(args).slice(0, 200))}\``,
   ].join("\n");
 
   const keyboard = new InlineKeyboard()
-    .text("Genehmigen", `approve:${nonce}`)
-    .text("Ablehnen", `deny:${nonce}`);
+    .text(t("messaging.approve"), `approve:${nonce}`)
+    .text(t("messaging.deny"), `deny:${nonce}`);
 
   return { text, keyboard };
 }
@@ -48,14 +49,14 @@ export function createTelegramPlatform(
   bot.callbackQuery(/^approve:(.+)$/, async (ctx) => {
     const nonce = ctx.match![1];
     await callbacks.onApprovalResponse(nonce, true);
-    await ctx.answerCallbackQuery({ text: "Genehmigt" });
+    await ctx.answerCallbackQuery({ text: t("messaging.approved") });
     await ctx.editMessageReplyMarkup({ reply_markup: undefined });
   });
 
   bot.callbackQuery(/^deny:(.+)$/, async (ctx) => {
     const nonce = ctx.match![1];
     await callbacks.onApprovalResponse(nonce, false);
-    await ctx.answerCallbackQuery({ text: "Abgelehnt" });
+    await ctx.answerCallbackQuery({ text: t("messaging.denied") });
     await ctx.editMessageReplyMarkup({ reply_markup: undefined });
   });
 
@@ -67,7 +68,7 @@ export function createTelegramPlatform(
       await callbacks.onMessage(chatId, text);
     } catch (err) {
       console.error("Agent loop error:", err);
-      await ctx.reply("Fehler bei der Verarbeitung. Bitte versuche es erneut.");
+      await ctx.reply(t("messaging.processingError"));
     }
   });
 

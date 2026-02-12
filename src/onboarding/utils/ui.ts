@@ -1,12 +1,13 @@
 import chalk from "chalk";
 import ora, { type Ora } from "ora";
+import { t } from "../../i18n/index.js";
 
 export function banner(): void {
-  console.log(chalk.bold.cyan("\n  geofrey.ai Setup-Assistent\n"));
+  console.log(chalk.bold.cyan(`\n  ${t("onboarding.banner")}\n`));
 }
 
 export function stepHeader(num: number, title: string): void {
-  console.log(chalk.bold(`\n── Schritt ${num}: ${title} ──\n`));
+  console.log(chalk.bold(`\n── ${t("onboarding.stepLabel", { num: String(num), title })} ──\n`));
 }
 
 export function success(msg: string): void {

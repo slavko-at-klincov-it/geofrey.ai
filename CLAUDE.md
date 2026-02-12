@@ -24,8 +24,9 @@ A better alternative to [OpenClaw](https://github.com/openclaw/openclaw) (former
 | Audit | Append-only hash-chained **JSONL** (SHA-256) |
 | Validation | **Zod** (Standard Schema compatible) |
 | Package Manager | **pnpm** |
+| i18n | Typed key-value maps (`src/i18n/`) — `t()` function, `de` + `en` locales |
 | Code language | English |
-| Communication | German (user preference) |
+| Communication | German (default), English (configurable via `LOCALE`) |
 
 ## Architecture
 See `docs/ARCHITECTURE.md` for full details.
@@ -110,6 +111,13 @@ src/
 │       ├── validate.ts      # Token/credential validators
 │       ├── clipboard.ts     # clipboardy wrapper
 │       └── ocr.ts           # tesseract.js OCR pipeline
+├── i18n/
+│   ├── index.ts             # t(), setLocale(), getLocale()
+│   ├── keys.ts              # TranslationKey union type
+│   ├── index.test.ts        # i18n tests
+│   └── locales/
+│       ├── de.ts            # German translations
+│       └── en.ts            # English translations
 └── config/
     ├── defaults.ts          # Default settings
     └── schema.ts            # Zod config validation
@@ -153,6 +161,7 @@ src/
 - [x] Security: MCP response validation (Zod schema instead of unsafe type assertions)
 - [x] Signal adapter graceful shutdown (reject pending JSON-RPC requests)
 - [x] DB schema versioning (`schema_version` table for future migrations)
+- [x] i18n: German + English with `t()` function, typed keys, `LOCALE` config
 - [ ] End-to-end testing
 
 ## Conventions
@@ -200,3 +209,5 @@ src/
 | 2026-02-12 | Filesystem directory confinement | `confine()` rejects paths outside `process.cwd()` — prevents path traversal |
 | 2026-02-12 | MCP Zod response validation | `mcpContentSchema.safeParse()` replaces unsafe `as` assertions on MCP tool output |
 | 2026-02-12 | Schema version tracking | `schema_version` table with version + applied_at — foundation for future DB migrations |
+| 2026-02-12 | i18n with typed key-value maps | No external library; `t()` function + `satisfies` compile-time completeness; `de` + `en` locales |
+| 2026-02-12 | Language selection in setup wizard | First wizard step is bilingual "Language / Sprache:", stored as `LOCALE` in `.env` |
