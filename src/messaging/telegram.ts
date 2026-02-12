@@ -1,7 +1,7 @@
 import { Bot, Context } from "grammy";
 import type { Config } from "../config/schema.js";
 import { resolveApproval } from "../approval/approval-gate.js";
-import { runAgentLoop } from "../orchestrator/agent-loop.js";
+import { runAgentLoopStreaming } from "../orchestrator/agent-loop.js";
 
 let bot: Bot | null = null;
 
@@ -46,8 +46,7 @@ export function createBot(config: Config): Bot {
     const text = ctx.message.text;
 
     try {
-      const response = await runAgentLoop(config, chatId, text, b);
-      await ctx.reply(response);
+      await runAgentLoopStreaming(config, chatId, text, b);
     } catch (err) {
       console.error("Agent loop error:", err);
       await ctx.reply("Fehler bei der Verarbeitung. Bitte versuche es erneut.");
