@@ -1,4 +1,9 @@
 import { z } from "zod";
+import { platform } from "node:os";
+
+const DEFAULT_SIGNAL_SOCKET = platform() === "win32"
+  ? "\\\\.\\pipe\\signal-cli"
+  : "/var/run/signal-cli/socket";
 
 export const configSchema = z.object({
   platform: z.enum(["telegram", "whatsapp", "signal"]).default("telegram"),
@@ -14,7 +19,7 @@ export const configSchema = z.object({
     webhookPort: z.coerce.number().int().default(3000),
   }).optional(),
   signal: z.object({
-    signalCliSocket: z.string().default("/var/run/signal-cli/socket"),
+    signalCliSocket: z.string().default(DEFAULT_SIGNAL_SOCKET),
     ownerPhone: z.string().min(1),
     botPhone: z.string().min(1),
   }).optional(),

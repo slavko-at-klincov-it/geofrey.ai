@@ -59,7 +59,7 @@ const SENSITIVE_PATHS = /\.(env|ssh|pem|key|credentials|secret)/i;
 const CONFIG_FILES = /\.github\/workflows|package\.json|tsconfig\.json|Dockerfile|\.eslintrc|\.prettierrc/;
 const FORCE_PUSH = /git\s+push\s+.*--force/;
 // Bare shell interpreters — dangerous as pipe targets
-const L3_BARE_SHELL = /^\s*(sh|bash|zsh|dash|ksh)\b/;
+const L3_BARE_SHELL = /^\s*(sh|bash|zsh|dash|ksh|cmd(\.exe)?|powershell(\.exe)?|pwsh(\.exe)?)\b/;
 
 export function riskOrdinal(level: RiskLevel): number {
   switch (level) {
