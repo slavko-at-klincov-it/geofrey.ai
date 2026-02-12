@@ -1,10 +1,23 @@
 import { z } from "zod";
 
 export const configSchema = z.object({
+  platform: z.enum(["telegram", "whatsapp", "signal"]).default("telegram"),
   telegram: z.object({
     botToken: z.string().min(1),
     ownerId: z.coerce.number().int().positive(),
   }),
+  whatsapp: z.object({
+    phoneNumberId: z.string().min(1),
+    accessToken: z.string().min(1),
+    verifyToken: z.string().min(1),
+    ownerPhone: z.string().min(1),
+    webhookPort: z.coerce.number().int().default(3000),
+  }).optional(),
+  signal: z.object({
+    signalCliSocket: z.string().default("/var/run/signal-cli/socket"),
+    ownerPhone: z.string().min(1),
+    botPhone: z.string().min(1),
+  }).optional(),
   ollama: z.object({
     baseUrl: z.string().url().default("http://localhost:11434"),
     model: z.string().default("qwen3:8b"),
@@ -41,6 +54,16 @@ export const configSchema = z.object({
     // Empty array = all servers allowed (no restriction). Non-empty = only listed servers.
     allowedServers: z.array(z.string()).default([]),
   }),
+}).refine((data) => {
+  if (data.platform === "whatsapp" && !data.whatsapp) {
+    return false;
+  }
+  if (data.platform === "signal" && !data.signal) {
+    return false;
+  }
+  return true;
+}, {
+  message: "Selected platform config must be provided (e.g. whatsapp config for platform: 'whatsapp')",
 });
 
 export type Config = z.infer<typeof configSchema>;

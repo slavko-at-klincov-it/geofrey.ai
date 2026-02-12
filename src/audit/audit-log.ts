@@ -10,7 +10,7 @@ export interface AuditEntry {
   riskLevel: string;
   approved: boolean;
   result: string;
-  userId: number;
+  userId: string;
   claudeSessionId?: string;
   claudeModel?: string;
   costUsd?: number;

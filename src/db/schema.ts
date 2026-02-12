@@ -2,7 +2,7 @@ import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
 
 export const conversations = sqliteTable("conversations", {
   id: text("id").primaryKey(),
-  telegramChatId: integer("telegram_chat_id").notNull(),
+  chatId: text("chat_id").notNull(),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
 });
@@ -29,7 +29,7 @@ export const pendingApprovals = sqliteTable("pending_approvals", {
   status: text("status", { enum: ["pending", "approved", "denied", "timeout"] })
     .notNull()
     .default("pending"),
-  telegramMessageId: integer("telegram_message_id"),
+  messageRef: text("message_ref"),
   nonce: text("nonce").notNull().unique(),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
   resolvedAt: integer("resolved_at", { mode: "timestamp" }),

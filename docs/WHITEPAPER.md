@@ -10,11 +10,11 @@
 
 AI agent platforms like OpenClaw (formerly Clawdbot/Moltbot) promise autonomous task execution but suffer from three systemic failures: **runaway costs** ($200-600+/month), **critical security vulnerabilities** (CVE-2026-25253, 42,000+ exposed instances), and **broken safety mechanisms** (fire-and-forget approvals that never actually block).
 
-geofrey.ai solves all three by running a local LLM as a security orchestrator between the user and tool execution. No cloud API loops, no exposed web interfaces, no bypasses. The agent structurally cannot execute dangerous actions without explicit user approval via Telegram.
+geofrey.ai solves all three by running a local LLM as a security orchestrator between the user and tool execution. No cloud API loops, no exposed web interfaces, no bypasses. The agent structurally cannot execute dangerous actions without explicit user approval via Telegram, WhatsApp, or Signal.
 
 **Key numbers:**
 - **$0/month** orchestrator cost (local Qwen3 8B, 5GB RAM)
-- **0** exposed network ports (Telegram long polling, no web UI)
+- **0** exposed network ports (Telegram long polling / WhatsApp webhook / Signal socket, no web UI)
 - **0** code paths from "pending approval" to "execute" without user tap
 - **90%** of risk classifications handled instantly by deterministic patterns (no LLM latency)
 
@@ -72,7 +72,7 @@ The tool execution returns before the user has a chance to approve or deny. By t
 geofrey.ai is a local-first AI agent with a fundamentally different security architecture:
 
 ```
-User (Telegram) → Local Orchestrator (Qwen3 8B) → Risk Classifier (L0-L3)
+User (Telegram/WhatsApp/Signal) → Local Orchestrator (Qwen3 8B) → Risk Classifier (L0-L3)
                         ↕                                ↓
                   Approval Gate ◄── L2: Promise blocks until user approves
                         ↓
@@ -81,7 +81,7 @@ User (Telegram) → Local Orchestrator (Qwen3 8B) → Risk Classifier (L0-L3)
 
 ### Core Innovation: Structural Blocking
 
-The approval gate uses a JavaScript Promise that structurally suspends the agent. There is no code path from "pending" to "execute" without the Promise resolving — which only happens when the user taps Approve in Telegram.
+The approval gate uses a JavaScript Promise that structurally suspends the agent. There is no code path from "pending" to "execute" without the Promise resolving — which only happens when the user approves (via inline button on Telegram/WhatsApp, or text reply on Signal).
 
 ```typescript
 const { nonce, promise } = createApproval(toolName, args, classification);
@@ -119,7 +119,7 @@ The local LLM doesn't try to write code — it acts as a **communication bridge,
 2. **Prompt optimization** — 8 task templates (bug_fix, refactor, new_feature, debugging, code_review, test_writing, documentation, freeform) generate focused prompts
 3. **Tool scoping** — Claude Code's available tools are restricted by risk level (L0 = read-only, L1 = standard, L2 = full)
 4. **Session tracking** — multi-turn coding tasks reuse sessions via `--session-id` (1h TTL)
-5. **Live streaming** — Claude Code output is streamed to Telegram in real-time via message edits
+5. **Live streaming** — Claude Code output is streamed to messaging platform in real-time (edits on Telegram, new messages on WhatsApp/Signal)
 6. **Audit trail** — every invocation logs cost, tokens, model, session ID, and allowed tools
 
 This architecture means the local LLM handles the cheap, frequent work (intent classification, risk assessment, user communication) while Claude Code handles the expensive, complex work (multi-file edits, debugging, refactoring).
@@ -154,7 +154,7 @@ The orchestrator handles intent classification, risk assessment, and task decomp
 
 | Attack Vector | OpenClaw | geofrey.ai |
 |--------------|----------|------------|
-| **Network exposure** | Web UI on public ports (42K exposed instances) | No web UI, Telegram long polling only |
+| **Network exposure** | Web UI on public ports (42K exposed instances) | No web UI, messaging only (Telegram/WhatsApp/Signal) |
 | **RCE via browser** | CVE-2026-25253 (CVSS 8.8) | No browser interface, no WebSocket |
 | **Command injection** | CVE-2026-25157 | L3 blocks + shlex decomposition (each segment classified individually) |
 | **Approval bypass** | `elevated: "full"` skips all checks | No bypass mode exists |
@@ -187,7 +187,7 @@ The orchestrator handles intent classification, risk assessment, and task decomp
 | **Orchestrator LLM** | Qwen3 8B via Ollama | 0.933 tool-call F1, 5GB Q4_K_M, ~40 tok/s on M-series |
 | **LLM SDK** | Vercel AI SDK 6 | Native tool approval hooks, Ollama provider, Zod schemas |
 | **Tool Integration** | MCP (Model Context Protocol) | Linux Foundation standard, 10K+ servers, wrapped by risk classifier |
-| **Messaging** | grammY (Telegram) | Best TypeScript types, inline keyboards for approvals |
+| **Messaging** | grammY (Telegram), Cloud API (WhatsApp), signal-cli (Signal) | Multi-platform approval flow with platform-specific UI |
 | **Database** | SQLite + Drizzle ORM | Zero-config, type-safe, persistent conversations |
 | **Audit** | Hash-chained JSONL | Tamper-evident, append-only, human-readable, verifiable |
 | **Language** | TypeScript (Node.js 22+) | Async-native, same ecosystem as existing AI tooling |
@@ -254,7 +254,7 @@ Target users:
 - [x] Local LLM orchestrator (Qwen3 8B via Ollama)
 - [x] 4-tier risk classification (hybrid deterministic + LLM)
 - [x] Structural approval gate (Promise-based blocking)
-- [x] Telegram bot with approval UI + live streaming
+- [x] Multi-platform messaging (Telegram, WhatsApp, Signal) with approval UI + live streaming
 - [x] Tool executors (shell, filesystem, git)
 - [x] MCP client integration (allowlist, output sanitization)
 - [x] Hash-chained audit log
@@ -267,7 +267,7 @@ Target users:
 - [x] Claude Code CLI driver rewrite (stream-json, sessions, tool scoping)
 - [x] Prompt optimizer (8 templates, risk-scoped tool profiles)
 - [x] 4-way intent classification (QUESTION / SIMPLE_TASK / CODING_TASK / AMBIGUOUS)
-- [x] Claude Code live streaming to Telegram
+- [x] Claude Code live streaming to all messaging platforms
 - [x] Session tracking + audit log extension (cost, tokens, model, session ID)
 
 ### Phase 2 — Hardening (Next)

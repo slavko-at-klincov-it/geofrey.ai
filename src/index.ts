@@ -1,11 +1,13 @@
 import { mkdir } from "node:fs/promises";
 import { loadConfig } from "./config/defaults.js";
-import { createBot, startPolling, stopPolling } from "./messaging/telegram.js";
-import { rejectAllPending } from "./approval/approval-gate.js";
+import { createPlatform } from "./messaging/create-platform.js";
+import { rejectAllPending, resolveApproval } from "./approval/approval-gate.js";
 import { disconnectAll, connectMcpServer } from "./tools/mcp-client.js";
 import { getDb, closeDb } from "./db/client.js";
 import { setDbUrl } from "./orchestrator/conversation.js";
 import { initClaudeCode } from "./tools/claude-code.js";
+import { runAgentLoopStreaming } from "./orchestrator/agent-loop.js";
+import type { PlatformCallbacks } from "./messaging/platform.js";
 
 // Import tools to register them
 import "./tools/filesystem.js";
@@ -51,6 +53,7 @@ async function main() {
 
   const config = loadConfig();
   console.log(`Orchestrator model: ${config.ollama.model}`);
+  console.log(`Platform: ${config.platform}`);
 
   // Ensure data directories exist
   await mkdir("data/audit", { recursive: true });
@@ -78,11 +81,21 @@ async function main() {
     }
   }
 
-  const bot = createBot(config);
+  // Create messaging platform with callbacks
+  const callbacks: PlatformCallbacks = {
+    async onMessage(chatId, text) {
+      await runAgentLoopStreaming(config, chatId, text, platform);
+    },
+    async onApprovalResponse(nonce, approved) {
+      resolveApproval(nonce, approved);
+    },
+  };
+
+  const platform = await createPlatform(config, callbacks);
 
   const shutdown = async (signal: string) => {
     console.log(`\n${signal} received, shutting down...`);
-    await stopPolling(bot);
+    await platform.stop();
     rejectAllPending("SHUTDOWN");
     await waitForInflight(10_000);
     await disconnectAll();
@@ -94,7 +107,7 @@ async function main() {
   process.on("SIGINT", () => shutdown("SIGINT"));
   process.on("SIGTERM", () => shutdown("SIGTERM"));
 
-  await startPolling(bot);
+  await platform.start();
 }
 
 main().catch((err) => {

@@ -16,7 +16,7 @@ function makeEntry(action: string): AuditEntry {
     riskLevel: "L1",
     approved: true,
     result: "ok",
-    userId: 42,
+    userId: "42",
   };
 }
 

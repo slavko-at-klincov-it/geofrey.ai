@@ -23,7 +23,7 @@ function initDb() {
   db.run(sql`
     CREATE TABLE IF NOT EXISTS conversations (
       id TEXT PRIMARY KEY,
-      telegram_chat_id INTEGER NOT NULL,
+      chat_id TEXT NOT NULL,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     )
@@ -48,7 +48,7 @@ function initDb() {
       tool_args TEXT NOT NULL,
       risk_level TEXT NOT NULL CHECK(risk_level IN ('L0', 'L1', 'L2', 'L3')),
       status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'approved', 'denied', 'timeout')),
-      telegram_message_id INTEGER,
+      message_ref TEXT,
       nonce TEXT NOT NULL UNIQUE,
       created_at INTEGER NOT NULL,
       resolved_at INTEGER

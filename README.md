@@ -2,7 +2,7 @@
 
 **Local-first AI agent with structural safety guarantees.**
 
-A personal AI assistant that runs a local LLM (Qwen3 8B) as a security orchestrator and communication bridge — classifying risk, optimizing prompts, blocking dangerous actions, and requiring explicit approval via Telegram before executing anything irreversible. Uses Claude Code CLI as the powerful coding backend. No cloud API loops, no exposed web interfaces, no bypasses.
+A personal AI assistant that runs a local LLM (Qwen3 8B) as a security orchestrator and communication bridge — classifying risk, optimizing prompts, blocking dangerous actions, and requiring explicit approval via **Telegram, WhatsApp, or Signal** before executing anything irreversible. Uses Claude Code CLI as the powerful coding backend. No cloud API loops, no exposed web interfaces, no bypasses.
 
 ---
 
@@ -23,17 +23,17 @@ geofrey.ai fixes all three. See the [Whitepaper](docs/WHITEPAPER.md) for detaile
 ## How It Works
 
 ```
-User (Telegram) → Local Orchestrator (Qwen3 8B) → Risk Classifier (L0-L3)
-                        ↕                                ↓
-                  Approval Gate ◄── L2: blocks until user taps Approve
-                        ↓
-                  +-----------+-----------+-----------+
-                  | Claude    | Shell     | MCP       |
-                  | Code CLI  | Commands  | Client    |
-                  | (stream)  |           | (wrapped) |
-                  +-----------+-----------+-----------+
-                        ↓
-                  Audit Log (SHA-256 hash-chained)
+User (Telegram/WhatsApp/Signal) → Local Orchestrator (Qwen3 8B) → Risk Classifier (L0-L3)
+                                        ↕                                ↓
+                                  Approval Gate ◄── L2: blocks until user approves
+                                        ↓
+                                  +-----------+-----------+-----------+
+                                  | Claude    | Shell     | MCP       |
+                                  | Code CLI  | Commands  | Client    |
+                                  | (stream)  |           | (wrapped) |
+                                  +-----------+-----------+-----------+
+                                        ↓
+                                  Audit Log (SHA-256 hash-chained)
 ```
 
 ### Risk Levels
@@ -53,7 +53,7 @@ Commands are split on unquoted `&&`, `||`, `;`, `|`, and `\n` — each segment c
 
 ### Structural Blocking
 
-The approval gate is a JavaScript Promise — the agent is structurally suspended until the user taps Approve or Deny in Telegram. There is no code path, no timeout hack, no config flag that bypasses this.
+The approval gate is a JavaScript Promise — the agent is structurally suspended until the user approves or denies (via inline buttons on Telegram/WhatsApp, or text reply on Signal). There is no code path, no timeout hack, no config flag that bypasses this.
 
 ---
 
@@ -65,8 +65,10 @@ The approval gate is a JavaScript Promise — the agent is structurally suspende
 - **pnpm**
 - **Ollama** with `qwen3:8b` model
 - **Claude Code CLI** installed with Pro/Max subscription (for coding tasks)
-- **Telegram Bot Token** (via [@BotFather](https://t.me/BotFather))
-- Your **Telegram User ID** (via [@userinfobot](https://t.me/userinfobot))
+- **Messaging platform** (one of):
+  - **Telegram**: Bot Token via [@BotFather](https://t.me/BotFather) + your User ID via [@userinfobot](https://t.me/userinfobot)
+  - **WhatsApp**: Business API (Cloud API) credentials
+  - **Signal**: signal-cli daemon with JSON-RPC socket
 
 ### Setup
 
@@ -91,8 +93,17 @@ pnpm dev
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `TELEGRAM_BOT_TOKEN` | Yes | — | Bot token from @BotFather |
-| `TELEGRAM_OWNER_ID` | Yes | — | Your Telegram user ID |
+| `PLATFORM` | No | `telegram` | Messaging platform: `telegram`, `whatsapp`, or `signal` |
+| `TELEGRAM_BOT_TOKEN` | Telegram | — | Bot token from @BotFather |
+| `TELEGRAM_OWNER_ID` | Telegram | — | Your Telegram user ID |
+| `WHATSAPP_PHONE_NUMBER_ID` | WhatsApp | — | Business phone number ID |
+| `WHATSAPP_ACCESS_TOKEN` | WhatsApp | — | Permanent access token |
+| `WHATSAPP_VERIFY_TOKEN` | WhatsApp | — | Webhook verification token |
+| `WHATSAPP_OWNER_PHONE` | WhatsApp | — | Owner phone number (e.g. `491234567890`) |
+| `WHATSAPP_WEBHOOK_PORT` | No | `3000` | Webhook server port |
+| `SIGNAL_CLI_SOCKET` | No | `/var/run/signal-cli/socket` | signal-cli JSON-RPC socket path |
+| `SIGNAL_OWNER_PHONE` | Signal | — | Owner phone (e.g. `+491234567890`) |
+| `SIGNAL_BOT_PHONE` | Signal | — | Bot's Signal number |
 | `ORCHESTRATOR_MODEL` | No | `qwen3:8b` | Ollama model name |
 | `OLLAMA_BASE_URL` | No | `http://localhost:11434` | Ollama API URL |
 | `DATABASE_URL` | No | `./data/app.db` | SQLite database path |
@@ -139,9 +150,13 @@ src/
 │   ├── action-registry.ts    # Action definitions + default risk levels
 │   └── execution-guard.ts    # Final revocation check before execution
 ├── messaging/
-│   ├── telegram.ts           # grammY bot + approval callback handlers
-│   ├── approval-ui.ts        # InlineKeyboard formatting
-│   └── streamer.ts           # Token streaming via Telegram message edits
+│   ├── platform.ts           # MessagingPlatform interface + types
+│   ├── create-platform.ts    # Async factory: config → adapter
+│   ├── streamer.ts           # Platform-agnostic token streaming
+│   └── adapters/
+│       ├── telegram.ts       # grammY bot + approval UI (inline buttons)
+│       ├── whatsapp.ts       # WhatsApp Business API (Cloud API, webhook)
+│       └── signal.ts         # signal-cli JSON-RPC (text-based approvals)
 ├── tools/
 │   ├── tool-registry.ts      # Native + MCP tool registry → AI SDK bridge
 │   ├── mcp-client.ts         # MCP server discovery + tool wrapping
@@ -172,7 +187,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full system design.
 | Coding Agent | Claude Code CLI (stream-json, sessions, risk-scoped tool profiles) |
 | LLM SDK | Vercel AI SDK 6 (`generateText`, `streamText`, `tool` with `needsApproval`) |
 | Tool Integration | MCP Client (10K+ servers, wrapped by risk classifier) |
-| Telegram | grammY (long polling, inline keyboards, live streaming) |
+| Messaging | Telegram (grammY), WhatsApp (Cloud API), Signal (signal-cli) |
 | Database | SQLite + Drizzle ORM |
 | Audit | Append-only hash-chained JSONL (with Claude Code cost/token tracking) |
 | Validation | Zod |
@@ -193,7 +208,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full system design.
 
 | Attack Vector | OpenClaw | geofrey.ai |
 |--------------|----------|------------|
-| Network exposure | Web UI, 42K+ exposed instances | No web UI, Telegram only |
+| Network exposure | Web UI, 42K+ exposed instances | No web UI, messaging only |
 | RCE via browser | CVE-2026-25253 | No browser interface |
 | Command injection | CVE-2026-25157 | L3 blocks + shlex decomposition per segment |
 | Chained commands | `ls && curl evil` passes as single string | Split, each segment classified individually |
@@ -228,7 +243,7 @@ All MCP tool calls are automatically routed through the risk classifier. The MCP
 pnpm dev          # Run with hot reload (tsx watch)
 pnpm build        # TypeScript compilation
 pnpm lint         # Type check (tsc --noEmit)
-pnpm test         # 106 tests across 12 modules
+pnpm test         # 128 tests across 15 modules
 pnpm start        # Run compiled output
 pnpm db:generate  # Generate Drizzle migrations
 ```
@@ -237,15 +252,15 @@ pnpm db:generate  # Generate Drizzle migrations
 
 ## Project Status
 
-**106 tests passing** across 12 modules.
+**128 tests passing** across 15 modules.
 
 - [x] Local LLM orchestrator (Qwen3 8B)
 - [x] Hybrid risk classification (deterministic + LLM, XML output)
 - [x] Shlex-style command decomposition (prevents chained command bypass)
 - [x] Structural approval gate (Promise-based blocking)
-- [x] Telegram bot with approval UI + live streaming
+- [x] Multi-platform messaging (Telegram, WhatsApp, Signal)
 - [x] Tool executors (shell, filesystem, git)
-- [x] Claude Code CLI integration (stream-json, sessions, tool scoping, live Telegram streaming)
+- [x] Claude Code CLI integration (stream-json, sessions, tool scoping, live streaming)
 - [x] Prompt optimizer (8 templates, risk-scoped tool profiles)
 - [x] 4-way intent classification (QUESTION / SIMPLE_TASK / CODING_TASK / AMBIGUOUS)
 - [x] MCP client integration (allowlist, output sanitization)
@@ -253,7 +268,6 @@ pnpm db:generate  # Generate Drizzle migrations
 - [x] SQLite persistence (conversations, Claude Code sessions)
 - [x] Security hardening (obfuscation-resistant L3 patterns, pipe-to-shell detection)
 - [ ] End-to-end test suite
-- [ ] Multi-messaging (WhatsApp, Discord)
 - [ ] Web dashboard (read-only audit viewer)
 
 ---
@@ -273,12 +287,12 @@ pnpm db:generate  # Generate Drizzle migrations
 | Intent classification | Binary (question/task) | 4-way (QUESTION / SIMPLE_TASK / CODING_TASK / AMBIGUOUS) |
 | Audit log | Plain text | Hash-chained JSONL (SHA-256, cost/token tracking) |
 | Prompt injection defense | Minimal | 3-layer + MCP output sanitization |
-| Messaging | Slack, Discord, WhatsApp, Telegram | Telegram (more planned) |
+| Messaging | Slack, Discord, WhatsApp, Telegram | Telegram, WhatsApp, Signal |
 | Web UI | Yes (CVE-2026-25253) | No (intentional) |
 | Permission bypass | `elevated: "full"` | None (intentional) |
 | Public marketplace | ClawHub (7.1% leak creds) | None (intentional) |
 | Multi-user | Yes | Single owner (personal agent) |
-| Test coverage | Some | 106 tests, 12 modules |
+| Test coverage | Some | 128 tests, 15 modules |
 
 ### What We Explicitly Refuse to Build
 
@@ -293,8 +307,8 @@ pnpm db:generate  # Generate Drizzle migrations
 ### Known Limitations
 
 - **No execution sandbox** — relies on Claude Code's own sandboxing
-- **Single-user only** — personal agent, restricted by `TELEGRAM_OWNER_ID`
-- **No offline mode** — Telegram required for approvals
+- **Single-user only** — personal agent, restricted by owner ID/phone
+- **No offline mode** — messaging platform required for approvals
 - **Orchestrator ceiling** — Qwen3 8B at 0.933 F1 (upgrade to 14B at 0.971 F1 on 32GB+ systems)
 
 ---

@@ -52,6 +52,11 @@ describe("configSchema", () => {
     assert.equal(result.limits.maxAgentSteps, 15);
   });
 
+  it("defaults platform to telegram", () => {
+    const result = configSchema.parse(minimal);
+    assert.equal(result.platform, "telegram");
+  });
+
   it("fills claude defaults", () => {
     const result = configSchema.parse(minimal);
     assert.equal(result.claude.enabled, true);
@@ -112,5 +117,46 @@ describe("configSchema", () => {
   it("accepts mcp.allowedServers list", () => {
     const result = configSchema.parse({ ...minimal, mcp: { allowedServers: ["fs-server", "git-server"] } });
     assert.deepEqual(result.mcp.allowedServers, ["fs-server", "git-server"]);
+  });
+
+  it("accepts whatsapp platform with config", () => {
+    const result = configSchema.parse({
+      ...minimal,
+      platform: "whatsapp",
+      whatsapp: {
+        phoneNumberId: "123456",
+        accessToken: "token",
+        verifyToken: "verify",
+        ownerPhone: "491234567890",
+      },
+    });
+    assert.equal(result.platform, "whatsapp");
+    assert.equal(result.whatsapp!.phoneNumberId, "123456");
+    assert.equal(result.whatsapp!.webhookPort, 3000);
+  });
+
+  it("rejects whatsapp platform without config", () => {
+    assert.throws(() => {
+      configSchema.parse({ ...minimal, platform: "whatsapp" });
+    });
+  });
+
+  it("accepts signal platform with config", () => {
+    const result = configSchema.parse({
+      ...minimal,
+      platform: "signal",
+      signal: {
+        ownerPhone: "+491234567890",
+        botPhone: "+491234567891",
+      },
+    });
+    assert.equal(result.platform, "signal");
+    assert.equal(result.signal!.signalCliSocket, "/var/run/signal-cli/socket");
+  });
+
+  it("rejects signal platform without config", () => {
+    assert.throws(() => {
+      configSchema.parse({ ...minimal, platform: "signal" });
+    });
   });
 });

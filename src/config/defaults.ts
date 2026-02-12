@@ -2,10 +2,23 @@ import { configSchema, type Config } from "./schema.js";
 
 export function loadConfig(): Config {
   return configSchema.parse({
+    platform: process.env.PLATFORM,
     telegram: {
       botToken: process.env.TELEGRAM_BOT_TOKEN,
       ownerId: process.env.TELEGRAM_OWNER_ID,
     },
+    whatsapp: process.env.WHATSAPP_PHONE_NUMBER_ID ? {
+      phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID,
+      accessToken: process.env.WHATSAPP_ACCESS_TOKEN,
+      verifyToken: process.env.WHATSAPP_VERIFY_TOKEN,
+      ownerPhone: process.env.WHATSAPP_OWNER_PHONE,
+      webhookPort: process.env.WHATSAPP_WEBHOOK_PORT,
+    } : undefined,
+    signal: process.env.SIGNAL_OWNER_PHONE ? {
+      signalCliSocket: process.env.SIGNAL_CLI_SOCKET,
+      ownerPhone: process.env.SIGNAL_OWNER_PHONE,
+      botPhone: process.env.SIGNAL_BOT_PHONE,
+    } : undefined,
     ollama: {
       baseUrl: process.env.OLLAMA_BASE_URL,
       model: process.env.ORCHESTRATOR_MODEL,

@@ -3,13 +3,14 @@ import assert from "node:assert/strict";
 import { getOrCreate, addMessage, getHistory, clearConversation } from "./conversation.js";
 
 describe("conversation", () => {
-  let chatId = 1000;
-  beforeEach(() => chatId++);
+  let chatId = "1000";
+  let counter = 1000;
+  beforeEach(() => { counter++; chatId = String(counter); });
 
   describe("getOrCreate", () => {
     it("creates new conversation for unknown chatId", () => {
       const conv = getOrCreate(chatId);
-      assert.equal(conv.telegramChatId, chatId);
+      assert.equal(conv.chatId, chatId);
       assert.ok(conv.id);
       assert.deepEqual(conv.messages, []);
     });

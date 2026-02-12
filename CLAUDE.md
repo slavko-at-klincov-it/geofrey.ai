@@ -18,7 +18,7 @@ A better alternative to [OpenClaw](https://github.com/openclaw/openclaw) (former
 | Code Worker (future) | **Qwen3-Coder-Next** via Ollama (optional, 96GB+ RAM) |
 | LLM SDK | **Vercel AI SDK 6** (`ai` + `ai-sdk-ollama`) — ToolLoopAgent, needsApproval |
 | Tool Integration | **MCP Client** (`@modelcontextprotocol/sdk`) wrapped by risk classifier |
-| Telegram Bot | **grammY** |
+| Messaging | **grammY** (Telegram) · **Cloud API** (WhatsApp) · **signal-cli** (Signal) |
 | Subprocess | **execa** |
 | State/DB | **SQLite** (better-sqlite3 + **Drizzle ORM**) |
 | Audit | Append-only hash-chained **JSONL** (SHA-256) |
@@ -72,9 +72,13 @@ src/
 │   ├── action-registry.ts   # Action definitions + escalation rules
 │   └── execution-guard.ts   # Final revocation check
 ├── messaging/
-│   ├── telegram.ts          # grammY bot + handlers
-│   ├── approval-ui.ts       # InlineKeyboard formatting
-│   └── streamer.ts          # Stream tokens via message edits
+│   ├── platform.ts          # MessagingPlatform interface + types
+│   ├── create-platform.ts   # Async factory: config → adapter
+│   ├── streamer.ts          # Platform-agnostic token streaming
+│   └── adapters/
+│       ├── telegram.ts      # grammY bot + approval UI (inline buttons)
+│       ├── whatsapp.ts      # WhatsApp Business API (Cloud API, webhook)
+│       └── signal.ts        # signal-cli JSON-RPC (text-based approvals)
 ├── tools/
 │   ├── tool-registry.ts     # Tool schema + handler registry (native + MCP)
 │   ├── mcp-client.ts        # MCP server discovery + tool wrapping
@@ -109,7 +113,7 @@ src/
 - [x] Integration: Claude Code subprocess driver
 - [x] DB: Drizzle schema + migrations
 - [x] Audit log
-- [x] Unit tests (106 tests, 12 modules — node:test runner)
+- [x] Unit tests (128 tests, 15 modules — node:test runner)
 - [x] Security: obfuscation-resistant L3 patterns (path variants, script network, base64, chmod +x)
 - [x] Security: MCP output sanitization (DATA boundary tags, instruction filtering)
 - [x] Security: MCP server allowlist (`mcp.allowedServers` config)
@@ -122,6 +126,7 @@ src/
 - [x] Prompt generator upgrade (8 templates, buildClaudeCodePrompt, scopeToolsForRisk)
 - [x] Claude Code streaming integration (live Telegram updates)
 - [x] Session tracking + audit log extension
+- [x] Multi-platform messaging (Telegram + WhatsApp + Signal)
 - [ ] End-to-end testing
 
 ## Conventions
@@ -157,3 +162,6 @@ src/
 | 2026-02-12 | Claude Code as primary coding agent | Local LLM as communication bridge + prompt optimizer + safety layer; Claude Code does actual coding |
 | 2026-02-12 | stream-json as default output format | Enables live Telegram updates during Claude Code tasks |
 | 2026-02-12 | Risk-scoped tool profiles | L0→readOnly, L1→standard, L2→full — principle of least privilege for Claude Code |
+| 2026-02-12 | Multi-platform messaging abstraction | MessagingPlatform interface enables Telegram, WhatsApp, Signal with same orchestrator |
+| 2026-02-12 | WhatsApp Business Cloud API | Official API, interactive buttons (max 3), native fetch — no heavy dependency |
+| 2026-02-12 | Signal via signal-cli JSON-RPC | No inline buttons → text-based approvals ("1 = Genehmigen, 2 = Ablehnen") |

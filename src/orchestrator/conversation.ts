@@ -12,14 +12,14 @@ export interface Message {
 
 export interface Conversation {
   id: string;
-  telegramChatId: number;
+  chatId: string;
   messages: Message[];
   claudeSessionId?: string;
   createdAt: Date;
   updatedAt: Date;
 }
 
-const active = new Map<number, Conversation>();
+const active = new Map<string, Conversation>();
 
 let db: ReturnType<typeof getDb> | null = null;
 
@@ -27,14 +27,14 @@ export function setDbUrl(url: string) {
   db = getDb(url);
 }
 
-export function getOrCreate(chatId: number): Conversation {
+export function getOrCreate(chatId: string): Conversation {
   let conv = active.get(chatId);
   if (!conv) {
     if (db) {
       const existing = db
         .select()
         .from(conversations)
-        .where(eq(conversations.telegramChatId, chatId))
+        .where(eq(conversations.chatId, chatId))
         .orderBy(desc(conversations.updatedAt))
         .limit(1)
         .all();
@@ -50,7 +50,7 @@ export function getOrCreate(chatId: number): Conversation {
 
         conv = {
           id: dbConv.id,
-          telegramChatId: dbConv.telegramChatId,
+          chatId: dbConv.chatId,
           messages: dbMessages.map((m) => ({
             id: m.id,
             role: m.role,
@@ -68,7 +68,7 @@ export function getOrCreate(chatId: number): Conversation {
 
     conv = {
       id: crypto.randomUUID(),
-      telegramChatId: chatId,
+      chatId,
       messages: [],
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -78,7 +78,7 @@ export function getOrCreate(chatId: number): Conversation {
     if (db) {
       db.insert(conversations).values({
         id: conv.id,
-        telegramChatId: conv.telegramChatId,
+        chatId: conv.chatId,
         createdAt: conv.createdAt,
         updatedAt: conv.updatedAt,
       }).run();
@@ -87,7 +87,7 @@ export function getOrCreate(chatId: number): Conversation {
   return conv;
 }
 
-export function addMessage(chatId: number, message: Omit<Message, "id" | "createdAt">): Message {
+export function addMessage(chatId: string, message: Omit<Message, "id" | "createdAt">): Message {
   const conv = getOrCreate(chatId);
   const msg: Message = {
     ...message,
@@ -116,19 +116,19 @@ export function addMessage(chatId: number, message: Omit<Message, "id" | "create
   return msg;
 }
 
-export function getHistory(chatId: number): Message[] {
+export function getHistory(chatId: string): Message[] {
   return getOrCreate(chatId).messages;
 }
 
-export function setClaudeSession(chatId: number, sessionId: string): void {
+export function setClaudeSession(chatId: string, sessionId: string): void {
   const conv = getOrCreate(chatId);
   conv.claudeSessionId = sessionId;
 }
 
-export function getClaudeSession(chatId: number): string | undefined {
+export function getClaudeSession(chatId: string): string | undefined {
   return active.get(chatId)?.claudeSessionId;
 }
 
-export function clearConversation(chatId: number): void {
+export function clearConversation(chatId: string): void {
   active.delete(chatId);
 }
