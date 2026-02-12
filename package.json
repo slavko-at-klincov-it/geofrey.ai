@@ -1,9 +1,25 @@
 {
   "name": "geofrey-ai",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Better OpenClaw alternative with local LLM orchestrator",
   "license": "MIT",
   "type": "module",
+  "private": true,
+  "main": "./dist/index.js",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "bin": {
+    "geofrey": "./bin/geofrey.mjs"
+  },
+  "files": [
+    "dist/",
+    "bin/",
+    "drizzle/",
+    "package.json",
+    "README.md",
+    "LICENSE"
+  ],
   "engines": {
     "node": ">=22"
   },
@@ -15,7 +31,8 @@
     "db:migrate": "drizzle-kit migrate",
     "lint": "tsc --noEmit",
     "test": "node --import tsx/esm --test 'src/**/*.test.ts'",
-    "setup": "tsx src/onboarding/setup.ts"
+    "setup": "tsx src/onboarding/setup.ts",
+    "prepublishOnly": "pnpm build"
   },
   "dependencies": {
     "@inquirer/prompts": "^8.2.0",

@@ -1,0 +1,61 @@
+# docker-compose.yml — geofrey.ai with Ollama
+#
+# Usage:
+#   1. Copy .env.example to .env and fill in your values
+#   2. Set OLLAMA_BASE_URL=http://ollama:11434 in .env (container networking)
+#   3. docker compose up -d
+#   4. Pull the orchestrator model: docker compose exec ollama ollama pull qwen3:8b
+#
+# For WhatsApp (webhook mode), uncomment the ports section on the geofrey service.
+
+services:
+  geofrey:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: geofrey
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      # Override Ollama URL to use the container network hostname
+      - OLLAMA_BASE_URL=http://ollama:11434
+    volumes:
+      - ./data:/app/data
+    networks:
+      - geofrey-net
+    depends_on:
+      ollama:
+        condition: service_healthy
+    # Uncomment for WhatsApp webhook mode:
+    # ports:
+    #   - "3000:3000"
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    restart: unless-stopped
+    volumes:
+      - ollama-models:/root/.ollama
+    networks:
+      - geofrey-net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:11434/api/tags || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    # GPU passthrough (NVIDIA). Remove or adjust for CPU-only or AMD.
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+volumes:
+  ollama-models:
+
+networks:
+  geofrey-net:
+    driver: bridge
