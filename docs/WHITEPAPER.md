@@ -2,7 +2,7 @@
 
 **A safer, cheaper alternative to cloud-dependent AI agent platforms**
 
-*Technical Whitepaper v0.1 — February 2026*
+*Technical Whitepaper v1.0 — February 2026*
 
 ---
 
@@ -244,7 +244,7 @@ Target users:
 | OWASP Agentic coverage | Partial | N/A | N/A | **Full** |
 | Open source | Yes | No | No | **Yes** |
 | Data sovereignty | Cloud-dependent | Cloud | Cloud | **100% local** |
-| Test coverage | Some | N/A | N/A | **188 tests, 26 modules** |
+| Test coverage | Some | N/A | N/A | **220 tests, 55 suites** |
 
 ---
 
@@ -259,7 +259,7 @@ Target users:
 - [x] MCP client integration (allowlist, output sanitization)
 - [x] Hash-chained audit log
 - [x] SQLite persistence
-- [x] 188 unit tests across 26 modules
+- [x] 220 tests (188 unit + 32 E2E integration) across 55 suites
 
 ### Phase 1.5 — Claude Code Integration + Security Hardening (Complete)
 - [x] XML-based LLM classifier output (more reliable with small models, JSON fallback)
@@ -271,15 +271,24 @@ Target users:
 - [x] Session tracking + audit log extension (cost, tokens, model, session ID)
 - [x] i18n: German + English with typed `t()` function (`LOCALE` config, setup wizard language selection)
 
+### Phase 1.75 — Production Readiness (Complete)
+- [x] End-to-end integration test suite (32 tests)
+- [x] Ollama error handling (3 retries, user-friendly connection errors)
+- [x] Human-readable startup config errors (Zod → env var mapping)
+- [x] Docker support (multi-stage Dockerfile + docker-compose.yml with Ollama + GPU)
+- [x] Deployment guide (Docker, systemd, PM2, production tips)
+- [x] npm CLI entry point (`geofrey` / `geofrey setup`)
+- [x] GitHub Actions CI (Node 22, pnpm, lint + test)
+- [x] CHANGELOG.md + MIT LICENSE
+- [x] v1.0.0 release
+
 ### Phase 2 — Hardening (Next)
-- [ ] End-to-end test suite
-- [ ] Error recovery (retry logic, graceful degradation)
 - [ ] Token budget enforcement
 - [ ] Approval timeout with configurable policy
 - [ ] Rate limiting for tool execution
 
 ### Phase 3 — Expansion
-- [ ] Multi-messaging (WhatsApp, Discord, Slack)
+- [ ] Additional messaging platforms (Discord, Slack)
 - [ ] Web dashboard (read-only audit viewer, no control plane)
 - [ ] Tiered model routing (local for simple, API for complex)
 - [ ] Multi-user support with role-based permissions
@@ -303,7 +312,7 @@ Target users:
 ## Contact
 
 - **Repository**: [github.com/slavko-at-klincov-it/geofrey.ai](https://github.com/slavko-at-klincov-it/geofrey.ai)
-- **License**: Open Source
+- **License**: MIT
 
 ---
 
