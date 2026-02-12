@@ -1,4 +1,4 @@
-# Architecture — openClawNurBesser
+# Architecture — geofrey.ai
 
 ## System Overview
 
@@ -97,7 +97,7 @@ Risk classification uses a **two-layer approach**:
 |-------|------|----------|----------|
 | **L0** | AUTO_APPROVE | Execute immediately, no notification | `read_file`, `list_dir`, `search`, `git status`, `git log`, `git diff`, `pwd`, `ls`, `cat`, `wc` |
 | **L1** | NOTIFY | Execute, then inform user | `write_file` (non-config, in project), `git add`, `git stash`, `git branch`, `npm test`, `npm run lint` |
-| **L2** | REQUIRE_APPROVAL | **Block until user approves via Telegram** | `delete_file`, `git commit`, `git merge`, `git rebase`, `npm install`, `shell_exec`, `mkdir`, `mv`, `cp` |
+| **L2** | REQUIRE_APPROVAL | **Block until user approves via Telegram/WhatsApp/Signal** | `delete_file`, `git commit`, `git merge`, `git rebase`, `npm install`, `shell_exec`, `mkdir`, `mv`, `cp` |
 | **L3** | BLOCK | Refuse always, log attempt | `git push --force`, `git reset --hard`, `rm -rf`, `sudo`, `curl`, `wget`, `nc`, `ssh`, `eval` |
 
 ### Escalation Rules
@@ -126,7 +126,7 @@ Agent calls tool → Deterministic Classifier → known? ──yes──→ appl
                                              Store in pending map (nonce ID)
                                               │
                                               ▼
-                                   Send Telegram message:
+                                   Send approval message (Telegram/WhatsApp/Signal):
                                    ┌─────────────────────────────┐
                                    │ Approval Required [#a7f3]   │
                                    │                             │
@@ -251,15 +251,26 @@ MCP tools are treated identically to native tools — the risk classifier evalua
 ## Project Structure
 
 ```
-openClawNurBesser/
+geofrey.ai/
 ├── CLAUDE.md                    # Project context (auto-loaded by Claude Code)
+├── CHANGELOG.md                 # Version history
+├── LICENSE                      # MIT License
+├── Dockerfile                   # Multi-stage build (builder + runtime)
+├── docker-compose.yml           # geofrey + Ollama services
+├── bin/
+│   └── geofrey.mjs             # CLI entry point (geofrey / geofrey setup)
 ├── docs/
 │   ├── ARCHITECTURE.md          # This file
-│   └── ORCHESTRATOR_PROMPT.md   # System prompt for Qwen3 orchestrator
+│   ├── DEPLOYMENT.md            # Docker, systemd, PM2, production tips
+│   ├── ORCHESTRATOR_PROMPT.md   # System prompt for Qwen3 orchestrator
+│   └── WHITEPAPER.md            # Security analysis, cost comparison
+├── .github/
+│   └── workflows/
+│       └── ci.yml               # GitHub Actions CI (lint + test)
 ├── src/
 │   ├── index.ts                 # Entry point + graceful shutdown handler
 │   ├── orchestrator/
-│   │   ├── agent-loop.ts        # Vercel AI SDK ToolLoopAgent wrapper
+│   │   ├── agent-loop.ts        # Vercel AI SDK generateText/streamText wrapper
 │   │   ├── conversation.ts      # Multi-turn conversation manager
 │   │   └── prompt-generator.ts  # Task templates for downstream models
 │   ├── approval/
@@ -271,36 +282,43 @@ openClawNurBesser/
 │   │   ├── index.ts             # t(), setLocale(), getLocale()
 │   │   ├── keys.ts              # TranslationKey union type
 │   │   └── locales/
-│   │       ├── de.ts            # German translations
-│   │       └── en.ts            # English translations
+│   │       ├── de.ts            # German translations (~150 keys)
+│   │       └── en.ts            # English translations (~150 keys)
 │   ├── messaging/
 │   │   ├── platform.ts          # MessagingPlatform interface
 │   │   ├── create-platform.ts   # Async factory: config → adapter
 │   │   ├── streamer.ts          # Platform-agnostic token streaming
 │   │   └── adapters/
-│   │       ├── telegram.ts      # grammY bot + approval UI
-│   │       ├── whatsapp.ts      # WhatsApp Business API
-│   │       └── signal.ts        # signal-cli JSON-RPC
+│   │       ├── telegram.ts      # grammY bot + approval UI (inline buttons)
+│   │       ├── whatsapp.ts      # WhatsApp Business Cloud API (interactive buttons)
+│   │       └── signal.ts        # signal-cli JSON-RPC (text-based approvals)
 │   ├── tools/
 │   │   ├── tool-registry.ts     # Tool schema + handler registry (native + MCP)
 │   │   ├── mcp-client.ts        # MCP server discovery + tool wrapping
 │   │   ├── claude-code.ts       # Claude Code CLI subprocess driver
 │   │   ├── shell.ts             # Shell command executor
-│   │   ├── filesystem.ts        # File read/write/delete
+│   │   ├── filesystem.ts        # File read/write/delete (directory confinement)
 │   │   └── git.ts               # Git operations
 │   ├── audit/
 │   │   └── audit-log.ts         # Append-only hash-chained JSONL log
 │   ├── db/
-│   │   ├── client.ts            # better-sqlite3 + Drizzle setup
+│   │   ├── client.ts            # better-sqlite3 + Drizzle ORM + migrate()
 │   │   └── schema.ts            # Drizzle table definitions
+│   ├── onboarding/
+│   │   ├── check.ts             # Claude Code startup check
+│   │   ├── setup.ts             # CLI entry point (pnpm setup)
+│   │   ├── wizard.ts            # Interactive setup wizard orchestrator
+│   │   ├── steps/               # Wizard steps (prerequisites, platform, credentials)
+│   │   └── utils/               # UI, prompts, validators, clipboard, OCR
+│   ├── e2e/
+│   │   └── agent-flow.test.ts   # 32 E2E integration tests
 │   └── config/
-│       ├── defaults.ts          # Default settings
+│       ├── defaults.ts          # Env var loader + human-readable error formatting
 │       └── schema.ts            # Zod config validation
 ├── drizzle/                     # Drizzle migration files
 ├── data/
 │   ├── audit/                   # Audit logs (JSONL)
-│   └── sessions/                # Conversation transcripts
-├── system_prompts_leaks-main/   # Reference: leaked system prompts
+│   └── app.db                   # SQLite database
 ├── package.json
 ├── tsconfig.json
 ├── drizzle.config.ts
@@ -337,13 +355,13 @@ The **Power tier** enables tiered routing — the orchestrator routes simple tas
 ## Graceful Shutdown
 
 On SIGTERM/SIGINT:
-1. Stop accepting new Telegram messages
+1. Stop accepting new messages (all platform adapters)
 2. Reject pending approval promises with `SHUTDOWN` status
 3. Wait for in-flight tool executions to complete (max 10s)
 4. Terminate child processes (Claude Code, shell) via SIGTERM → SIGKILL after 5s
 5. Flush audit log
 6. Close SQLite connection
-7. Stop grammY polling
+7. Stop platform adapters (grammY polling, WhatsApp webhook, Signal JSON-RPC)
 8. Exit
 
 ## OpenClaw Problems We Fix
@@ -354,7 +372,7 @@ On SIGTERM/SIGINT:
 | System prompt resent every API call (10K tokens) | Efficient context management, sliding window |
 | Fire-and-forget approval (bug #2402, still not truly blocking) | **Structural blocking** via Promise — no code path around it |
 | `elevated: "full"` bypasses all safety | No bypass mode. Every L2+ action goes through gate |
-| Credentials in plaintext | Encrypted storage, secret detection in commands |
+| Credentials in plaintext | Sensitive paths (.env, .ssh, .pem) L3-blocked — agent cannot read them |
 | 42,000+ exposed instances | Localhost-only by default |
 | Prompt injection via web/email content | 3-layer injection defense (user input, tool output, model response) |
 | 7.1% of ClawHub skills leak credentials | No public marketplace. Local-only tools + MCP with risk classification |
