@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Image metadata sanitizer (`src/security/image-sanitizer.ts`) — strips EXIF/XMP/IPTC/PNG text chunks before images reach the LLM
+- Format detection via magic bytes (JPEG, PNG, WebP, TIFF, GIF)
+- Prompt injection scanning in raw metadata buffers (instruction phrases, XML tag injection, jailbreak keywords, DAN patterns)
+- EXIF orientation applied before metadata stripping
+- Audit log helper for image sanitization with risk escalation (clean = L0, suspicious = L2)
+- Config section `imageSanitizer` with env vars: `IMAGE_SANITIZER_ENABLED`, `IMAGE_SANITIZER_MAX_SIZE`, `IMAGE_SANITIZER_SCAN_INJECTION`
+- 8 new i18n keys (`security.*`) with German and English translations
+- 37 new tests for image sanitizer (257 total across 59 suites)
+
+### Security
+
+- Image metadata side channel defense — prevents prompt injection via EXIF/XMP/IPTC fields
+
 ## [1.0.0] - 2026-02-12
 
 ### Added
