@@ -91,12 +91,13 @@ const approved = await promise;  // Resolves ONLY on user action
 
 This is not a policy that can be overridden. It is a structural property of the execution flow.
 
-### Three Layers of Defense
+### Four Layers of Defense
 
 | Layer | Threat | Defense |
 |-------|--------|---------|
-| **Deterministic classifier** | Known dangerous patterns | Regex blocks rm -rf, sudo, curl\|sh, force-push in <1ms |
-| **LLM classifier** | Ambiguous commands | Qwen3 8B classifies edge cases with chain-of-thought |
+| **Command decomposition** | Chained command bypass (`ls && curl evil`) | Shlex-style split on unquoted `&&`, `||`, `;`, `|`, `\n` — each segment classified individually |
+| **Deterministic classifier** | Known dangerous patterns | Regex blocks rm -rf, sudo, curl\|sh, force-push, pipe-to-shell in <1ms |
+| **LLM classifier** | Ambiguous commands | Qwen3 8B classifies edge cases with XML output (more reliable than JSON for small models) |
 | **Approval gate** | Unauthorized execution | Promise-based blocking — no code path around it |
 
 ### Four-Tier Risk Classification
@@ -109,6 +110,19 @@ This is not a policy that can be overridden. It is a structural property of the 
 | **L3** Block | Refuse always, log attempt | rm -rf, sudo, curl, git push --force |
 
 90% of classifications are handled by deterministic pattern matching (zero latency, zero cost). Only genuinely ambiguous cases invoke the LLM.
+
+### Claude Code as Intelligent Coding Backend
+
+The local LLM doesn't try to write code — it acts as a **communication bridge, prompt optimizer, and safety layer** that delegates coding tasks to Claude Code CLI (Pro/Max subscription):
+
+1. **Intent classification** — the orchestrator determines if a request is a QUESTION, SIMPLE_TASK, CODING_TASK, or AMBIGUOUS
+2. **Prompt optimization** — 8 task templates (bug_fix, refactor, new_feature, debugging, code_review, test_writing, documentation, freeform) generate focused prompts
+3. **Tool scoping** — Claude Code's available tools are restricted by risk level (L0 = read-only, L1 = standard, L2 = full)
+4. **Session tracking** — multi-turn coding tasks reuse sessions via `--session-id` (1h TTL)
+5. **Live streaming** — Claude Code output is streamed to Telegram in real-time via message edits
+6. **Audit trail** — every invocation logs cost, tokens, model, session ID, and allowed tools
+
+This architecture means the local LLM handles the cheap, frequent work (intent classification, risk assessment, user communication) while Claude Code handles the expensive, complex work (multi-file edits, debugging, refactoring).
 
 ---
 
@@ -142,11 +156,12 @@ The orchestrator handles intent classification, risk assessment, and task decomp
 |--------------|----------|------------|
 | **Network exposure** | Web UI on public ports (42K exposed instances) | No web UI, Telegram long polling only |
 | **RCE via browser** | CVE-2026-25253 (CVSS 8.8) | No browser interface, no WebSocket |
-| **Command injection** | CVE-2026-25157 | L3 blocks injection patterns (backticks, $(), &&, \|\|) |
+| **Command injection** | CVE-2026-25157 | L3 blocks + shlex decomposition (each segment classified individually) |
 | **Approval bypass** | `elevated: "full"` skips all checks | No bypass mode exists |
 | **Marketplace malware** | 7.1% of ClawHub skills leak credentials | No marketplace, explicit tool registry |
-| **Prompt injection** | No specific defense | 3-layer defense (user input, tool output, model response) |
-| **Audit trail** | Basic logs | Hash-chained JSONL (SHA-256, tamper-evident) |
+| **Prompt injection** | No specific defense | 3-layer defense + MCP output sanitization |
+| **LLM classifier evasion** | JSON parsing fragile with small models | XML output (reliable with Qwen3 8B) + JSON fallback |
+| **Audit trail** | Basic logs | Hash-chained JSONL (SHA-256, tamper-evident, cost tracking) |
 
 ### OWASP Agentic AI Top 10 Coverage
 
@@ -221,12 +236,15 @@ Target users:
 |---------|----------|---------|--------|------------|
 | Local orchestrator | No | No | No | **Yes** |
 | Structural approval blocking | No (fire-and-forget) | N/A | N/A | **Yes** |
+| Command decomposition | No | N/A | N/A | **Yes** (shlex-style) |
+| Risk-scoped tool profiles | No | N/A | N/A | **Yes** (L0→readOnly, L1→standard, L2→full) |
 | Monthly cost (moderate use) | $200-600 | $15-50 | $20-40 | **$0-30** |
 | Network exposure | Web UI (42K exposed) | Cloud | Cloud | **None** |
-| MCP ecosystem | Yes | No | No | **Yes** |
+| MCP ecosystem | Yes | No | No | **Yes** (with allowlist) |
 | OWASP Agentic coverage | Partial | N/A | N/A | **Full** |
 | Open source | Yes | No | No | **Yes** |
 | Data sovereignty | Cloud-dependent | Cloud | Cloud | **100% local** |
+| Test coverage | Some | N/A | N/A | **106 tests, 12 modules** |
 
 ---
 
@@ -236,11 +254,21 @@ Target users:
 - [x] Local LLM orchestrator (Qwen3 8B via Ollama)
 - [x] 4-tier risk classification (hybrid deterministic + LLM)
 - [x] Structural approval gate (Promise-based blocking)
-- [x] Telegram bot with approval UI
-- [x] Tool executors (shell, filesystem, git, Claude Code)
-- [x] MCP client integration
+- [x] Telegram bot with approval UI + live streaming
+- [x] Tool executors (shell, filesystem, git)
+- [x] MCP client integration (allowlist, output sanitization)
 - [x] Hash-chained audit log
 - [x] SQLite persistence
+- [x] 106 unit tests across 12 modules
+
+### Phase 1.5 — Claude Code Integration + Security Hardening (Complete)
+- [x] XML-based LLM classifier output (more reliable with small models, JSON fallback)
+- [x] Shlex-style command decomposition (prevents chained command bypass)
+- [x] Claude Code CLI driver rewrite (stream-json, sessions, tool scoping)
+- [x] Prompt optimizer (8 templates, risk-scoped tool profiles)
+- [x] 4-way intent classification (QUESTION / SIMPLE_TASK / CODING_TASK / AMBIGUOUS)
+- [x] Claude Code live streaming to Telegram
+- [x] Session tracking + audit log extension (cost, tokens, model, session ID)
 
 ### Phase 2 — Hardening (Next)
 - [ ] End-to-end test suite
