@@ -13,7 +13,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "lint": "tsc --noEmit",
-    "test": "node --test"
+    "test": "node --import tsx/esm --test 'src/**/*.test.ts'"
   },
   "dependencies": {
     "ai": "^6.0.0",

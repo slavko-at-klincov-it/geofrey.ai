@@ -44,7 +44,7 @@ const L0_TOOLS = new Set([
 const L3_COMMANDS = /\b(sudo|rm\s+-rf|curl|wget|nc|ssh|scp|telnet|eval|exec|alias)\b/;
 const INJECTION_PATTERN = /[`]|\$\(|&&|\|\||(?<![|]);/;
 const SENSITIVE_PATHS = /\.(env|ssh|pem|key|credentials|secret)/i;
-const CONFIG_FILES = /\.(github\/workflows|package\.json|tsconfig\.json|Dockerfile|\.eslintrc|\.prettierrc)/;
+const CONFIG_FILES = /\.github\/workflows|package\.json|tsconfig\.json|Dockerfile|\.eslintrc|\.prettierrc/;
 const FORCE_PUSH = /git\s+push\s+.*--force/;
 
 export function classifyDeterministic(
@@ -83,7 +83,7 @@ export function classifyDeterministic(
 
 const JSON_EXTRACT = /\{[^{}]*"level"\s*:\s*"L[0-3]"[^{}]*\}/;
 
-function tryParseClassification(text: string): { level: RiskLevel; reason: string } | null {
+export function tryParseClassification(text: string): { level: RiskLevel; reason: string } | null {
   // Try direct JSON parse first
   try {
     const parsed = JSON.parse(text);
