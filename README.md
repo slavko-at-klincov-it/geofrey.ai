@@ -18,7 +18,7 @@ geofrey.ai runs a local LLM (Qwen3 8B via Ollama) as an intelligent orchestrator
 | Network exposure | Web UI (42K+ exposed instances) | No web UI, messaging only |
 | Security vulnerabilities | CVE-2026-25253 (RCE), CVE-2026-25157 | No web attack surface |
 | Command injection defense | Basic | 4-layer (decomposition + regex + LLM + gate) |
-| Test coverage | Some | 179 tests across 26 modules |
+| Test coverage | Some | 220 tests across 55 suites |
 
 ## Features
 
@@ -82,6 +82,17 @@ pnpm start
 ```
 
 Send a message to your bot on Telegram/WhatsApp/Signal to start interacting.
+
+### Docker
+
+```bash
+cp .env.example .env
+# Edit .env with your config (set OLLAMA_BASE_URL=http://ollama:11434)
+docker compose up -d
+docker compose exec ollama ollama pull qwen3:8b
+```
+
+See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for systemd, PM2, and production deployment options.
 
 ## Manual Configuration
 
@@ -185,7 +196,7 @@ See `docs/ARCHITECTURE.md` for full technical details.
 # Run in development mode with auto-reload
 pnpm dev
 
-# Run tests (node:test runner, 179 tests across 26 modules)
+# Run tests (node:test runner, 220 tests across 55 suites)
 pnpm test
 
 # Type check
@@ -435,7 +446,7 @@ All MCP tool calls are automatically routed through the risk classifier. The MCP
 pnpm dev          # Run with hot reload (tsx watch)
 pnpm build        # TypeScript compilation
 pnpm lint         # Type check (tsc --noEmit)
-pnpm test         # 179 tests across 26 modules
+pnpm test         # 220 tests across 55 suites
 pnpm setup        # Interactive setup wizard
 pnpm start        # Run compiled output
 pnpm db:generate  # Generate Drizzle migrations
@@ -445,7 +456,7 @@ pnpm db:generate  # Generate Drizzle migrations
 
 ## Project Status
 
-**179 tests passing** across 26 modules.
+**220 tests passing** across 55 suites (188 unit + 32 E2E integration).
 
 - [x] Local LLM orchestrator (Qwen3 8B)
 - [x] Hybrid risk classification (deterministic + LLM, XML output)
@@ -464,7 +475,9 @@ pnpm db:generate  # Generate Drizzle migrations
 - [x] Interactive setup wizard (`pnpm setup` — auto-detection, OCR, clipboard, real-time validation)
 - [x] Windows compatibility (shell executor, Signal named pipes, OCR, risk classifier)
 - [x] Graceful shutdown (Signal pending request rejection, schema versioning)
-- [ ] End-to-end test suite
+- [x] End-to-end test suite (32 integration tests)
+- [x] Docker support (Dockerfile + docker-compose.yml with Ollama + GPU)
+- [x] npm CLI entry point (`geofrey` / `geofrey setup`)
 - [ ] Web dashboard (read-only audit viewer)
 
 ---
@@ -615,8 +628,10 @@ OpenClaw (ehemals Clawdbot/Moltbot) ist die bekannteste Open-Source AI-Agent-Pla
 ## Docs
 
 - [Architecture](docs/ARCHITECTURE.md) — Full system design, dataflow, risk levels
+- [Deployment](docs/DEPLOYMENT.md) — Docker, systemd, PM2, production tips
 - [Orchestrator Prompts](docs/ORCHESTRATOR_PROMPT.md) — 4 focused prompts for Qwen3
 - [Whitepaper](docs/WHITEPAPER.md) — Security analysis, cost comparison, market opportunity
+- [Changelog](CHANGELOG.md) — Version history
 
 ---
 

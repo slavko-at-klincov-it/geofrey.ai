@@ -140,7 +140,7 @@ src/
 - [x] Integration: Claude Code subprocess driver
 - [x] DB: Drizzle schema + migrations
 - [x] Audit log
-- [x] Unit tests (179 tests, 26 modules — node:test runner)
+- [x] Unit tests (188 tests — node:test runner)
 - [x] Security: obfuscation-resistant L3 patterns (path variants, script network, base64, chmod +x)
 - [x] Security: MCP output sanitization (DATA boundary tags, instruction filtering)
 - [x] Security: MCP server allowlist (`mcp.allowedServers` config)
@@ -162,7 +162,14 @@ src/
 - [x] Signal adapter graceful shutdown (reject pending JSON-RPC requests)
 - [x] DB schema versioning (`schema_version` table for future migrations)
 - [x] i18n: German + English with `t()` function, typed keys, `LOCALE` config
-- [ ] End-to-end testing
+- [x] E2E integration tests (32 tests — agent flow, audit, approval, streaming)
+- [x] Ollama error handling (3 retries, user-friendly connection errors)
+- [x] Human-readable startup config errors (Zod → env var mapping)
+- [x] Docker support (Dockerfile, docker-compose.yml with Ollama + GPU)
+- [x] Deployment guide (Docker, systemd, PM2)
+- [x] npm CLI entry point (`geofrey` / `geofrey setup`)
+- [x] CHANGELOG.md
+- [x] v1.0.0 release
 
 ## Conventions
 - Code language: English
