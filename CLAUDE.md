@@ -22,6 +22,7 @@ A better alternative to [OpenClaw](https://github.com/openclaw/openclaw) (former
 | Subprocess | **execa** |
 | State/DB | **SQLite** (better-sqlite3 + **Drizzle ORM**) |
 | Audit | Append-only hash-chained **JSONL** (SHA-256) |
+| Image Processing | **sharp** (metadata stripping, format detection, orientation) |
 | Validation | **Zod** (Standard Schema compatible) |
 | Package Manager | **pnpm** |
 | i18n | Typed key-value maps (`src/i18n/`) — `t()` function, `de` + `en` locales |
@@ -88,6 +89,9 @@ src/
 │   ├── shell.ts             # Shell command executor
 │   ├── filesystem.ts        # File operations
 │   └── git.ts               # Git operations
+├── security/
+│   ├── image-sanitizer.ts   # EXIF/XMP/IPTC stripping + injection scanning
+│   └── image-sanitizer.test.ts
 ├── audit/
 │   └── audit-log.ts         # Hash-chained JSONL
 ├── db/
@@ -140,7 +144,7 @@ src/
 - [x] Integration: Claude Code subprocess driver
 - [x] DB: Drizzle schema + migrations
 - [x] Audit log
-- [x] Unit tests (188 tests — node:test runner)
+- [x] Unit tests (225 tests — node:test runner)
 - [x] Security: obfuscation-resistant L3 patterns (path variants, script network, base64, chmod +x)
 - [x] Security: MCP output sanitization (DATA boundary tags, instruction filtering)
 - [x] Security: MCP server allowlist (`mcp.allowedServers` config)
@@ -162,6 +166,7 @@ src/
 - [x] Signal adapter graceful shutdown (reject pending JSON-RPC requests)
 - [x] DB schema versioning (`schema_version` table for future migrations)
 - [x] i18n: German + English with `t()` function, typed keys, `LOCALE` config
+- [x] Security: image metadata sanitizer (EXIF/XMP/IPTC stripping, injection scanning, sharp)
 - [x] E2E integration tests (32 tests — agent flow, audit, approval, streaming)
 - [x] Ollama error handling (3 retries, user-friendly connection errors)
 - [x] Human-readable startup config errors (Zod → env var mapping)
@@ -218,3 +223,5 @@ src/
 | 2026-02-12 | Schema version tracking | `schema_version` table with version + applied_at — foundation for future DB migrations |
 | 2026-02-12 | i18n with typed key-value maps | No external library; `t()` function + `satisfies` compile-time completeness; `de` + `en` locales |
 | 2026-02-12 | Language selection in setup wizard | First wizard step is bilingual "Language / Sprache:", stored as `LOCALE` in `.env` |
+| 2026-02-12 | Image metadata sanitization | EXIF/XMP/IPTC can carry prompt injection — strip before LLM, scan for patterns, audit findings |
+| 2026-02-12 | sharp for image processing | Prebuilt binaries, EXIF orientation, metadata stripping in one pipeline; configurable via env vars |

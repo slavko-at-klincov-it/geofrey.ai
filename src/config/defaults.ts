@@ -114,6 +114,15 @@ export function loadConfig(): Config {
         apiKey: process.env.ANTHROPIC_API_KEY,
         mcpConfigPath: process.env.CLAUDE_CODE_MCP_CONFIG,
       },
+      imageSanitizer: {
+        enabled: process.env.IMAGE_SANITIZER_ENABLED !== undefined
+          ? process.env.IMAGE_SANITIZER_ENABLED === "true"
+          : undefined,
+        maxInputSizeBytes: process.env.IMAGE_SANITIZER_MAX_SIZE,
+        scanForInjection: process.env.IMAGE_SANITIZER_SCAN_INJECTION !== undefined
+          ? process.env.IMAGE_SANITIZER_SCAN_INJECTION === "true"
+          : undefined,
+      },
       mcp: {
         allowedServers: process.env.MCP_ALLOWED_SERVERS
           ? process.env.MCP_ALLOWED_SERVERS.split(",").map((s) => s.trim())

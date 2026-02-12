@@ -164,13 +164,14 @@ The orchestrator handles intent classification, risk assessment, and task decomp
 | **Secret handling** | Plaintext credentials in local files (infostealer target) | Env-only, Zod-validated, no token logging, subprocess env isolation |
 | **Filesystem access** | Unrestricted (agent can read `/etc/passwd`, `.ssh/`) | `confine()` rejects paths outside `process.cwd()` |
 | **MCP output trust** | Unsafe type assertions on tool responses | Zod schema validation (`safeParse`) + instruction filtering |
+| **Image metadata** | No sanitization | EXIF/XMP/IPTC stripping + prompt injection scanning via sharp |
 | **Audit trail** | Basic logs | Hash-chained JSONL (SHA-256, tamper-evident, cost tracking) |
 
 ### OWASP Agentic AI Top 10 Coverage
 
 | # | Risk | Our Mitigation |
 |---|------|---------------|
-| ASI01 | Agent Goal Hijack | Local orchestrator reviews all instructions; prompt injection defense |
+| ASI01 | Agent Goal Hijack | Local orchestrator reviews all instructions; prompt injection defense; image metadata sanitization |
 | ASI02 | Tool Misuse | Hybrid risk classifier + structural approval gate |
 | ASI03 | Identity & Privilege Abuse | No cloud credentials stored; env-only secrets; subprocess env isolation; no elevated bypass |
 | ASI04 | Supply Chain Vulnerabilities | No marketplace; explicit tool registry + MCP whitelist; Zod response validation |
@@ -208,6 +209,19 @@ MCP tool responses are validated with `mcpContentSchema.safeParse()` (Zod) inste
 - **DATA boundary wrapping** — sanitized output wrapped in `<mcp_data>` tags, which the orchestrator system prompt treats as data-only (never as instructions)
 
 This three-step pipeline prevents prompt injection via compromised or malicious MCP tool servers.
+
+### Image Metadata Sanitization
+
+Image metadata (EXIF, XMP, IPTC, PNG text chunks) is a known side channel for prompt injection. An attacker can embed instructions like `ignore previous instructions` or `<system>override safety</system>` in an image's EXIF comment field — invisible to users but parsed by multimodal LLMs.
+
+geofrey.ai strips all metadata before images reach the orchestrator:
+
+1. **Format detection** — magic byte validation (JPEG, PNG, WebP, TIFF, GIF) rejects unknown formats
+2. **Metadata extraction + scanning** — raw EXIF/XMP/IPTC buffers converted to UTF-8 and scanned against injection patterns (instruction phrases, XML tag injection, jailbreak keywords, DAN patterns)
+3. **Metadata stripping** — `sharp` pipeline removes all metadata while preserving EXIF orientation
+4. **Audit logging** — suspicious findings logged with risk escalation (clean = L0, suspicious = L2)
+
+This extends the 3-layer prompt injection defense to cover the image metadata side channel.
 
 ---
 
@@ -275,7 +289,8 @@ Target users:
 | OWASP Agentic coverage | Partial | N/A | N/A | **Full** |
 | Open source | Yes | No | No | **Yes** |
 | Data sovereignty | Cloud-dependent | Cloud | Cloud | **100% local** |
-| Test coverage | Some | N/A | N/A | **220 tests, 55 suites** |
+| Test coverage | Some | N/A | N/A | **257 tests, 59 suites** |
+| Image metadata defense | None | N/A | N/A | **EXIF/XMP/IPTC stripping + injection scan** |
 
 ---
 
@@ -290,7 +305,7 @@ Target users:
 - [x] MCP client integration (allowlist, output sanitization)
 - [x] Hash-chained audit log
 - [x] SQLite persistence
-- [x] 220 tests (188 unit + 32 E2E integration) across 55 suites
+- [x] 257 tests (188 unit + 32 E2E integration) across 59 suites
 
 ### Phase 1.5 — Claude Code Integration + Security Hardening (Complete)
 - [x] XML-based LLM classifier output (more reliable with small models, JSON fallback)
@@ -314,6 +329,7 @@ Target users:
 - [x] v1.0.0 release
 
 ### Phase 2 — Hardening (Next)
+- [x] Image metadata sanitization (EXIF/XMP/IPTC stripping + prompt injection scanning)
 - [ ] Token budget enforcement
 - [ ] Approval timeout with configurable policy
 - [ ] Rate limiting for tool execution

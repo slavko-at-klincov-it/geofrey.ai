@@ -18,7 +18,8 @@ geofrey.ai runs a local LLM (Qwen3 8B via Ollama) as an intelligent orchestrator
 | Network exposure | Web UI (42K+ exposed instances) | No web UI, messaging only |
 | Security vulnerabilities | CVE-2026-25253 (RCE), CVE-2026-25157 | No web attack surface |
 | Command injection defense | Basic | 4-layer (decomposition + regex + LLM + gate) |
-| Test coverage | Some | 220 tests across 55 suites |
+| Image metadata defense | None | EXIF/XMP/IPTC stripping + injection scanning |
+| Test coverage | Some | 257 tests across 59 suites |
 
 ## Features
 
@@ -29,7 +30,8 @@ geofrey.ai runs a local LLM (Qwen3 8B via Ollama) as an intelligent orchestrator
 - **Claude Code integration** — local LLM routes coding tasks to Claude Code CLI with risk-scoped tool profiles
 - **MCP ecosystem access** — 10K+ community tool servers wrapped by risk classifier
 - **Hash-chained audit log** — tamper-evident JSONL with SHA-256 chain, tracks cost/tokens/model/session
-- **Prompt injection defense** — 3-layer isolation (user input, tool output, model response)
+- **Prompt injection defense** — 3-layer isolation (user input, tool output, model response) + image metadata sanitization
+- **Image metadata sanitizer** — strips EXIF/XMP/IPTC/PNG text chunks, applies orientation, scans for prompt injection in metadata
 - **Command decomposition** — shlex-style split prevents `ls && curl evil` bypass
 - **i18n** — German + English with typed translation keys
 - **Windows + macOS + Linux** — cross-platform compatibility
@@ -196,7 +198,7 @@ See `docs/ARCHITECTURE.md` for full technical details.
 # Run in development mode with auto-reload
 pnpm dev
 
-# Run tests (node:test runner, 220 tests across 55 suites)
+# Run tests (node:test runner, 257 tests across 59 suites)
 pnpm test
 
 # Type check
@@ -219,6 +221,7 @@ src/
 ├── approval/                # Risk classifier, approval gate, execution guard
 ├── messaging/               # Platform adapters (Telegram, WhatsApp, Signal)
 ├── tools/                   # Tool executors (Claude Code, shell, filesystem, git, MCP)
+├── security/                # Image metadata sanitizer, injection scanning
 ├── audit/                   # Hash-chained JSONL audit log
 ├── db/                      # SQLite + Drizzle ORM
 ├── i18n/                    # German + English translations
@@ -272,7 +275,18 @@ MCP tool responses validated with Zod schemas, instruction filtering, DATA bound
 
 MCP tool responses validated with `mcpContentSchema.safeParse()` (Zod) instead of unsafe `as` type assertions. Malformed or unexpected MCP output is rejected before reaching the orchestrator. Instruction patterns (`you must`, `execute`, `<system>`) are stripped from MCP output to prevent prompt injection via tool responses.
 
-### 10. Hash-Chained Audit Log
+### 10. Image Metadata Sanitization
+
+Images can carry prompt injection payloads in EXIF, XMP, IPTC, and PNG text chunks. The image sanitizer (`src/security/image-sanitizer.ts`) strips all metadata before images reach the LLM:
+
+- **Format detection** — magic byte validation for JPEG, PNG, WebP, TIFF, GIF
+- **Metadata stripping** — `sharp` pipeline removes all EXIF/XMP/IPTC data
+- **Orientation preservation** — EXIF orientation applied before stripping
+- **Injection scanning** — raw metadata buffers scanned for prompt injection patterns (`ignore previous instructions`, `<system>`, `act as`, `jailbreak`, `DAN`, etc.)
+- **Audit integration** — suspicious findings logged with risk level escalation (L0 clean → L2 suspicious)
+- **Configurable** — toggle via `IMAGE_SANITIZER_ENABLED`, size limits via `IMAGE_SANITIZER_MAX_SIZE`
+
+### 11. Hash-Chained Audit Log
 
 Every action logged with SHA-256 hash chain — tamper attempts detectable by verifying chain integrity.
 
@@ -325,6 +339,9 @@ The Power tier enables routing simple coding tasks to local Qwen3-Coder-Next (fr
 | `AUDIT_LOG_DIR` | No | `./data/audit` | Audit log directory |
 | `MCP_SERVERS` | No | — | JSON array of MCP server configs |
 | `MCP_ALLOWED_SERVERS` | No | — | Comma-separated allowlist of MCP server names |
+| `IMAGE_SANITIZER_ENABLED` | No | `true` | Enable/disable image metadata stripping |
+| `IMAGE_SANITIZER_MAX_SIZE` | No | `20971520` | Max input image size in bytes (20MB) |
+| `IMAGE_SANITIZER_SCAN_INJECTION` | No | `true` | Scan metadata for prompt injection patterns |
 
 #### Claude Code CLI
 
@@ -387,6 +404,8 @@ src/
 │   ├── shell.ts              # Shell command executor
 │   ├── filesystem.ts         # File read/write/delete/list
 │   └── git.ts                # Git status/log/diff/commit
+├── security/
+│   └── image-sanitizer.ts    # EXIF/XMP/IPTC stripping + injection scanning
 ├── audit/
 │   └── audit-log.ts          # Hash-chained JSONL (SHA-256, tamper-evident)
 ├── db/
@@ -458,7 +477,7 @@ All MCP tool calls are automatically routed through the risk classifier. The MCP
 pnpm dev          # Run with hot reload (tsx watch)
 pnpm build        # TypeScript compilation
 pnpm lint         # Type check (tsc --noEmit)
-pnpm test         # 220 tests across 55 suites
+pnpm test         # 257 tests across 59 suites
 pnpm setup        # Interactive setup wizard
 pnpm start        # Run compiled output
 pnpm db:generate  # Generate Drizzle migrations
@@ -468,7 +487,7 @@ pnpm db:generate  # Generate Drizzle migrations
 
 ## Project Status
 
-**220 tests passing** across 55 suites (188 unit + 32 E2E integration).
+**257 tests passing** across 59 suites (225 unit + 32 E2E integration).
 
 - [x] Local LLM orchestrator (Qwen3 8B)
 - [x] Hybrid risk classification (deterministic + LLM, XML output)
@@ -484,6 +503,7 @@ pnpm db:generate  # Generate Drizzle migrations
 - [x] SQLite persistence (conversations, Claude Code sessions)
 - [x] Security hardening (obfuscation-resistant L3 patterns, pipe-to-shell detection)
 - [x] Security: filesystem directory confinement + MCP Zod response validation
+- [x] Security: image metadata sanitizer (EXIF/XMP/IPTC stripping + prompt injection scanning)
 - [x] Interactive setup wizard (`pnpm setup` — auto-detection, OCR, clipboard, real-time validation)
 - [x] Windows compatibility (shell executor, Signal named pipes, OCR, risk classifier)
 - [x] Graceful shutdown (Signal pending request rejection, schema versioning)
@@ -518,6 +538,7 @@ OpenClaw (ehemals Clawdbot/Moltbot) ist die bekannteste Open-Source AI-Agent-Pla
 | Command Injection | CVE-2026-25157, CVE-2026-24763 (Docker Sandbox) | L3-Blockierung + Shlex-Dekomposition | **Jedes Segment einzeln klassifiziert** |
 | Verkettete Befehle | `ls && curl evil.com` passiert als einzelner String | Aufgeteilt an `&&`, `\|\|`, `;`, `\|` — jedes Segment einzeln bewertet | **Chained-Command-Bypass unmöglich** |
 | Prompt Injection | Keine spezifische Abwehr | 3-Schicht-Verteidigung + MCP-Output-Sanitisierung | **User-Input, Tool-Output und Model-Response isoliert** |
+| Bild-Metadaten | Keine Bereinigung | EXIF/XMP/IPTC-Stripping + Injection-Scan | **Prompt-Injection via Bild-Metadaten verhindert** |
 | Marketplace-Malware | ClawHub: 7,1% der Skills leaken Credentials | Kein Marketplace, MCP mit Allowlist | **Kein unverifizierter Community-Code** |
 | Secret-Handling | Plaintext-Credentials in lokalen Dateien (Infostealer-Ziel) | Env-only, Zod-validiert, kein Token-Logging, Subprocess-Isolation | **Keine Secrets auf Disk, keine Secrets in CLI-Args** |
 | Filesystem-Zugriff | Unrestricted (Agent kann `/etc/passwd`, `.ssh/` lesen) | `confine()` — Paths außerhalb `cwd` blockiert | **Path-Traversal unmöglich** |

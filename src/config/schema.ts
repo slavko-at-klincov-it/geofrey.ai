@@ -57,6 +57,11 @@ export const configSchema = z.object({
       full: z.string().default("Read Glob Grep Edit Write Bash"),
     }).default({}),
   }),
+  imageSanitizer: z.object({
+    enabled: z.boolean().default(true),
+    maxInputSizeBytes: z.coerce.number().int().positive().default(20_971_520),
+    scanForInjection: z.boolean().default(true),
+  }).default({}),
   mcp: z.object({
     // Empty array = all servers allowed (no restriction). Non-empty = only listed servers.
     allowedServers: z.array(z.string()).default([]),

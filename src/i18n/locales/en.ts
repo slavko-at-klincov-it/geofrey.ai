@@ -229,6 +229,16 @@ export const en: Record<TranslationKey, string> = {
   "onboarding.loginNotRecognized": "Login not recognized — check with 'claude --version'",
   "onboarding.loginCheckFailed": "Check failed",
 
+  // security / image-sanitizer
+  "security.imageSanitized": "Image sanitized: {format}, {originalSize} → {sanitizedSize} bytes",
+  "security.imageUnsupportedFormat": "Unsupported image format",
+  "security.imageCorrupt": "Corrupt image — processing failed",
+  "security.imageSizeExceeded": "Image exceeds maximum size ({maxSize} bytes)",
+  "security.imageProcessingFailed": "Image processing failed: {msg}",
+  "security.imageSuspiciousMetadata": "Suspicious metadata found: {count} matches",
+  "security.imageOrientationApplied": "EXIF orientation applied",
+  "security.imageMetadataStripped": "Metadata stripped ({fields})",
+
   // summary
   "onboarding.summaryTitle": "Configuration",
   "onboarding.summaryPlatform": "Platform:",

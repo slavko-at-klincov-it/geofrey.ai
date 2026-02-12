@@ -209,6 +209,16 @@ export type TranslationKey =
   | "onboarding.loginNotRecognized"
   | "onboarding.loginCheckFailed"
 
+  // security / image-sanitizer
+  | "security.imageSanitized"
+  | "security.imageUnsupportedFormat"
+  | "security.imageCorrupt"
+  | "security.imageSizeExceeded"
+  | "security.imageProcessingFailed"
+  | "security.imageSuspiciousMetadata"
+  | "security.imageOrientationApplied"
+  | "security.imageMetadataStripped"
+
   // summary
   | "onboarding.summaryTitle"
   | "onboarding.summaryPlatform"
