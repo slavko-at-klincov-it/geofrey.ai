@@ -6,6 +6,33 @@ import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
 import { registerTool } from "./tool-registry.js";
 import { z } from "zod";
 
+// --- MCP Server Allowlist ---
+let allowedServers: Set<string> | null = null;
+
+export function setAllowedServers(names: string[]): void {
+  allowedServers = names.length > 0 ? new Set(names) : null;
+}
+
+function isServerAllowed(name: string): boolean {
+  return allowedServers === null || allowedServers.has(name);
+}
+
+// --- MCP Output Sanitization ---
+// Strip sequences that could be interpreted as instructions by the orchestrator
+const INSTRUCTION_PATTERNS = [
+  /(?:you must|you should|please|i need you to|execute|run the command|call the tool)\b/gi,
+  /<\/?(?:system|instruction|prompt|command|tool_call)[^>]*>/gi,
+];
+
+export function sanitizeMcpOutput(text: string): string {
+  // Wrap in DATA boundary so orchestrator treats it as data, not instructions
+  let sanitized = text;
+  for (const pattern of INSTRUCTION_PATTERNS) {
+    sanitized = sanitized.replace(pattern, "[FILTERED]");
+  }
+  return `<mcp_data>${sanitized}</mcp_data>`;
+}
+
 export interface McpServerConfig {
   name: string;
   command: string;
@@ -22,6 +49,10 @@ interface McpConnection {
 const activeConnections = new Map<string, McpConnection>();
 
 export async function connectMcpServer(config: McpServerConfig): Promise<void> {
+  if (!isServerAllowed(config.name)) {
+    throw new Error(`MCP server not in allowlist: ${config.name}`);
+  }
+
   if (activeConnections.has(config.name)) {
     console.log(`MCP server already connected: ${config.name}`);
     return;
@@ -74,14 +105,14 @@ export async function connectMcpServer(config: McpServerConfig): Promise<void> {
           arguments: args as Record<string, unknown>,
         });
 
-        // Extract text content from result
+        // Extract text content from result and sanitize against prompt injection
         const content = result.content as Array<{ type: string; text?: string }>;
         const textContent = content
           .filter((item: { type: string; text?: string }) => item.type === "text")
           .map((item: { type: string; text?: string }) => item.text ?? "")
           .join("\n");
 
-        return textContent;
+        return sanitizeMcpOutput(textContent);
       },
     });
   }

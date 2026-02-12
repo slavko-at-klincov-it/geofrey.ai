@@ -25,6 +25,10 @@ export const configSchema = z.object({
     apiKey: z.string().optional(),
     model: z.string().default("claude-sonnet-4-5-20250929"),
   }),
+  mcp: z.object({
+    // Empty array = all servers allowed (no restriction). Non-empty = only listed servers.
+    allowedServers: z.array(z.string()).default([]),
+  }),
 });
 
 export type Config = z.infer<typeof configSchema>;

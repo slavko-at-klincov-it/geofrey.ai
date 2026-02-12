@@ -10,6 +10,7 @@ describe("configSchema", () => {
     audit: {},
     limits: {},
     claude: {},
+    mcp: {},
   };
 
   it("accepts valid config with all fields", () => {
@@ -20,6 +21,7 @@ describe("configSchema", () => {
       audit: { logDir: "./data/audit" },
       limits: { maxAgentSteps: 15, approvalTimeoutMs: 300000, maxConsecutiveErrors: 3 },
       claude: { model: "claude-sonnet-4-5-20250929" },
+      mcp: { allowedServers: [] },
     };
     const result = configSchema.parse(full);
     assert.equal(result.telegram.botToken, "123:ABC");
@@ -57,5 +59,15 @@ describe("configSchema", () => {
     assert.throws(() => {
       configSchema.parse({ ...minimal, ollama: { baseUrl: "not-a-url" } });
     });
+  });
+
+  it("defaults mcp.allowedServers to empty array", () => {
+    const result = configSchema.parse(minimal);
+    assert.deepEqual(result.mcp.allowedServers, []);
+  });
+
+  it("accepts mcp.allowedServers list", () => {
+    const result = configSchema.parse({ ...minimal, mcp: { allowedServers: ["fs-server", "git-server"] } });
+    assert.deepEqual(result.mcp.allowedServers, ["fs-server", "git-server"]);
   });
 });

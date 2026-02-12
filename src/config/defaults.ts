@@ -26,5 +26,10 @@ export function loadConfig(): Config {
       apiKey: process.env.ANTHROPIC_API_KEY,
       model: process.env.CLAUDE_MODEL,
     },
+    mcp: {
+      allowedServers: process.env.MCP_ALLOWED_SERVERS
+        ? process.env.MCP_ALLOWED_SERVERS.split(",").map((s) => s.trim())
+        : [],
+    },
   });
 }

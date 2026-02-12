@@ -42,6 +42,17 @@ const L0_TOOLS = new Set([
 ]);
 
 const L3_COMMANDS = /\b(sudo|rm\s+-rf|curl|wget|nc|ssh|scp|telnet|eval|exec|alias)\b/;
+// Catch absolute/relative paths to blocked binaries: /usr/bin/curl, ./curl, etc.
+const L3_PATH_COMMANDS = /(?:\/[\w./-]*\/)?(curl|wget|nc|ncat|ssh|scp|telnet)\b/;
+// Python/Node/Ruby network access — common evasion for curl/wget
+const L3_SCRIPT_NETWORK = /\b(python3?|node|ruby|perl|php)\b.*\b(urllib|requests|http\.get|fetch|Net::HTTP|socket|open-uri|fsockopen|file_get_contents)\b/i;
+// Base64 decode piped to shell — obfuscated payload delivery
+const L3_BASE64_EXEC = /base64\s+(-d|--decode)|atob\s*\(|Buffer\.from\s*\([^)]*,\s*['"]base64['"]\)/;
+// chmod +x followed by execution — download-and-run pattern
+const L3_CHMOD_EXEC = /chmod\s+\+x/;
+// Process substitution and here-string tricks
+const L3_PROC_SUBST = /<\(|>\(|<<<\s*\$/;
+
 const INJECTION_PATTERN = /[`]|\$\(|&&|\|\||(?<![|]);/;
 const SENSITIVE_PATHS = /\.(env|ssh|pem|key|credentials|secret)/i;
 const CONFIG_FILES = /\.github\/workflows|package\.json|tsconfig\.json|Dockerfile|\.eslintrc|\.prettierrc/;
@@ -60,6 +71,26 @@ export function classifyDeterministic(
 
   if (L3_COMMANDS.test(command)) {
     return { level: RiskLevel.L3, reason: "Gesperrter Befehl", deterministic: true };
+  }
+
+  if (L3_PATH_COMMANDS.test(command)) {
+    return { level: RiskLevel.L3, reason: "Gesperrter Befehl (Pfad-Variante)", deterministic: true };
+  }
+
+  if (L3_SCRIPT_NETWORK.test(command)) {
+    return { level: RiskLevel.L3, reason: "Netzwerkzugriff via Script-Sprache", deterministic: true };
+  }
+
+  if (L3_BASE64_EXEC.test(command)) {
+    return { level: RiskLevel.L3, reason: "Base64-Decode erkannt — mögliche Payload", deterministic: true };
+  }
+
+  if (L3_CHMOD_EXEC.test(command)) {
+    return { level: RiskLevel.L3, reason: "Ausführbar machen — Download-and-Run Muster", deterministic: true };
+  }
+
+  if (L3_PROC_SUBST.test(command)) {
+    return { level: RiskLevel.L3, reason: "Prozess-Substitution erkannt", deterministic: true };
   }
 
   if (INJECTION_PATTERN.test(command)) {
