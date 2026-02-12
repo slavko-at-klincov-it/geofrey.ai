@@ -1,11 +1,13 @@
 import { Bot, Context } from "grammy";
 import type { Config } from "../config/schema.js";
 import { resolveApproval } from "../approval/approval-gate.js";
+import { runAgentLoop } from "../orchestrator/agent-loop.js";
 
 let bot: Bot | null = null;
 
 export function createBot(config: Config): Bot {
-  bot = new Bot(config.telegram.botToken);
+  const b = new Bot(config.telegram.botToken);
+  bot = b;
 
   // Owner-only middleware
   bot.use(async (ctx, next) => {
@@ -40,11 +42,16 @@ export function createBot(config: Config): Bot {
 
   // Handle text messages → orchestrator
   bot.on("message:text", async (ctx) => {
-    // TODO: Route to agent loop
-    // 1. Add message to conversation
-    // 2. Run agent loop
-    // 3. Send response back
-    await ctx.reply("Agent loop noch nicht implementiert.");
+    const chatId = ctx.chat.id;
+    const text = ctx.message.text;
+
+    try {
+      const response = await runAgentLoop(config, chatId, text, b);
+      await ctx.reply(response);
+    } catch (err) {
+      console.error("Agent loop error:", err);
+      await ctx.reply("Fehler bei der Verarbeitung. Bitte versuche es erneut.");
+    }
   });
 
   return bot;
