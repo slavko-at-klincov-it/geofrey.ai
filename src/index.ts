@@ -5,6 +5,7 @@ import { rejectAllPending } from "./approval/approval-gate.js";
 import { disconnectAll, connectMcpServer } from "./tools/mcp-client.js";
 import { getDb, closeDb } from "./db/client.js";
 import { setDbUrl } from "./orchestrator/conversation.js";
+import { initClaudeCode } from "./tools/claude-code.js";
 
 // Import tools to register them
 import "./tools/filesystem.js";
@@ -57,6 +58,9 @@ async function main() {
   // Initialize database
   getDb(config.database.url);
   setDbUrl(config.database.url);
+
+  // Initialize Claude Code driver
+  initClaudeCode(config.claude);
 
   // Health check Ollama (non-blocking)
   await healthCheckOllama(config.ollama.baseUrl);

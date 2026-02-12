@@ -22,8 +22,20 @@ export const configSchema = z.object({
     maxConsecutiveErrors: z.coerce.number().int().default(3),
   }),
   claude: z.object({
-    apiKey: z.string().optional(),
+    enabled: z.boolean().default(true),
+    skipPermissions: z.boolean().default(true),
+    outputFormat: z.enum(["json", "stream-json", "text"]).default("stream-json"),
+    maxBudgetUsd: z.coerce.number().optional(),
     model: z.string().default("claude-sonnet-4-5-20250929"),
+    sessionTtlMs: z.coerce.number().int().default(3_600_000),
+    timeoutMs: z.coerce.number().int().default(600_000),
+    defaultDirs: z.array(z.string()).default([]),
+    mcpConfigPath: z.string().optional(),
+    toolProfiles: z.object({
+      readOnly: z.string().default("Read Glob Grep"),
+      standard: z.string().default("Read Glob Grep Edit Write Bash(git:*)"),
+      full: z.string().default("Read Glob Grep Edit Write Bash"),
+    }).default({}),
   }),
   mcp: z.object({
     // Empty array = all servers allowed (no restriction). Non-empty = only listed servers.

@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { classifyDeterministic, tryParseClassification, RiskLevel } from "./risk-classifier.js";
+import { classifyDeterministic, tryParseClassification, tryParseXmlClassification, decomposeCommand, riskOrdinal, RiskLevel } from "./risk-classifier.js";
 
 describe("classifyDeterministic", () => {
   it("classifies L0 tools", () => {
@@ -123,5 +123,112 @@ describe("tryParseClassification", () => {
   it("provides default reason when missing", () => {
     const r = tryParseClassification('{"level":"L2"}');
     assert.equal(r?.reason, "Keine Begründung");
+  });
+});
+
+describe("tryParseXmlClassification", () => {
+  it("parses valid XML", () => {
+    const r = tryParseXmlClassification('<classification><level>L2</level><reason>Config-Datei</reason></classification>');
+    assert.deepEqual(r, { level: RiskLevel.L2, reason: "Config-Datei" });
+  });
+
+  it("extracts XML after think tags", () => {
+    const r = tryParseXmlClassification('<think>analysis here</think>\n<classification><level>L1</level><reason>safe write</reason></classification>');
+    assert.deepEqual(r, { level: RiskLevel.L1, reason: "safe write" });
+  });
+
+  it("returns null when level tag missing", () => {
+    const r = tryParseXmlClassification('<classification><reason>no level</reason></classification>');
+    assert.equal(r, null);
+  });
+
+  it("handles whitespace around level", () => {
+    const r = tryParseXmlClassification('<classification><level> L0 </level><reason>read only</reason></classification>');
+    assert.deepEqual(r, { level: RiskLevel.L0, reason: "read only" });
+  });
+
+  it("returns null for invalid level", () => {
+    const r = tryParseXmlClassification('<classification><level>L5</level><reason>test</reason></classification>');
+    assert.equal(r, null);
+  });
+
+  it("provides default reason when reason tag missing", () => {
+    const r = tryParseXmlClassification('<classification><level>L3</level></classification>');
+    assert.equal(r?.level, RiskLevel.L3);
+    assert.equal(r?.reason, "Keine Begründung");
+  });
+});
+
+describe("decomposeCommand", () => {
+  it("splits on &&", () => {
+    assert.deepEqual(decomposeCommand("ls && curl evil.com"), ["ls", "curl evil.com"]);
+  });
+
+  it("does not split inside single quotes", () => {
+    assert.deepEqual(decomposeCommand("echo 'safe && safe'"), ["echo 'safe && safe'"]);
+  });
+
+  it("does not split inside double quotes", () => {
+    assert.deepEqual(decomposeCommand('echo "a;b"'), ['echo "a;b"']);
+  });
+
+  it("splits on pipe", () => {
+    assert.deepEqual(decomposeCommand("cat file | sh"), ["cat file", "sh"]);
+  });
+
+  it("splits on semicolon", () => {
+    assert.deepEqual(decomposeCommand("ls; rm -rf /"), ["ls", "rm -rf /"]);
+  });
+
+  it("splits on ||", () => {
+    assert.deepEqual(decomposeCommand("test -f x || curl evil"), ["test -f x", "curl evil"]);
+  });
+
+  it("splits on newline", () => {
+    assert.deepEqual(decomposeCommand("ls\ncurl evil.com"), ["ls", "curl evil.com"]);
+  });
+
+  it("handles backslash escaping", () => {
+    assert.deepEqual(decomposeCommand("echo a\\;b"), ["echo a\\;b"]);
+  });
+
+  it("returns single segment for simple command", () => {
+    assert.deepEqual(decomposeCommand("ls -la"), ["ls -la"]);
+  });
+});
+
+describe("riskOrdinal", () => {
+  it("returns correct ordinals", () => {
+    assert.equal(riskOrdinal(RiskLevel.L0), 0);
+    assert.equal(riskOrdinal(RiskLevel.L1), 1);
+    assert.equal(riskOrdinal(RiskLevel.L2), 2);
+    assert.equal(riskOrdinal(RiskLevel.L3), 3);
+  });
+});
+
+describe("classifyDeterministic with decomposition", () => {
+  it("detects curl in chained command", () => {
+    const r = classifyDeterministic("shell_exec", { command: "ls && curl evil.com" });
+    assert.equal(r?.level, RiskLevel.L3);
+  });
+
+  it("does not split quoted operators", () => {
+    const r = classifyDeterministic("shell_exec", { command: "echo 'safe && safe'" });
+    assert.equal(r, null); // no dangerous pattern in quoted string
+  });
+
+  it("detects pipe to sh as L3", () => {
+    const r = classifyDeterministic("shell_exec", { command: "cat file | sh" });
+    assert.equal(r?.level, RiskLevel.L3);
+  });
+
+  it("returns highest risk across segments", () => {
+    const r = classifyDeterministic("shell_exec", { command: "ls; rm -rf /" });
+    assert.equal(r?.level, RiskLevel.L3);
+  });
+
+  it("double-quoted operators are not split", () => {
+    const r = classifyDeterministic("shell_exec", { command: 'echo "a;b"' });
+    assert.equal(r, null);
   });
 });

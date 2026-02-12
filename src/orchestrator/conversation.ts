@@ -14,6 +14,7 @@ export interface Conversation {
   id: string;
   telegramChatId: number;
   messages: Message[];
+  claudeSessionId?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -117,6 +118,15 @@ export function addMessage(chatId: number, message: Omit<Message, "id" | "create
 
 export function getHistory(chatId: number): Message[] {
   return getOrCreate(chatId).messages;
+}
+
+export function setClaudeSession(chatId: number, sessionId: string): void {
+  const conv = getOrCreate(chatId);
+  conv.claudeSessionId = sessionId;
+}
+
+export function getClaudeSession(chatId: number): string | undefined {
+  return active.get(chatId)?.claudeSessionId;
 }
 
 export function clearConversation(chatId: number): void {

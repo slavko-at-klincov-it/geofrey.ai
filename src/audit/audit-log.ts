@@ -11,6 +11,11 @@ export interface AuditEntry {
   approved: boolean;
   result: string;
   userId: number;
+  claudeSessionId?: string;
+  claudeModel?: string;
+  costUsd?: number;
+  tokensUsed?: number;
+  allowedTools?: string;
 }
 
 interface StoredEntry extends AuditEntry {

@@ -17,10 +17,10 @@ export interface Classification {
 
 const VALID_LEVELS = new Set([RiskLevel.L0, RiskLevel.L1, RiskLevel.L2, RiskLevel.L3]);
 
-const RISK_CLASSIFIER_PROMPT = `You are a security risk classifier for an AI agent system. Your ONLY job is to classify tool/command requests into risk levels and return JSON.
+const RISK_CLASSIFIER_PROMPT = `You are a security risk classifier for an AI agent system. Your ONLY job is to classify tool/command requests into risk levels.
 
-ALWAYS respond with exactly this JSON structure, nothing else:
-{"level": "L0"|"L1"|"L2"|"L3", "reason": "one-line explanation in German"}
+ALWAYS respond with exactly this XML structure, nothing else:
+<classification><level>L0|L1|L2|L3</level><reason>one-line explanation in German</reason></classification>
 
 Risk Levels:
 - L0 AUTO_APPROVE: Read-only operations (read_file, list_dir, search, git status/log/diff, pwd, ls, cat, head, tail, wc)
@@ -53,22 +53,97 @@ const L3_CHMOD_EXEC = /chmod\s+\+x/;
 // Process substitution and here-string tricks
 const L3_PROC_SUBST = /<\(|>\(|<<<\s*\$/;
 
-const INJECTION_PATTERN = /[`]|\$\(|&&|\|\||(?<![|]);/;
+// Injection patterns for single commands (backticks, $() only — operators handled by decomposition)
+const SINGLE_CMD_INJECTION = /[`]|\$\(/;
 const SENSITIVE_PATHS = /\.(env|ssh|pem|key|credentials|secret)/i;
 const CONFIG_FILES = /\.github\/workflows|package\.json|tsconfig\.json|Dockerfile|\.eslintrc|\.prettierrc/;
 const FORCE_PUSH = /git\s+push\s+.*--force/;
+// Bare shell interpreters — dangerous as pipe targets
+const L3_BARE_SHELL = /^\s*(sh|bash|zsh|dash|ksh)\b/;
 
-export function classifyDeterministic(
-  toolName: string,
-  args: Record<string, unknown>,
-): Classification | null {
-  if (L0_TOOLS.has(toolName)) {
-    return { level: RiskLevel.L0, reason: "Nur lesen, keine Änderung", deterministic: true };
+export function riskOrdinal(level: RiskLevel): number {
+  switch (level) {
+    case RiskLevel.L0: return 0;
+    case RiskLevel.L1: return 1;
+    case RiskLevel.L2: return 2;
+    case RiskLevel.L3: return 3;
+  }
+}
+
+/**
+ * Split a command string on unquoted `&&`, `||`, `;`, `|`, and `\n`,
+ * respecting single/double quotes and backslash escaping.
+ */
+export function decomposeCommand(command: string): string[] {
+  const segments: string[] = [];
+  let current = "";
+  let inSingle = false;
+  let inDouble = false;
+  let escaped = false;
+
+  for (let i = 0; i < command.length; i++) {
+    const ch = command[i];
+
+    if (escaped) {
+      current += ch;
+      escaped = false;
+      continue;
+    }
+
+    if (ch === "\\" && !inSingle) {
+      escaped = true;
+      current += ch;
+      continue;
+    }
+
+    if (ch === "'" && !inDouble) {
+      inSingle = !inSingle;
+      current += ch;
+      continue;
+    }
+
+    if (ch === '"' && !inSingle) {
+      inDouble = !inDouble;
+      current += ch;
+      continue;
+    }
+
+    if (!inSingle && !inDouble) {
+      if (ch === "&" && command[i + 1] === "&") {
+        segments.push(current);
+        current = "";
+        i++;
+        continue;
+      }
+      if (ch === "|" && command[i + 1] === "|") {
+        segments.push(current);
+        current = "";
+        i++;
+        continue;
+      }
+      if (ch === "|") {
+        segments.push(current);
+        current = "";
+        continue;
+      }
+      if (ch === ";" || ch === "\n") {
+        segments.push(current);
+        current = "";
+        continue;
+      }
+    }
+
+    current += ch;
   }
 
-  const command = typeof args.command === "string" ? args.command : "";
-  const path = typeof args.path === "string" ? args.path : "";
+  if (current.trim()) {
+    segments.push(current);
+  }
 
+  return segments.map(s => s.trim()).filter(s => s.length > 0);
+}
+
+export function classifySingleCommand(command: string): Classification | null {
   if (L3_COMMANDS.test(command)) {
     return { level: RiskLevel.L3, reason: "Gesperrter Befehl", deterministic: true };
   }
@@ -93,7 +168,7 @@ export function classifyDeterministic(
     return { level: RiskLevel.L3, reason: "Prozess-Substitution erkannt", deterministic: true };
   }
 
-  if (INJECTION_PATTERN.test(command)) {
+  if (SINGLE_CMD_INJECTION.test(command)) {
     return { level: RiskLevel.L3, reason: "Injection-Muster erkannt", deterministic: true };
   }
 
@@ -101,15 +176,73 @@ export function classifyDeterministic(
     return { level: RiskLevel.L3, reason: "Force-Push überschreibt Remote irreversibel", deterministic: true };
   }
 
-  if (SENSITIVE_PATHS.test(path) || SENSITIVE_PATHS.test(command)) {
+  if (L3_BARE_SHELL.test(command)) {
+    return { level: RiskLevel.L3, reason: "Shell-Interpreter als Pipe-Ziel", deterministic: true };
+  }
+
+  if (SENSITIVE_PATHS.test(command)) {
     return { level: RiskLevel.L3, reason: "Zugriff auf sensible Datei", deterministic: true };
   }
 
-  if (CONFIG_FILES.test(path) || CONFIG_FILES.test(command)) {
+  if (CONFIG_FILES.test(command)) {
     return { level: RiskLevel.L2, reason: "Config-Datei — Genehmigung erforderlich", deterministic: true };
   }
 
   return null;
+}
+
+export function classifyDeterministic(
+  toolName: string,
+  args: Record<string, unknown>,
+): Classification | null {
+  if (L0_TOOLS.has(toolName)) {
+    return { level: RiskLevel.L0, reason: "Nur lesen, keine Änderung", deterministic: true };
+  }
+
+  const command = typeof args.command === "string" ? args.command : "";
+  const path = typeof args.path === "string" ? args.path : "";
+
+  // Decompose command into segments and classify each — return highest risk
+  if (command) {
+    const segments = decomposeCommand(command);
+    let highest: Classification | null = null;
+
+    for (const segment of segments) {
+      const result = classifySingleCommand(segment);
+      if (result) {
+        if (result.level === RiskLevel.L3) return result; // short-circuit
+        if (!highest || riskOrdinal(result.level) > riskOrdinal(highest.level)) {
+          highest = result;
+        }
+      }
+    }
+
+    if (highest) return highest;
+  }
+
+  // Path-based checks (not command-based)
+  if (SENSITIVE_PATHS.test(path)) {
+    return { level: RiskLevel.L3, reason: "Zugriff auf sensible Datei", deterministic: true };
+  }
+
+  if (CONFIG_FILES.test(path)) {
+    return { level: RiskLevel.L2, reason: "Config-Datei — Genehmigung erforderlich", deterministic: true };
+  }
+
+  return null;
+}
+
+const XML_LEVEL = /<level>\s*(L[0-3])\s*<\/level>/;
+const XML_REASON = /<reason>([\s\S]*?)<\/reason>/;
+
+export function tryParseXmlClassification(text: string): { level: RiskLevel; reason: string } | null {
+  const levelMatch = XML_LEVEL.exec(text);
+  if (!levelMatch) return null;
+  const level = levelMatch[1] as RiskLevel;
+  if (!VALID_LEVELS.has(level)) return null;
+  const reasonMatch = XML_REASON.exec(text);
+  const reason = reasonMatch ? reasonMatch[1].trim() : "Keine Begründung";
+  return { level, reason };
 }
 
 const JSON_EXTRACT = /\{[^{}]*"level"\s*:\s*"L[0-3]"[^{}]*\}/;
@@ -154,10 +287,11 @@ export async function classifyWithLlm(
         system: RISK_CLASSIFIER_PROMPT,
         prompt: attempt === 0
           ? prompt
-          : `${prompt}\n\nIMPORTANT: Respond with ONLY valid JSON, no other text.`,
+          : `${prompt}\n\nIMPORTANT: Respond with ONLY the XML classification tags, no other text.`,
       });
 
-      const parsed = tryParseClassification(result.text);
+      // Try XML first (preferred for Qwen3), fall back to JSON
+      const parsed = tryParseXmlClassification(result.text) ?? tryParseClassification(result.text);
       if (parsed) {
         return { level: parsed.level, reason: parsed.reason, deterministic: false };
       }

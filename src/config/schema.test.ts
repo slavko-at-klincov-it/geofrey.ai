@@ -20,12 +20,29 @@ describe("configSchema", () => {
       database: { url: "./data/app.db" },
       audit: { logDir: "./data/audit" },
       limits: { maxAgentSteps: 15, approvalTimeoutMs: 300000, maxConsecutiveErrors: 3 },
-      claude: { model: "claude-sonnet-4-5-20250929" },
+      claude: {
+        enabled: true,
+        skipPermissions: true,
+        outputFormat: "stream-json",
+        maxBudgetUsd: 5,
+        model: "claude-sonnet-4-5-20250929",
+        sessionTtlMs: 3600000,
+        timeoutMs: 600000,
+        defaultDirs: ["/home/user/project"],
+        mcpConfigPath: "/tmp/mcp.json",
+        toolProfiles: {
+          readOnly: "Read Glob Grep",
+          standard: "Read Glob Grep Edit Write Bash(git:*)",
+          full: "Read Glob Grep Edit Write Bash",
+        },
+      },
       mcp: { allowedServers: [] },
     };
     const result = configSchema.parse(full);
     assert.equal(result.telegram.botToken, "123:ABC");
     assert.equal(result.telegram.ownerId, 42);
+    assert.equal(result.claude.maxBudgetUsd, 5);
+    assert.deepEqual(result.claude.defaultDirs, ["/home/user/project"]);
   });
 
   it("fills defaults for optional fields", () => {
@@ -33,6 +50,32 @@ describe("configSchema", () => {
     assert.equal(result.ollama.baseUrl, "http://localhost:11434");
     assert.equal(result.ollama.model, "qwen3:8b");
     assert.equal(result.limits.maxAgentSteps, 15);
+  });
+
+  it("fills claude defaults", () => {
+    const result = configSchema.parse(minimal);
+    assert.equal(result.claude.enabled, true);
+    assert.equal(result.claude.skipPermissions, true);
+    assert.equal(result.claude.outputFormat, "stream-json");
+    assert.equal(result.claude.model, "claude-sonnet-4-5-20250929");
+    assert.equal(result.claude.sessionTtlMs, 3_600_000);
+    assert.equal(result.claude.timeoutMs, 600_000);
+    assert.deepEqual(result.claude.defaultDirs, []);
+    assert.equal(result.claude.maxBudgetUsd, undefined);
+    assert.equal(result.claude.mcpConfigPath, undefined);
+  });
+
+  it("fills claude toolProfiles defaults", () => {
+    const result = configSchema.parse(minimal);
+    assert.equal(result.claude.toolProfiles.readOnly, "Read Glob Grep");
+    assert.equal(result.claude.toolProfiles.standard, "Read Glob Grep Edit Write Bash(git:*)");
+    assert.equal(result.claude.toolProfiles.full, "Read Glob Grep Edit Write Bash");
+  });
+
+  it("rejects invalid outputFormat", () => {
+    assert.throws(() => {
+      configSchema.parse({ ...minimal, claude: { outputFormat: "xml" } });
+    });
   });
 
   it("rejects missing botToken", () => {

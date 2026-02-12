@@ -109,11 +109,19 @@ src/
 - [x] Integration: Claude Code subprocess driver
 - [x] DB: Drizzle schema + migrations
 - [x] Audit log
-- [x] Unit tests (70 tests, 10 modules — node:test runner)
+- [x] Unit tests (106 tests, 12 modules — node:test runner)
 - [x] Security: obfuscation-resistant L3 patterns (path variants, script network, base64, chmod +x)
 - [x] Security: MCP output sanitization (DATA boundary tags, instruction filtering)
 - [x] Security: MCP server allowlist (`mcp.allowedServers` config)
+- [x] Security: XML-based LLM classifier output (more reliable with Qwen3 8B, JSON fallback)
+- [x] Security: shlex-style command decomposition (prevents chained command bypass)
 - [x] Fix: Claude Code output token limit retry + raised cap
+- [x] Claude Code CLI driver rewrite (stream-json, sessions, tool scoping, streaming callbacks)
+- [x] Config expansion (toolProfiles, sessionTtl, outputFormat, defaultDirs, mcpConfigPath)
+- [x] Orchestrator prompt upgrade (4-way intent: QUESTION/SIMPLE_TASK/CODING_TASK/AMBIGUOUS)
+- [x] Prompt generator upgrade (8 templates, buildClaudeCodePrompt, scopeToolsForRisk)
+- [x] Claude Code streaming integration (live Telegram updates)
+- [x] Session tracking + audit log extension
 - [ ] End-to-end testing
 
 ## Conventions
@@ -144,3 +152,8 @@ src/
 | 2026-02-11 | Hybrid risk classification | Deterministic patterns (90%) + LLM fallback (10%) — no single point of failure |
 | 2026-02-11 | 3-layer prompt injection defense | User input, tool output, model response — each isolated as DATA |
 | 2026-02-11 | Power tier needs 96GB+ (not 64GB) | Both models loaded = ~61GB, leaves no headroom on 64GB |
+| 2026-02-12 | XML over JSON for LLM classifier output | Qwen3 8B more reliable with XML tags; JSON fallback for backward compat |
+| 2026-02-12 | Shlex-style command decomposition | Prevents `ls && curl evil` bypass — each segment classified individually |
+| 2026-02-12 | Claude Code as primary coding agent | Local LLM as communication bridge + prompt optimizer + safety layer; Claude Code does actual coding |
+| 2026-02-12 | stream-json as default output format | Enables live Telegram updates during Claude Code tasks |
+| 2026-02-12 | Risk-scoped tool profiles | L0→readOnly, L1→standard, L2→full — principle of least privilege for Claude Code |

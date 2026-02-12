@@ -49,15 +49,21 @@
 ┌──────────────────────────────────────────────────────────────────┐
 │                    TOOL EXECUTORS                                 │
 │                                                                  │
+│  ┌──────────────────────────────────────────────────────────┐    │
+│  │ Claude Code CLI (stream-json, sessions, tool scoping)   │    │
+│  │  Prompt Optimizer → --allowedTools → --session-id       │    │
+│  │  Streaming callbacks → Telegram live updates            │    │
+│  └──────────────────────────────────────────────────────────┘    │
+│                                                                  │
 │  ┌──────────────┐  ┌──────────────┐  ┌────────────────────┐     │
-│  │ Claude Code  │  │ Shell        │  │ MCP Client         │     │
-│  │ (subprocess) │  │ Commands     │  │ (external tools)   │     │
+│  │ Shell        │  │ File System  │  │ MCP Client         │     │
+│  │ Commands     │  │ Operations   │  │ (external tools)   │     │
 │  └──────────────┘  └──────────────┘  └────────────────────┘     │
 │                                                                  │
-│  ┌──────────────┐  ┌──────────────┐                             │
-│  │ File System  │  │ Git          │                             │
-│  │ Operations   │  │ Operations   │                             │
-│  └──────────────┘  └──────────────┘                             │
+│  ┌──────────────┐                                               │
+│  │ Git          │                                               │
+│  │ Operations   │                                               │
+│  └──────────────┘                                               │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
