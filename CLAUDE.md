@@ -109,6 +109,7 @@ src/
 - [x] Integration: Claude Code subprocess driver
 - [x] DB: Drizzle schema + migrations
 - [x] Audit log
+- [x] Unit tests (48 tests, 8 modules — node:test runner)
 - [ ] End-to-end testing
 
 ## Conventions
