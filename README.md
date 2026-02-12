@@ -73,21 +73,33 @@ The approval gate is a JavaScript Promise — the agent is structurally suspende
 ### Setup
 
 ```bash
-# 1. Pull the orchestrator model
-ollama pull qwen3:8b
-
-# 2. Clone and install
+# 1. Clone and install
 git clone https://github.com/slavko-at-klincov-it/geofrey.ai.git
 cd geofrey.ai
 pnpm install
 
-# 3. Configure
-cp .env.example .env
-# Edit .env: set TELEGRAM_BOT_TOKEN and TELEGRAM_OWNER_ID
+# 2. Interactive setup wizard (recommended)
+pnpm setup
+# → Checks prerequisites (Node, Ollama, Claude Code)
+# → Guides through platform setup (Telegram/WhatsApp/Signal)
+# → Auto-detects Telegram User-ID
+# → Supports clipboard and OCR token input
+# → Validates all credentials in real-time
+# → Generates .env automatically
 
-# 4. Run
+# 3. Run
 pnpm dev
 ```
+
+<details>
+<summary>Manual setup (alternative)</summary>
+
+```bash
+cp .env.example .env
+# Edit .env: set TELEGRAM_BOT_TOKEN and TELEGRAM_OWNER_ID
+ollama pull qwen3:8b
+```
+</details>
 
 ### Environment Variables
 
@@ -178,7 +190,11 @@ src/
 │   ├── client.ts             # SQLite + Drizzle ORM setup
 │   └── schema.ts             # Table definitions
 ├── onboarding/
-│   └── check.ts              # Claude Code startup check + onboarding messages
+│   ├── check.ts              # Claude Code startup check + onboarding messages
+│   ├── setup.ts              # Interactive setup wizard entry point (pnpm setup)
+│   ├── wizard.ts             # Wizard orchestrator
+│   ├── steps/                # Wizard steps (prerequisites, platform, telegram, etc.)
+│   └── utils/                # UI, prompts, validators, clipboard, OCR
 └── config/
     ├── defaults.ts           # Env var loader
     └── schema.ts             # Zod config validation
@@ -239,7 +255,8 @@ All MCP tool calls are automatically routed through the risk classifier. The MCP
 pnpm dev          # Run with hot reload (tsx watch)
 pnpm build        # TypeScript compilation
 pnpm lint         # Type check (tsc --noEmit)
-pnpm test         # 128 tests across 15 modules
+pnpm test         # 179 tests across 26 modules
+pnpm setup        # Interactive setup wizard
 pnpm start        # Run compiled output
 pnpm db:generate  # Generate Drizzle migrations
 ```
@@ -248,7 +265,7 @@ pnpm db:generate  # Generate Drizzle migrations
 
 ## Project Status
 
-**128 tests passing** across 15 modules.
+**179 tests passing** across 26 modules.
 
 - [x] Local LLM orchestrator (Qwen3 8B)
 - [x] Hybrid risk classification (deterministic + LLM, XML output)
@@ -263,6 +280,7 @@ pnpm db:generate  # Generate Drizzle migrations
 - [x] Hash-chained audit log (with Claude Code cost/token/session tracking)
 - [x] SQLite persistence (conversations, Claude Code sessions)
 - [x] Security hardening (obfuscation-resistant L3 patterns, pipe-to-shell detection)
+- [x] Interactive setup wizard (`pnpm setup` — auto-detection, OCR, clipboard, real-time validation)
 - [ ] End-to-end test suite
 - [ ] Web dashboard (read-only audit viewer)
 
@@ -364,6 +382,19 @@ OpenClaw (ehemals Clawdbot/Moltbot) ist die bekannteste Open-Source AI-Agent-Pla
 
 **Warum das wichtig ist:** Wenn ein AI-Agent mit Dateien, Git und Shell arbeitet, muss jede Aktion nachvollziehbar sein. OpenClaws Logs sind Plain-Text — eine manipulierte Zeile fällt nicht auf. geofrey.ai verkettet jeden Audit-Eintrag mit dem SHA-256-Hash des vorherigen. Eine einzige Manipulation bricht die gesamte Kette und ist sofort detektierbar.
 
+### 9. Onboarding: Interaktiver Wizard statt manuelle .env
+
+| | OpenClaw | geofrey.ai | Vorteil |
+|---|----------|------------|---------|
+| Setup-Prozess | Simpler 4-Step-Wizard ohne Validierung | Interaktiver `pnpm setup` mit Echtzeit-Validierung | **Jeder Token/Key wird sofort gegen die API geprüft** |
+| User-ID-Erkennung | Manuell (@userinfobot) | Auto-Erkennung: Bot startet, User sendet /start → ID erkannt | **Null manueller Aufwand** |
+| Token-Eingabe | Nur manuelles Eintippen | 3 Methoden: Eintippen, Clipboard, OCR (Screenshot) | **Weniger Fehler, bessere UX** |
+| Prerequisite-Checks | Keine | Node, pnpm, Ollama, Modell, Claude Code CLI — mit Auto-Install-Angebot | **Fehlende Dependencies werden erkannt + angeboten** |
+| Validierung | Keine — fehlerhafte Tokens führen zu Runtime-Crash | Sofortige API-Validierung bei jedem Schritt | **Fehler vor dem ersten Start erkannt** |
+| Sprache | Nur Englisch | Durchgehend Deutsch | **Native UX** |
+
+**Warum das wichtig ist:** OpenClaws Setup besteht aus einem simplen 4-Schritt-Wizard, der weder Tokens validiert noch Prerequisites prüft. Fehlerhafte Eingaben werden erst beim Start bemerkt. geofrey.ai führt den User Schritt für Schritt durch die Konfiguration — mit automatischer Telegram-User-ID-Erkennung (der Bot startet kurz, der User sendet eine Nachricht), OCR-Token-Extraktion aus Screenshots (tesseract.js), Clipboard-Erkennung und sofortiger API-Validierung. Jeder Fehler wird *vor* dem ersten Start erkannt und behoben.
+
 ---
 
 ### Zusammenfassung
@@ -377,6 +408,7 @@ OpenClaw (ehemals Clawdbot/Moltbot) ist die bekannteste Open-Source AI-Agent-Pla
 | **Marketplace** | 7,1% leaken Credentials | MCP mit Allowlist + Output-Sanitisierung |
 | **Audit** | Plain-Text | SHA-256-verkettet, manipulationssicher |
 | **Messaging** | Web-UI (RCE-anfällig) | Telegram + WhatsApp + Signal |
+| **Onboarding** | Simpler 4-Step-Wizard ohne Validierung | Interaktiver Wizard mit Auto-Detection, OCR, Echtzeit-Validierung |
 
 ### Was wir bewusst NICHT bauen
 

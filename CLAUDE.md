@@ -93,7 +93,23 @@ src/
 │   ├── client.ts            # better-sqlite3 + Drizzle setup
 │   └── schema.ts            # Drizzle table definitions
 ├── onboarding/
-│   └── check.ts             # Claude Code startup check + onboarding messages
+│   ├── check.ts             # Claude Code startup check + onboarding messages
+│   ├── setup.ts             # CLI entry point (pnpm setup)
+│   ├── wizard.ts            # Interactive setup wizard orchestrator
+│   ├── steps/
+│   │   ├── prerequisites.ts # Node/Ollama/Claude Code checks
+│   │   ├── platform.ts      # Platform selection
+│   │   ├── telegram.ts      # Bot token + auto-ID detection
+│   │   ├── whatsapp.ts      # WhatsApp Business setup
+│   │   ├── signal.ts        # Signal setup
+│   │   ├── claude-auth.ts   # Claude Code authentication
+│   │   └── summary.ts       # Config review + .env generation
+│   └── utils/
+│       ├── ui.ts            # chalk/ora formatting
+│       ├── prompt.ts        # German prompt wrappers (@inquirer/prompts)
+│       ├── validate.ts      # Token/credential validators
+│       ├── clipboard.ts     # clipboardy wrapper
+│       └── ocr.ts           # tesseract.js OCR pipeline
 └── config/
     ├── defaults.ts          # Default settings
     └── schema.ts            # Zod config validation
@@ -116,7 +132,7 @@ src/
 - [x] Integration: Claude Code subprocess driver
 - [x] DB: Drizzle schema + migrations
 - [x] Audit log
-- [x] Unit tests (128 tests, 15 modules — node:test runner)
+- [x] Unit tests (179 tests, 26 modules — node:test runner)
 - [x] Security: obfuscation-resistant L3 patterns (path variants, script network, base64, chmod +x)
 - [x] Security: MCP output sanitization (DATA boundary tags, instruction filtering)
 - [x] Security: MCP server allowlist (`mcp.allowedServers` config)
@@ -131,6 +147,7 @@ src/
 - [x] Session tracking + audit log extension
 - [x] Multi-platform messaging (Telegram + WhatsApp + Signal)
 - [x] Onboarding: ANTHROPIC_API_KEY support + Claude Code startup check
+- [x] Interactive setup wizard (`pnpm setup`) — auto-detection, OCR, clipboard, validation
 - [ ] End-to-end testing
 
 ## Conventions
@@ -171,3 +188,6 @@ src/
 | 2026-02-12 | Signal via signal-cli JSON-RPC | No inline buttons → text-based approvals ("1 = Genehmigen, 2 = Ablehnen") |
 | 2026-02-12 | ANTHROPIC_API_KEY support | Alternative to subscription — passed via env to Claude Code subprocess |
 | 2026-02-12 | Onboarding startup check | Checks CLI availability + auth status, shows actionable instructions |
+| 2026-02-12 | Interactive setup wizard | `pnpm setup` — auto-detection, OCR, clipboard, real-time validation; better UX than OpenClaw |
+| 2026-02-12 | @inquirer/prompts + chalk + ora | Modern ESM CLI toolkit — tree-shakeable, German prompts |
+| 2026-02-12 | tesseract.js for OCR | Pure WASM, lazy-loaded (~60MB first use) — extract tokens from screenshots |
