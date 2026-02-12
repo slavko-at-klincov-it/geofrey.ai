@@ -100,15 +100,15 @@ src/
 - [x] Architecture design → `docs/ARCHITECTURE.md`
 - [x] Orchestrator system prompt → `docs/ORCHESTRATOR_PROMPT.md`
 - [x] Review: Architecture, prompt, tech stack, competition (4-agent review)
-- [ ] Project scaffolding (package.json, tsconfig, etc.)
-- [ ] Core: Vercel AI SDK + Ollama integration + agent loop
-- [ ] Core: Hybrid risk classifier + approval gate
-- [ ] Core: Telegram bot (grammY) + approval UI
-- [ ] Core: Tool executors (shell, filesystem, git)
-- [ ] Core: MCP client + tool wrapping
-- [ ] Integration: Claude Code subprocess driver
-- [ ] DB: Drizzle schema + migrations
-- [ ] Audit log
+- [x] Project scaffolding (package.json, tsconfig, etc.)
+- [x] Core: Vercel AI SDK + Ollama integration + agent loop
+- [x] Core: Hybrid risk classifier + approval gate
+- [x] Core: Telegram bot (grammY) + approval UI
+- [x] Core: Tool executors (shell, filesystem, git)
+- [x] Core: MCP client + tool wrapping
+- [x] Integration: Claude Code subprocess driver
+- [x] DB: Drizzle schema + migrations
+- [x] Audit log
 - [ ] End-to-end testing
 
 ## Conventions

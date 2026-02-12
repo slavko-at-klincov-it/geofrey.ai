@@ -1,4 +1,4 @@
-import { Bot, Context } from "grammy";
+import { Bot } from "grammy";
 import type { Config } from "../config/schema.js";
 import { resolveApproval } from "../approval/approval-gate.js";
 import { runAgentLoopStreaming } from "../orchestrator/agent-loop.js";

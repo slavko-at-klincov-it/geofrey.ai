@@ -13,8 +13,6 @@ registerTool({
   }),
   source: "native",
   execute: async ({ prompt, cwd }) => {
-    // TODO: Use --print flag for non-interactive mode
-    // TODO: Stream stdout for real-time Telegram updates
     const result = await execa("claude", ["--print", prompt], {
       cwd,
       timeout: CLAUDE_TIMEOUT_MS,

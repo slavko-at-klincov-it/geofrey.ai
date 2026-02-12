@@ -1,5 +1,5 @@
-import { readFile, writeFile, unlink, readdir, stat } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { readFile, writeFile, unlink, readdir } from "node:fs/promises";
+import { resolve } from "node:path";
 import { z } from "zod";
 import { registerTool } from "./tool-registry.js";
 

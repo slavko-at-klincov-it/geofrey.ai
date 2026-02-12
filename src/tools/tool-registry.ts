@@ -1,4 +1,4 @@
-import { tool, type Tool } from "ai";
+import { tool } from "ai";
 import { z, type ZodSchema } from "zod";
 import { classifyDeterministic, RiskLevel } from "../approval/risk-classifier.js";
 
