@@ -244,7 +244,7 @@ Target users:
 | OWASP Agentic coverage | Partial | N/A | N/A | **Full** |
 | Open source | Yes | No | No | **Yes** |
 | Data sovereignty | Cloud-dependent | Cloud | Cloud | **100% local** |
-| Test coverage | Some | N/A | N/A | **106 tests, 12 modules** |
+| Test coverage | Some | N/A | N/A | **128 tests, 15 modules** |
 
 ---
 
@@ -259,7 +259,7 @@ Target users:
 - [x] MCP client integration (allowlist, output sanitization)
 - [x] Hash-chained audit log
 - [x] SQLite persistence
-- [x] 106 unit tests across 12 modules
+- [x] 128 unit tests across 15 modules
 
 ### Phase 1.5 — Claude Code Integration + Security Hardening (Complete)
 - [x] XML-based LLM classifier output (more reliable with small models, JSON fallback)
