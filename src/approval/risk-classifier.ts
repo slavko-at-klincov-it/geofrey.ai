@@ -1,3 +1,5 @@
+import { generateText } from "ai";
+import { createOllama } from "ai-sdk-ollama";
 import type { Config } from "../config/schema.js";
 
 export enum RiskLevel {
@@ -23,6 +25,25 @@ const INJECTION_PATTERN = /[`]|\$\(|&&|\|\||(?<![|]);/;
 const SENSITIVE_PATHS = /\.(env|ssh|pem|key|credentials|secret)/i;
 const CONFIG_FILES = /\.(github\/workflows|package\.json|tsconfig\.json|Dockerfile|\.eslintrc|\.prettierrc)/;
 const FORCE_PUSH = /git\s+push\s+.*--force/;
+
+const RISK_CLASSIFIER_PROMPT = `You are a security risk classifier for an AI agent system. Your ONLY job is to classify tool/command requests into risk levels and return JSON.
+
+ALWAYS respond with exactly this JSON structure, nothing else:
+{"level": "L0"|"L1"|"L2"|"L3", "reason": "one-line explanation in German"}
+
+Risk Levels:
+- L0 AUTO_APPROVE: Read-only operations (read_file, list_dir, search, git status/log/diff, pwd, ls, cat, head, tail, wc)
+- L1 NOTIFY: Low-risk modifications in project dir, reversible (write_file non-config, git add/stash/branch, npm test/lint)
+- L2 REQUIRE_APPROVAL: Broader or harder-to-reverse impact (delete_file, git commit/merge/rebase/push, npm install, npx, bunx, shell_exec, mkdir, mv, cp, config file writes)
+- L3 BLOCK: Dangerous or irreversible (git push --force, git reset --hard, rm -rf, sudo, curl, wget, nc, ssh, eval, command injection patterns)
+
+Escalation Rules:
+- Sensitive paths (.env, .ssh, credentials, *.pem) → escalate +1 level
+- Config files (.github/workflows/*, package.json, tsconfig.json, Dockerfile) → L2 minimum
+- Command injection (backticks, $(), &&, ||, ;, |) → L3
+- Unknown/ambiguous → L2
+
+If you cannot confidently classify, default to L2.`;
 
 export function classifyDeterministic(
   toolName: string,
@@ -66,13 +87,33 @@ export function classifyDeterministic(
 }
 
 export async function classifyWithLlm(
-  _toolName: string,
-  _args: Record<string, unknown>,
-  _config: Config,
+  toolName: string,
+  args: Record<string, unknown>,
+  config: Config,
 ): Promise<Classification> {
-  // TODO: Invoke Prompt 1 (Risk Classifier) via Vercel AI SDK
-  // Fallback to L2 for safety
-  return { level: RiskLevel.L2, reason: "LLM-Klassifikation ausstehend", deterministic: false };
+  try {
+    const ollama = createOllama({ baseURL: config.ollama.baseUrl });
+
+    const result = await generateText({
+      model: ollama(config.ollama.model),
+      system: RISK_CLASSIFIER_PROMPT,
+      prompt: `Classify: tool=${toolName}, args=${JSON.stringify(args)}`,
+    });
+
+    const parsed = JSON.parse(result.text);
+    const level = parsed.level as string;
+    const reason = parsed.reason as string;
+
+    // Validate level is one of L0/L1/L2/L3
+    if (!["L0", "L1", "L2", "L3"].includes(level)) {
+      return { level: RiskLevel.L2, reason: "Ungültige Klassifikation — Fallback L2", deterministic: false };
+    }
+
+    return { level: level as RiskLevel, reason, deterministic: false };
+  } catch (error) {
+    // Fallback to L2 on any error (JSON parse, network, etc.)
+    return { level: RiskLevel.L2, reason: "LLM-Klassifikation fehlgeschlagen — Fallback L2", deterministic: false };
+  }
 }
 
 export async function classifyRisk(
