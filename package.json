@@ -1,6 +1,6 @@
 {
   "name": "geofrey-ai",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Better OpenClaw alternative with local LLM orchestrator",
   "license": "MIT",
   "type": "module",
