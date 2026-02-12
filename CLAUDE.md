@@ -109,7 +109,11 @@ src/
 - [x] Integration: Claude Code subprocess driver
 - [x] DB: Drizzle schema + migrations
 - [x] Audit log
-- [x] Unit tests (48 tests, 8 modules — node:test runner)
+- [x] Unit tests (70 tests, 10 modules — node:test runner)
+- [x] Security: obfuscation-resistant L3 patterns (path variants, script network, base64, chmod +x)
+- [x] Security: MCP output sanitization (DATA boundary tags, instruction filtering)
+- [x] Security: MCP server allowlist (`mcp.allowedServers` config)
+- [x] Fix: Claude Code output token limit retry + raised cap
 - [ ] End-to-end testing
 
 ## Conventions
