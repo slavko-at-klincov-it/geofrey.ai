@@ -1,6 +1,9 @@
 export type TranslationKey =
   // app
   | "app.claudeUnavailable"
+  | "app.ollamaRetrying"
+  | "app.ollamaNotReachable"
+  | "app.ollamaConnectionError"
 
   // approval / risk-classifier
   | "approval.blockedCommand"

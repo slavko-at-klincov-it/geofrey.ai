@@ -3,6 +3,9 @@ import type { TranslationKey } from "../keys.js";
 export const de: Record<TranslationKey, string> = {
   // app
   "app.claudeUnavailable": "Claude Code nicht verfügbar — Ollama-Tools funktionieren weiterhin.",
+  "app.ollamaRetrying": "Ollama nicht erreichbar — Versuch {attempt}/3...",
+  "app.ollamaNotReachable": "Ollama nicht erreichbar nach {attempts} Versuchen — starte mit 'ollama serve'",
+  "app.ollamaConnectionError": "Ollama nicht erreichbar — starte mit 'ollama serve'",
 
   // approval / risk-classifier
   "approval.blockedCommand": "Gesperrter Befehl",

@@ -269,7 +269,16 @@ export async function runAgentLoop(
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : String(err);
     console.error(`Agent loop error for chat ${chatId}:`, errorMsg);
-    const fallback = t("orchestrator.errorPrefix", { msg: errorMsg.slice(0, 200) });
+
+    // Check if this is an Ollama connection error
+    const isOllamaError = errorMsg.includes("ECONNREFUSED") ||
+                          errorMsg.includes("fetch failed") ||
+                          errorMsg.includes("connect");
+
+    const fallback = isOllamaError
+      ? t("app.ollamaConnectionError")
+      : t("orchestrator.errorPrefix", { msg: errorMsg.slice(0, 200) });
+
     addMessage(chatId, { role: "assistant", content: fallback });
     return fallback;
   }
@@ -318,7 +327,16 @@ export async function runAgentLoopStreaming(
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : String(err);
     console.error(`Streaming agent loop error for chat ${chatId}:`, errorMsg);
-    const fallback = t("orchestrator.errorShort", { msg: errorMsg.slice(0, 200) });
+
+    // Check if this is an Ollama connection error
+    const isOllamaError = errorMsg.includes("ECONNREFUSED") ||
+                          errorMsg.includes("fetch failed") ||
+                          errorMsg.includes("connect");
+
+    const fallback = isOllamaError
+      ? t("app.ollamaConnectionError")
+      : t("orchestrator.errorShort", { msg: errorMsg.slice(0, 200) });
+
     stream.append(`\n\n${fallback}`);
     await stream.finish();
     addMessage(chatId, { role: "assistant", content: fallback });

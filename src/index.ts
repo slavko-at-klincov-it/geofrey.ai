@@ -25,20 +25,29 @@ export function trackInflight(delta: number) {
 }
 
 async function healthCheckOllama(baseUrl: string): Promise<boolean> {
-  try {
-    const res = await fetch(`${baseUrl}/api/tags`);
-    if (res.ok) {
-      const data = await res.json() as { models?: Array<{ name: string }> };
-      const models = data.models?.map((m) => m.name).join(", ") ?? "none";
-      console.log(`Ollama OK — available models: ${models}`);
-      return true;
+  const maxRetries = 3;
+  const retryDelayMs = 2000;
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const res = await fetch(`${baseUrl}/api/tags`);
+      if (res.ok) {
+        const data = await res.json() as { models?: Array<{ name: string }> };
+        const models = data.models?.map((m) => m.name).join(", ") ?? "none";
+        console.log(`Ollama OK — available models: ${models}`);
+        return true;
+      }
+      console.warn(`Ollama responded ${res.status} — may not be ready yet`);
+    } catch {
+      if (attempt < maxRetries) {
+        console.warn(t("app.ollamaRetrying", { attempt: String(attempt) }));
+        await new Promise((r) => setTimeout(r, retryDelayMs));
+      }
     }
-    console.warn(`Ollama responded ${res.status} — may not be ready yet`);
-    return false;
-  } catch {
-    console.warn("Ollama not reachable — start it with 'ollama serve'");
-    return false;
   }
+
+  console.warn(t("app.ollamaNotReachable", { attempts: String(maxRetries) }));
+  return false;
 }
 
 async function waitForInflight(timeoutMs: number): Promise<void> {
