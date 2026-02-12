@@ -10,7 +10,7 @@ import "./tools/git.js";
 import "./tools/claude-code.js";
 
 async function main() {
-  console.log("openClawNurBesser starting...");
+  console.log("geofrey.ai starting...");
 
   // Load and validate config
   const config = loadConfig();
