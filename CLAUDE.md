@@ -175,6 +175,7 @@ src/
 - [x] npm CLI entry point (`geofrey` / `geofrey setup`)
 - [x] CHANGELOG.md
 - [x] v1.0.0 release
+- [x] v1.0.1 release — image metadata sanitizer (EXIF/XMP/IPTC stripping + injection scanning)
 
 ## Conventions
 - Code language: English
