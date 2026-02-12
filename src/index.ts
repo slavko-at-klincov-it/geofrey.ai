@@ -118,6 +118,10 @@ async function main() {
   await platform.start();
 }
 
+process.on("unhandledRejection", (reason) => {
+  console.error("Unhandled rejection:", reason);
+});
+
 main().catch((err) => {
   console.error("Fatal error:", err);
   process.exit(1);

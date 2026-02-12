@@ -3,13 +3,22 @@ import { resolve } from "node:path";
 import { z } from "zod";
 import { registerTool } from "./tool-registry.js";
 
+function confine(path: string): string {
+  const resolved = resolve(path);
+  const cwd = process.cwd();
+  if (!resolved.startsWith(cwd)) {
+    throw new Error(`Path outside project directory: ${path}`);
+  }
+  return resolved;
+}
+
 registerTool({
   name: "read_file",
   description: "Read the contents of a file",
   parameters: z.object({ path: z.string() }),
   source: "native",
   execute: async ({ path }) => {
-    const content = await readFile(resolve(path), "utf-8");
+    const content = await readFile(confine(path), "utf-8");
     return content;
   },
 });
@@ -20,7 +29,7 @@ registerTool({
   parameters: z.object({ path: z.string(), content: z.string() }),
   source: "native",
   execute: async ({ path, content }) => {
-    await writeFile(resolve(path), content, "utf-8");
+    await writeFile(confine(path), content, "utf-8");
     return `Written: ${path}`;
   },
 });
@@ -31,7 +40,7 @@ registerTool({
   parameters: z.object({ path: z.string() }),
   source: "native",
   execute: async ({ path }) => {
-    await unlink(resolve(path));
+    await unlink(confine(path));
     return `Deleted: ${path}`;
   },
 });
@@ -42,7 +51,7 @@ registerTool({
   parameters: z.object({ path: z.string() }),
   source: "native",
   execute: async ({ path }) => {
-    const entries = await readdir(resolve(path || "."), { withFileTypes: true });
+    const entries = await readdir(confine(path || "."), { withFileTypes: true });
     return entries
       .map((e) => `${e.isDirectory() ? "d" : "f"} ${e.name}`)
       .join("\n");

@@ -6,6 +6,11 @@ import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
 import { registerTool } from "./tool-registry.js";
 import { z } from "zod";
 
+const mcpContentSchema = z.array(z.object({
+  type: z.string(),
+  text: z.string().optional(),
+}));
+
 // --- MCP Server Allowlist ---
 let allowedServers: Set<string> | null = null;
 
@@ -105,11 +110,12 @@ export async function connectMcpServer(config: McpServerConfig): Promise<void> {
           arguments: args as Record<string, unknown>,
         });
 
-        // Extract text content from result and sanitize against prompt injection
-        const content = result.content as Array<{ type: string; text?: string }>;
+        // Validate and extract text content, sanitize against prompt injection
+        const parsed = mcpContentSchema.safeParse(result.content);
+        const content = parsed.success ? parsed.data : [];
         const textContent = content
-          .filter((item: { type: string; text?: string }) => item.type === "text")
-          .map((item: { type: string; text?: string }) => item.text ?? "")
+          .filter((item) => item.type === "text")
+          .map((item) => item.text ?? "")
           .join("\n");
 
         return sanitizeMcpOutput(textContent);

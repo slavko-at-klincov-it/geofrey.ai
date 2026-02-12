@@ -186,12 +186,17 @@ export function createSignalPlatform(
     },
 
     async stop(): Promise<void> {
+      // Reject all pending JSON-RPC requests
+      for (const [id, pending] of pendingRequests) {
+        pending.reject(new Error("Signal adapter shutting down"));
+      }
+      pendingRequests.clear();
+      pendingTextApprovals.clear();
+
       if (socket) {
         socket.destroy();
         socket = null;
       }
-      pendingTextApprovals.clear();
-      pendingRequests.clear();
     },
   };
 }

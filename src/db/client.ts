@@ -20,6 +20,14 @@ export function getDb(url: string) {
 function initDb() {
   if (!db) return;
 
+  // Schema version tracking for future migrations
+  db.run(sql`
+    CREATE TABLE IF NOT EXISTS schema_version (
+      version INTEGER PRIMARY KEY,
+      applied_at INTEGER NOT NULL
+    )
+  `);
+
   db.run(sql`
     CREATE TABLE IF NOT EXISTS conversations (
       id TEXT PRIMARY KEY,
@@ -54,6 +62,9 @@ function initDb() {
       resolved_at INTEGER
     )
   `);
+
+  // Record initial schema version
+  db.run(sql`INSERT OR IGNORE INTO schema_version (version, applied_at) VALUES (1, ${Date.now()})`);
 }
 
 export function closeDb() {
