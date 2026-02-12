@@ -104,8 +104,7 @@ describe("MCP server allowlist logic", () => {
 
   it("null allowlist means all allowed", () => {
     const allowed: Set<string> | null = null;
-    const isAllowed = allowed === null || allowed.has("any-server");
-    assert.equal(isAllowed, true);
+    assert.equal(allowed === null, true);
   });
 
   it("empty set rejects everything", () => {
