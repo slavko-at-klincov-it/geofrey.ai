@@ -109,7 +109,10 @@ src/
 │   ├── memory.ts            # memory_read, memory_write, memory_search tools
 │   ├── cron.ts              # Cron job management tool (create/list/delete)
 │   ├── browser.ts           # Browser automation tool (9 CDP actions)
-│   └── skill.ts             # Skill management tool (list/install/enable/disable/generate)
+│   ├── skill.ts             # Skill management tool (list/install/enable/disable/generate)
+│   ├── webhook.ts           # Webhook management tool (create/list/delete/test)
+│   ├── process.ts           # Process management tool (spawn/list/check/kill/logs)
+│   └── tts.ts               # TTS tool (tts_speak via ElevenLabs)
 ├── memory/
 │   ├── store.ts             # MEMORY.md read/write/append + daily notes
 │   ├── embeddings.ts        # Ollama embeddings + cosine similarity search
@@ -144,8 +147,33 @@ src/
 ├── voice/
 │   ├── transcriber.ts       # OpenAI Whisper API + local whisper.cpp
 │   ├── converter.ts         # ffmpeg audio → WAV 16kHz mono conversion
+│   ├── synthesizer.ts       # ElevenLabs TTS client + LRU cache
+│   ├── synthesizer.test.ts
 │   ├── transcriber.test.ts
 │   └── converter.test.ts
+├── sandbox/
+│   ├── container.ts         # Docker container lifecycle (create/exec/destroy)
+│   ├── session-pool.ts      # Per-session container pool management
+│   ├── volume-mount.ts      # Safe volume mounting + path validation
+│   ├── container.test.ts
+│   ├── session-pool.test.ts
+│   └── volume-mount.test.ts
+├── models/
+│   ├── provider.ts          # ModelProvider interface + types
+│   ├── openrouter.ts        # OpenRouter provider (native fetch, SSE streaming)
+│   ├── model-registry.ts    # Model registry with failover chains
+│   ├── openrouter.test.ts
+│   └── model-registry.test.ts
+├── webhooks/
+│   ├── router.ts            # Route registry + HMAC auth + rate limiting
+│   ├── handler.ts           # Event templates (GitHub/Stripe/generic)
+│   ├── server.ts            # HTTP webhook server
+│   ├── router.test.ts
+│   ├── handler.test.ts
+│   └── server.test.ts
+├── process/
+│   ├── manager.ts           # Background process spawn/kill/logs
+│   └── manager.test.ts
 ├── dashboard/
 │   └── public/
 │       ├── index.html       # Single-page chat UI
@@ -208,7 +236,7 @@ src/
 - [x] Integration: Claude Code subprocess driver
 - [x] DB: Drizzle schema + migrations
 - [x] Audit log
-- [x] Unit tests (575 tests — node:test runner)
+- [x] Unit tests (731 tests — node:test runner)
 - [x] Security: obfuscation-resistant L3 patterns (path variants, script network, base64, chmod +x)
 - [x] Security: MCP output sanitization (DATA boundary tags, instruction filtering)
 - [x] Security: MCP server allowlist (`mcp.allowedServers` config)
@@ -252,6 +280,11 @@ src/
 - [x] Slack + Discord Adapters (@slack/bolt Socket Mode, discord.js Gateway Intents)
 - [x] Voice Messages STT (OpenAI Whisper API + local whisper.cpp, ffmpeg audio conversion)
 - [x] Session Compaction (token counting, auto-compaction at 75% context, pre-compaction memory flush)
+- [x] Docker Sandbox per Session (container lifecycle, session pool, volume mounting, health checks)
+- [x] Multi-Model Support via OpenRouter (provider interface, failover chains, task-specific routing)
+- [x] Webhook Triggers (HTTP server, HMAC auth, rate limiting, GitHub/Stripe/generic templates)
+- [x] Process Management Tool (spawn, kill, logs, SIGTERM→SIGKILL escalation)
+- [x] TTS via ElevenLabs (speech synthesis, LRU cache, text splitting)
 
 ## Roadmap (OpenClaw Feature Parity + Beyond)
 
@@ -272,11 +305,11 @@ Full gap analysis: `docs/OPENCLAW_GAP_ANALYSIS.md`
 - [x] Session Compaction (intelligentes Context-Window-Management)
 
 ### Phase 3 — Differenzierung (v1.3)
-- [ ] Docker Sandbox per Session (isolierte Tool-Ausführung)
-- [ ] Multi-Model Support via OpenRouter (100+ Modelle)
-- [ ] Webhook-Triggers (externe Events als Auslöser)
-- [ ] Process Management Tool (Hintergrund-Prozesse)
-- [ ] TTS (ElevenLabs — Sprachantworten)
+- [x] Docker Sandbox per Session (isolierte Tool-Ausführung)
+- [x] Multi-Model Support via OpenRouter (100+ Modelle)
+- [x] Webhook-Triggers (externe Events als Auslöser)
+- [x] Process Management Tool (Hintergrund-Prozesse)
+- [x] TTS (ElevenLabs — Sprachantworten)
 
 ### Phase 4 — Ecosystem (v2.0)
 - [ ] Multi-Agent Routing (Hub-and-Spoke, per-Agent Config)

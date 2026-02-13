@@ -23,6 +23,12 @@ import { convertToWav, isConversionNeeded } from "./voice/converter.js";
 import { transcribe } from "./voice/transcriber.js";
 import { setCompactionConfig } from "./orchestrator/compaction/compactor.js";
 import { discoverSkills } from "./skills/registry.js";
+import { setTtsConfig } from "./voice/synthesizer.js";
+import { initWebhookTool } from "./tools/webhook.js";
+import { startWebhookServer } from "./webhooks/server.js";
+import { killAllProcesses } from "./tools/process.js";
+import { destroyAllSessions, getOrCreateContainer } from "./sandbox/session-pool.js";
+import { isDockerAvailable } from "./sandbox/container.js";
 
 // Import tools to register them
 import "./tools/filesystem.js";
@@ -37,6 +43,8 @@ import "./tools/cron.js";
 import "./tools/memory.js";
 import "./tools/browser.js";
 import "./tools/skill.js";
+import "./tools/process.js";
+import "./tools/tts.js";
 
 let inFlightCount = 0;
 
@@ -136,6 +144,27 @@ async function main() {
     // Non-critical: skills are optional
   }
 
+  // Initialize TTS config (if API key is set)
+  if (config.tts.apiKey) {
+    setTtsConfig({
+      apiKey: config.tts.apiKey,
+      voiceId: config.tts.voiceId,
+      model: config.tts.model,
+      cacheSize: config.tts.cacheSize,
+    });
+    console.log("TTS: ElevenLabs configured");
+  }
+
+  // Initialize sandbox (check Docker availability)
+  if (config.sandbox.enabled) {
+    const dockerOk = await isDockerAvailable();
+    if (dockerOk) {
+      console.log("Sandbox: Docker available");
+    } else {
+      console.warn(t("sandbox.dockerNotFound"));
+    }
+  }
+
   // Claude Code onboarding check
   const claudeStatus = await checkClaudeCodeReady(config.claude);
   console.log(claudeStatus.message);
@@ -230,12 +259,33 @@ async function main() {
     config.database.url,
   );
 
+  // Initialize webhook server (if enabled)
+  let webhookStop: (() => Promise<void>) | null = null;
+  if (config.webhook.enabled) {
+    const { router, handler } = initWebhookTool({
+      executor: async (chatId, message) => runAgentLoopStreaming(config, chatId, message, platform),
+      port: config.webhook.port,
+      host: config.webhook.host,
+    });
+    const webhookServer = startWebhookServer({
+      port: config.webhook.port,
+      router,
+      handler,
+    });
+    await webhookServer.start();
+    webhookStop = webhookServer.stop;
+    console.log(t("webhook.serverStarted", { port: String(config.webhook.port) }));
+  }
+
   const shutdown = async (signal: string) => {
     console.log(`\n${signal} received, shutting down...`);
     await stopScheduler();
+    if (webhookStop) await webhookStop();
     await platform.stop();
     rejectAllPending("SHUTDOWN");
     await waitForInflight(10_000);
+    await killAllProcesses();
+    await destroyAllSessions();
     await closeAllBrowsers();
     await disconnectAll();
     closeDb();

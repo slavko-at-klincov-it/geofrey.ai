@@ -349,4 +349,28 @@ export const de: Record<TranslationKey, string> = {
   "compaction.failed": "Kompaktierung fehlgeschlagen: {msg}",
   "compaction.notNeeded": "Kompaktierung nicht nötig (Context-Window unter 75%)",
   "compaction.memoryFlushed": "Wichtige Fakten im Langzeitgedächtnis gespeichert",
+
+  // process manager
+  "process.spawned": "Prozess gestartet: [{pid}] {name}",
+  "process.killed": "Prozess beendet: [{pid}] {name}",
+  "process.killedForced": "Prozess erzwungen beendet (SIGKILL): [{pid}] {name}",
+  "process.notFound": "Prozess nicht gefunden: {pid}",
+  "process.listEmpty": "Keine aktiven Prozesse",
+  "process.listHeader": "{count} aktive Prozesse:",
+  "process.noLogs": "Keine Logs für Prozess {pid}",
+
+  // tts
+  "tts.notConfigured": "TTS nicht konfiguriert — ELEVENLABS_API_KEY in .env setzen",
+  "tts.synthesized": "Audio synthetisiert: {chars} Zeichen, {bytes} Bytes, {chunks} Chunk(s)",
+  "tts.failed": "TTS fehlgeschlagen: {error}",
+
+  // sandbox
+  "sandbox.created": "Sandbox erstellt: {id}",
+  "sandbox.destroyed": "Sandbox zerstört: {id}",
+  "sandbox.execError": "Sandbox-Ausführung fehlgeschlagen: {msg}",
+  "sandbox.dockerNotFound": "Docker nicht gefunden — für Sandbox erforderlich",
+
+  // webhook
+  "webhook.serverStarted": "Webhook-Server gestartet auf Port {port}",
+  "webhook.fired": "Webhook ausgelöst: {name} → Chat {chatId}",
 } satisfies Record<TranslationKey, string>;

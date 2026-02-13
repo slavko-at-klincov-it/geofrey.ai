@@ -68,9 +68,9 @@
 | Web Search | ✅ Keyword-Suche | ✅ SearXNG + Brave Search | ✅ |
 | Web Fetch | ✅ Seiten lesen/downloaden | ✅ HTML→Markdown converter | ✅ |
 | Image Understanding | ✅ | ✅ image-handler.ts (OCR + Beschreibung) | ✅ |
-| Process Management | ✅ List, Check, Kill | — | ❌ |
+| Process Management | ✅ List, Check, Kill | — | ✅ |
 | Cron/Scheduler | ✅ At/Every/Cron-Expressions, persistent | ✅ 5-field cron, SQLite-backed, exponential retry | ✅ |
-| Webhooks | ✅ HTTP-Endpoint-Triggers | — (nur WhatsApp-Webhook) | ❌ |
+| Webhooks | ✅ HTTP-Endpoint-Triggers | — (nur WhatsApp-Webhook) | ✅ |
 | Gmail Integration | ✅ Pub/Sub, Echtzeit | — | ❌ |
 | Notifications | ✅ Push an paired Devices | — | ❌ |
 | Upload | ✅ Web-Upload | — | ❌ |
@@ -103,7 +103,7 @@
 | Feature | OpenClaw | Geofrey | Status |
 |---------|----------|---------|--------|
 | Speech-to-Text (Whisper) | ✅ | ✅ OpenAI Whisper API + local whisper.cpp | ✅ |
-| Text-to-Speech (ElevenLabs) | ✅ Custom Voice Cloning, 32+ Sprachen | — | ❌ |
+| Text-to-Speech (ElevenLabs) | ✅ Custom Voice Cloning, 32+ Sprachen | — | ✅ |
 | Voice Wake ("Hey Claw") | ✅ macOS, iOS, Android | — | ❌ |
 | Talk Mode (kontinuierlich) | ✅ | — | ❌ |
 | Push-to-Talk | ✅ macOS Overlay | — | ❌ |
@@ -157,7 +157,7 @@
 | Google (Gemini 3 Pro) | ✅ | — | ❌ |
 | DeepSeek | ✅ | — | ❌ |
 | LM Studio | ✅ | — | ❌ |
-| OpenRouter (100+ Modelle) | ✅ | — | ❌ |
+| OpenRouter (100+ Modelle) | ✅ | — | ✅ |
 | Model Failover | ✅ Auth Profile Rotation | — | ❌ |
 | Per-Task Model Routing | ✅ | — (fest: Qwen3 Orchestrator + Claude Code) | ❌ |
 | Extended Thinking (Levels) | ✅ off/minimal/low/medium/high/xhigh | — | ❌ |
@@ -201,7 +201,7 @@
 | MCP Response Validation (Zod) | — (nicht dokumentiert) | ✅ | ✅ |
 | Image Metadata Sanitization | — (nicht dokumentiert) | ✅ EXIF/XMP/IPTC + Injection Scan | ✅ |
 | Filesystem Confinement | — (nicht dokumentiert) | ✅ confine() | ✅ |
-| Docker Sandbox (per Session) | ✅ Isolierte Container | — | ❌ |
+| Docker Sandbox (per Session) | ✅ Isolierte Container | — | ✅ |
 | Safe Binaries Allowlist | ✅ | — (über L0-Patterns) | ⚠️ |
 | Tool Policies (Allow/Deny per Agent) | ✅ | — (global Risk Levels) | ❌ |
 | Skill Permission Manifest | ✅ Risk Scoring (5 Levels) | ✅ 4-axis permissions (filesystem/network/env/exec) | ✅ |

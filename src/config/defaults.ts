@@ -139,6 +139,45 @@ export function loadConfig(): Config {
       billing: {
         maxDailyBudgetUsd: process.env.MAX_DAILY_BUDGET_USD,
       },
+      tts: {
+        apiKey: process.env.ELEVENLABS_API_KEY,
+        voiceId: process.env.ELEVENLABS_VOICE_ID,
+        model: process.env.ELEVENLABS_MODEL,
+        cacheSize: process.env.ELEVENLABS_CACHE_SIZE,
+      },
+      sandbox: {
+        enabled: process.env.SANDBOX_ENABLED !== undefined
+          ? process.env.SANDBOX_ENABLED === "true"
+          : undefined,
+        image: process.env.SANDBOX_IMAGE,
+        memoryLimit: process.env.SANDBOX_MEMORY_LIMIT,
+        networkEnabled: process.env.SANDBOX_NETWORK !== undefined
+          ? process.env.SANDBOX_NETWORK === "true"
+          : undefined,
+        pidsLimit: process.env.SANDBOX_PIDS_LIMIT,
+        readOnly: process.env.SANDBOX_READ_ONLY !== undefined
+          ? process.env.SANDBOX_READ_ONLY === "true"
+          : undefined,
+        ttlMs: process.env.SANDBOX_TTL_MS,
+      },
+      models: {
+        openrouterApiKey: process.env.OPENROUTER_API_KEY,
+        defaultModel: process.env.OPENROUTER_DEFAULT_MODEL,
+        failoverChain: process.env.OPENROUTER_FAILOVER_CHAIN
+          ? process.env.OPENROUTER_FAILOVER_CHAIN.split(",").map((s) => s.trim())
+          : undefined,
+        taskModels: process.env.OPENROUTER_TASK_MODELS
+          ? JSON.parse(process.env.OPENROUTER_TASK_MODELS) as Record<string, string>
+          : undefined,
+      },
+      webhook: {
+        enabled: process.env.WEBHOOK_ENABLED !== undefined
+          ? process.env.WEBHOOK_ENABLED === "true"
+          : undefined,
+        port: process.env.WEBHOOK_PORT,
+        host: process.env.WEBHOOK_HOST,
+        rateLimit: process.env.WEBHOOK_RATE_LIMIT,
+      },
       mcp: {
         allowedServers: process.env.MCP_ALLOWED_SERVERS
           ? process.env.MCP_ALLOWED_SERVERS.split(",").map((s) => s.trim())

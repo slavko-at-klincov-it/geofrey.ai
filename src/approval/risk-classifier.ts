@@ -45,6 +45,8 @@ const L0_TOOLS = new Set([
   "read_file", "list_dir", "search", "git_status", "git_log", "git_diff", "project_map",
   "web_search", "web_fetch",
   "memory_read", "memory_search",
+  "tts_speak",
+  "process_manager:list", "process_manager:check", "process_manager:logs",
 ]);
 
 const L3_COMMANDS = /\b(sudo|rm\s+-rf|curl|wget|nc|ssh|scp|telnet|eval|exec|alias)\b/;
@@ -201,6 +203,28 @@ export function classifyDeterministic(
   toolName: string,
   args: Record<string, unknown>,
 ): Classification | null {
+  // Handle action-based tools (process_manager, webhook)
+  const action = typeof args.action === "string" ? args.action : "";
+  if (toolName === "process_manager") {
+    if (action === "list" || action === "check" || action === "logs") {
+      return { level: RiskLevel.L0, reason: t("approval.readOnly"), deterministic: true };
+    }
+    if (action === "spawn" || action === "kill") {
+      return { level: RiskLevel.L2, reason: t("approval.configFile"), deterministic: true };
+    }
+  }
+  if (toolName === "webhook") {
+    if (action === "list" || action === "test") {
+      return { level: RiskLevel.L0, reason: t("approval.readOnly"), deterministic: true };
+    }
+    if (action === "create") {
+      return { level: RiskLevel.L1, reason: t("approval.configFile"), deterministic: true };
+    }
+    if (action === "delete") {
+      return { level: RiskLevel.L2, reason: t("approval.configFile"), deterministic: true };
+    }
+  }
+
   if (L0_TOOLS.has(toolName)) {
     return { level: RiskLevel.L0, reason: t("approval.readOnly"), deterministic: true };
   }

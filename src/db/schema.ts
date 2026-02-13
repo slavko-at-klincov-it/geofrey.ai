@@ -60,6 +60,17 @@ export const usageLog = sqliteTable("usage_log", {
   chatId: text("chat_id").notNull(),
 });
 
+export const webhooks = sqliteTable("webhooks", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  path: text("path").notNull().unique(),
+  secret: text("secret"),
+  template: text("template", { enum: ["github", "stripe", "generic"] }),
+  enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
+  chatId: text("chat_id").notNull().default("default"),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+});
+
 export const memoryChunks = sqliteTable("memory_chunks", {
   id: text("id").primaryKey(),
   source: text("source").notNull(),       // "MEMORY.md" or "2026-02-13.md"

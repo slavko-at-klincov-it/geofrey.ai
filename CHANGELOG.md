@@ -5,7 +5,57 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.2.0] - 2026-02-13
+## 1.3.0 - 2026-02-13 (unreleased)
+
+Phase 3 — Differenzierung release. All 5 roadmap features implemented.
+
+### Added
+
+#### Docker Sandbox per Session
+- Container lifecycle management (`src/sandbox/container.ts`) — create, exec, destroy, health check via Docker CLI
+- Session pool (`src/sandbox/session-pool.ts`) — per-session container mapping with `getOrCreateContainer()`, `destroySession()`, `destroyAllSessions()`
+- Volume mounting (`src/sandbox/volume-mount.ts`) — safe mount path validation, host-to-container path translation
+- Configurable: image, memory limit, network, PID limit, read-only, TTL
+- Docker availability check on startup
+- 49 new tests for sandbox module (6 skipped when Docker unavailable)
+
+#### Multi-Model Support via OpenRouter
+- Provider interface (`src/models/provider.ts`) — `ModelProvider` abstraction with `generate()`, `stream()`, `getModelInfo()`
+- OpenRouter provider (`src/models/openrouter.ts`) — native fetch, SSE streaming, usage token tracking, retryable errors
+- Model registry (`src/models/model-registry.ts`) — failover chains (max 3 attempts), task-specific model routing, built-in aliases
+- Built-in aliases: `gpt-4o`, `claude-sonnet`, `gemini-pro`, `llama`, `mixtral`, `deepseek-coder`, `qwen`
+- 41 new tests for models module
+
+#### Webhook Triggers
+- Webhook router (`src/webhooks/router.ts`) — route registry, HMAC-SHA256 authentication, per-webhook rate limiting
+- Webhook handler (`src/webhooks/handler.ts`) — event templates (GitHub push/PR/issues, Stripe payment, generic JSON), executor callback
+- HTTP server (`src/webhooks/server.ts`) — `node:http` with JSON + form-urlencoded body parsing, authentication middleware
+- Webhook tool (`src/tools/webhook.ts`) — create, list, delete, test actions with mock payloads
+- `webhooks` table in SQLite schema for persistence
+- 37 new tests for webhook module
+
+#### Process Management Tool
+- Process manager (`src/process/manager.ts`) — spawn via `execa`, circular log buffer (1000 lines), SIGTERM→SIGKILL escalation (5s grace)
+- Process tool (`src/tools/process.ts`) — spawn, list, check, kill, logs actions
+- `killAllProcesses()` for graceful shutdown integration
+- 18 new tests for process module
+
+#### TTS via ElevenLabs
+- Speech synthesizer (`src/voice/synthesizer.ts`) — ElevenLabs API client, LRU audio cache (SHA-256 keys), configurable voice/model
+- Text splitter — sentence-boundary splitting for texts >5000 characters
+- TTS tool (`src/tools/tts.ts`) — `tts_speak` action with `getLastSynthesizedAudio()` for platform delivery
+- Optional `sendAudio()` method added to `MessagingPlatform` interface
+- Tests for synthesizer module
+
+#### Config & Infrastructure
+- New config sections: `sandbox`, `models`, `webhook`, `tts` in Zod schema
+- New env vars: `SANDBOX_ENABLED/IMAGE/MEMORY_LIMIT/NETWORK/PIDS_LIMIT/READ_ONLY/TTL_MS`, `OPENROUTER_API_KEY/DEFAULT_MODEL/FAILOVER_CHAIN/TASK_MODELS`, `WEBHOOK_ENABLED/PORT/HOST/RATE_LIMIT`, `ELEVENLABS_API_KEY/VOICE_ID/MODEL/CACHE_SIZE`
+- ~20 new i18n keys across process, tts, sandbox, webhook categories (German + English)
+- Risk classifier updated: `tts_speak`=L0, `process_manager` action-based (list/check/logs=L0, spawn/kill=L2), `webhook` action-based (list/test=L0, create=L1, delete=L2)
+- Graceful shutdown: `killAllProcesses()`, `destroyAllSessions()`, webhook server stop
+- 731 total tests (up from 575), 0 failures
+
+## 1.2.0 - 2026-02-13 (unreleased)
 
 Phase 2 — Power Features release. All 5 roadmap features implemented.
 
@@ -66,7 +116,7 @@ Phase 2 — Power Features release. All 5 roadmap features implemented.
 - Browser shutdown (`closeAllBrowsers()`) added to graceful shutdown handler
 - 575 total tests (up from 430), 0 failures
 
-## [1.1.0] - 2026-02-13
+## 1.1.0 - 2026-02-13 (unreleased)
 
 Phase 1 — Essentials release. All 5 roadmap features implemented.
 
@@ -221,7 +271,4 @@ Phase 1 — Essentials release. All 5 roadmap features implemented.
 - Windows compatibility for prerequisites check (cmd start /b for detached Ollama)
 - Platform-aware defaults for Signal socket path in config schema
 
-[1.2.0]: https://github.com/slavko-at-klincov-it/geofrey.ai/releases/tag/v1.2.0
-[1.1.0]: https://github.com/slavko-at-klincov-it/geofrey.ai/releases/tag/v1.1.0
-[1.0.1]: https://github.com/slavko-at-klincov-it/geofrey.ai/releases/tag/v1.0.1
-[1.0.0]: https://github.com/slavko-at-klincov-it/geofrey.ai/releases/tag/v1.0.0
+<!-- No GitHub releases published yet. Versions are internal milestones. -->

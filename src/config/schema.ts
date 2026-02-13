@@ -89,6 +89,33 @@ export const configSchema = z.object({
     openaiApiKey: z.string().optional(),
     whisperModelPath: z.string().optional(),
   }).default({}),
+  tts: z.object({
+    apiKey: z.string().optional(),
+    voiceId: z.string().default("21m00Tcm4TlvDq8ikWAM"),
+    model: z.string().default("eleven_multilingual_v2"),
+    cacheSize: z.coerce.number().int().positive().default(50),
+  }).default({}),
+  sandbox: z.object({
+    enabled: z.boolean().default(false),
+    image: z.string().default("node:22-slim"),
+    memoryLimit: z.string().default("512m"),
+    networkEnabled: z.boolean().default(false),
+    pidsLimit: z.coerce.number().int().positive().default(64),
+    readOnly: z.boolean().default(false),
+    ttlMs: z.coerce.number().int().positive().default(1_800_000),
+  }).default({}),
+  models: z.object({
+    openrouterApiKey: z.string().optional(),
+    defaultModel: z.string().optional(),
+    failoverChain: z.array(z.string()).default([]),
+    taskModels: z.record(z.string()).default({}),
+  }).default({}),
+  webhook: z.object({
+    enabled: z.boolean().default(false),
+    port: z.coerce.number().int().default(3002),
+    host: z.string().default("localhost"),
+    rateLimit: z.coerce.number().int().positive().default(60),
+  }).default({}),
   mcp: z.object({
     // Empty array = all servers allowed (no restriction). Non-empty = only listed servers.
     allowedServers: z.array(z.string()).default([]),

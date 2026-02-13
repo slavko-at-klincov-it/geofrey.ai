@@ -328,4 +328,28 @@ export type TranslationKey =
   | "compaction.done"
   | "compaction.failed"
   | "compaction.notNeeded"
-  | "compaction.memoryFlushed";
+  | "compaction.memoryFlushed"
+
+  // process manager
+  | "process.spawned"
+  | "process.killed"
+  | "process.killedForced"
+  | "process.notFound"
+  | "process.listEmpty"
+  | "process.listHeader"
+  | "process.noLogs"
+
+  // tts
+  | "tts.notConfigured"
+  | "tts.synthesized"
+  | "tts.failed"
+
+  // sandbox
+  | "sandbox.created"
+  | "sandbox.destroyed"
+  | "sandbox.execError"
+  | "sandbox.dockerNotFound"
+
+  // webhook
+  | "webhook.serverStarted"
+  | "webhook.fired";

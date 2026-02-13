@@ -61,8 +61,13 @@
 │  └──────────────┘  └──────────────┘  └────────────────────┘     │
 │                                                                  │
 │  ┌──────────────┐  ┌──────────────┐  ┌────────────────────┐     │
-│  │ Browser      │  │ Skills       │  │ Voice/STT          │     │
-│  │ (CDP)        │  │ (SKILL.md)   │  │ (Whisper)          │     │
+│  │ Browser      │  │ Skills       │  │ Voice/STT+TTS      │     │
+│  │ (CDP)        │  │ (SKILL.md)   │  │ (Whisper+ElevenLabs│     │
+│  └──────────────┘  └──────────────┘  └────────────────────┘     │
+│                                                                  │
+│  ┌──────────────┐  ┌──────────────┐  ┌────────────────────┐     │
+│  │ Process      │  │ Docker       │  │ OpenRouter         │     │
+│  │ Manager      │  │ Sandbox      │  │ (100+ models)      │     │
 │  └──────────────┘  └──────────────┘  └────────────────────┘     │
 └──────────────────────────────────────────────────────────────────┘
                        │
@@ -80,6 +85,12 @@
 │  │ Session Compaction (token counting, auto-compact @75%,  │    │
 │  │  Ollama summarization, pre-compaction memory flush)      │    │
 │  └──────────────────────────────────────────────────────────┘    │
+│                                                                  │
+│  ┌──────────────┐  ┌──────────────┐                              │
+│  │ Webhook      │  │ Process      │                              │
+│  │ Server       │  │ Manager      │                              │
+│  │ (HTTP POST)  │  │ (spawn/kill) │                              │
+│  └──────────────┘  └──────────────┘                              │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
@@ -112,7 +123,7 @@ Risk classification uses a **two-layer approach**:
 
 | Level | Name | Behavior | Examples |
 |-------|------|----------|----------|
-| **L0** | AUTO_APPROVE | Execute immediately, no notification | `read_file`, `list_dir`, `search`, `git status`, `git log`, `git diff`, `pwd`, `ls`, `cat`, `wc`, `web_search`, `web_fetch`, `memory_read`, `memory_search` |
+| **L0** | AUTO_APPROVE | Execute immediately, no notification | `read_file`, `list_dir`, `search`, `git status`, `git log`, `git diff`, `pwd`, `ls`, `cat`, `wc`, `web_search`, `web_fetch`, `memory_read`, `memory_search`, `tts_speak`, `process_manager:list/check/logs`, `webhook:list/test` |
 | **L1** | NOTIFY | Execute, then inform user | `write_file` (non-config, in project), `git add`, `git stash`, `git branch`, `npm test`, `npm run lint` |
 | **L2** | REQUIRE_APPROVAL | **Block until user approves via Telegram/WhatsApp/Signal** | `delete_file`, `git commit`, `git merge`, `git rebase`, `npm install`, `shell_exec`, `mkdir`, `mv`, `cp` |
 | **L3** | BLOCK | Refuse always, log attempt | `git push --force`, `git reset --hard`, `rm -rf`, `sudo`, `curl`, `wget`, `nc`, `ssh`, `eval` |
