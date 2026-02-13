@@ -274,6 +274,12 @@ export function classifyDeterministic(
   if (toolName === "cron" && action === "create") {
     return { level: RiskLevel.L1, reason: "Schedules a cron job", deterministic: true };
   }
+  if (toolName === "cron" && (action === "list")) {
+    return { level: RiskLevel.L0, reason: "Read-only cron list", deterministic: true };
+  }
+  if (toolName === "cron" && action === "delete") {
+    return { level: RiskLevel.L2, reason: "Deletes a scheduled job", deterministic: true };
+  }
   if (toolName === "browser") {
     if (action === "evaluate") {
       // Scan for network API calls — escalate to L3
@@ -286,6 +292,12 @@ export function classifyDeterministic(
   }
   if (toolName === "skill" && action === "install") {
     return { level: RiskLevel.L2, reason: "Installs external code", deterministic: true };
+  }
+  if (toolName === "skill" && (action === "list" || action === "enable" || action === "disable")) {
+    return { level: RiskLevel.L0, reason: "Read-only skill management", deterministic: true };
+  }
+  if (toolName === "skill" && action === "generate") {
+    return { level: RiskLevel.L1, reason: "Generates skill file", deterministic: true };
   }
 
   if (L0_TOOLS.has(toolName)) {

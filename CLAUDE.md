@@ -94,8 +94,7 @@ src/
 │       ├── slack.ts         # Slack adapter (@slack/bolt Socket Mode, Block Kit buttons)
 │       ├── slack.test.ts
 │       ├── discord.ts       # Discord adapter (discord.js Gateway Intents, Button components)
-│       ├── discord.test.ts
-│       └── companion.ts     # Companion app adapter (WebSocket bridge)
+│       └── discord.test.ts
 ├── tools/
 │   ├── tool-registry.ts     # Tool schema + handler registry (native + MCP)
 │   ├── mcp-client.ts        # MCP server discovery + tool wrapping
@@ -111,12 +110,7 @@ src/
 │   ├── skill.ts             # Skill management tool (list/install/enable/disable/generate)
 │   ├── webhook.ts           # Webhook management tool (create/list/delete/test)
 │   ├── process.ts           # Process management tool (spawn/list/check/kill/logs)
-│   ├── tts.ts               # TTS tool (tts_speak via ElevenLabs)
 │   ├── agents.ts            # Agent management tool (list/send/history)
-│   ├── companion.ts         # Companion device tool (pair/unpair/list/push_token)
-│   ├── smart-home.ts        # Smart home tool (discover/list/control/scene/automation)
-│   ├── gmail.ts             # Gmail tool (auth/read/send/label/delete)
-│   ├── calendar.ts          # Calendar tool (auth/list/create/update/delete)
 │   ├── search.ts            # Recursive content search (regex, max 20 results)
 │   └── project-map.ts       # Project structure queries (.geofrey/project-map.json)
 ├── memory/
@@ -156,8 +150,6 @@ src/
 ├── voice/
 │   ├── transcriber.ts       # OpenAI Whisper API + local whisper.cpp
 │   ├── converter.ts         # ffmpeg audio → WAV 16kHz mono conversion
-│   ├── synthesizer.ts       # ElevenLabs TTS client + LRU cache
-│   ├── synthesizer.test.ts
 │   ├── transcriber.test.ts
 │   └── converter.test.ts
 ├── sandbox/
@@ -192,31 +184,6 @@ src/
 │   ├── hub.test.ts
 │   ├── session-manager.test.ts
 │   └── communication.test.ts
-├── companion/
-│   ├── ws-server.ts         # WebSocket server (ws package, pairing, heartbeat)
-│   ├── pairing.ts           # 6-digit pairing codes (5min TTL)
-│   ├── device-registry.ts   # In-memory device CRUD
-│   ├── push.ts              # APNS (node:http2) + FCM (native fetch) push
-│   ├── ws-server.test.ts
-│   ├── pairing.test.ts
-│   ├── device-registry.test.ts
-│   └── push.test.ts
-├── integrations/
-│   ├── hue.ts               # Philips Hue API v2 client
-│   ├── homeassistant.ts     # HomeAssistant REST API client
-│   ├── sonos.ts             # Sonos HTTP API client
-│   ├── discovery.ts         # SSDP + cloud discovery
-│   ├── google/
-│   │   ├── auth.ts          # Google OAuth2 flow + token management
-│   │   ├── gmail.ts         # Gmail API client
-│   │   ├── calendar.ts      # Google Calendar API client
-│   │   ├── auth.test.ts
-│   │   ├── gmail.test.ts
-│   │   └── calendar.test.ts
-│   ├── hue.test.ts
-│   ├── homeassistant.test.ts
-│   ├── sonos.test.ts
-│   └── discovery.test.ts
 ├── indexer/
 │   ├── cli.ts               # CLI entry point (geofrey index / pnpm index)
 │   ├── index.ts             # Incremental project indexer (AST parsing)
@@ -335,12 +302,12 @@ src/
 - [x] Multi-Model Support via OpenRouter (provider interface, failover chains, task-specific routing)
 - [x] Webhook Triggers (HTTP server, HMAC auth, rate limiting, GitHub/Stripe/generic templates)
 - [x] Process Management Tool (spawn, kill, logs, SIGTERM→SIGKILL escalation)
-- [x] TTS via ElevenLabs (speech synthesis, LRU cache, text splitting)
+- [ ] TTS via ElevenLabs (speech synthesis, LRU cache, text splitting)
 - [x] Multi-Agent Routing (Hub-and-Spoke, 3 routing strategies, per-agent session isolation)
 - [x] Skill Marketplace (curated repository, SHA-256 hash verification, 5 built-in templates)
-- [x] Companion Apps Backend (WebSocket server, 6-digit pairing, APNS/FCM push)
-- [x] Smart Home Integration (Philips Hue API v2, HomeAssistant REST, Sonos HTTP, SSDP/mDNS discovery)
-- [x] Gmail/Calendar Automation (Google OAuth2, Gmail API, Google Calendar API)
+- [ ] Companion Apps Backend (WebSocket server, 6-digit pairing, APNS/FCM push)
+- [ ] Smart Home Integration (Philips Hue API v2, HomeAssistant REST, Sonos HTTP, SSDP/mDNS discovery)
+- [ ] Gmail/Calendar Automation (Google OAuth2, Gmail API, Google Calendar API)
 
 ## Roadmap (OpenClaw Feature Parity + Beyond)
 
@@ -365,14 +332,14 @@ Full gap analysis: `docs/OPENCLAW_GAP_ANALYSIS.md`
 - [x] Multi-Model Support via OpenRouter (100+ Modelle)
 - [x] Webhook-Triggers (externe Events als Auslöser)
 - [x] Process Management Tool (Hintergrund-Prozesse)
-- [x] TTS (ElevenLabs — Sprachantworten)
+- [ ] TTS (ElevenLabs — Sprachantworten)
 
 ### Phase 4 — Ecosystem (v2.0)
 - [x] Multi-Agent Routing (Hub-and-Spoke, per-Agent Config)
 - [x] Skill-Marketplace (Community-Skills)
-- [x] Companion Apps (macOS/iOS/Android)
-- [x] Smart Home Integration (Hue, HomeAssistant, Sonos)
-- [x] Gmail/Calendar Automation
+- [ ] Companion Apps (macOS/iOS/Android)
+- [ ] Smart Home Integration (Hue, HomeAssistant, Sonos)
+- [ ] Gmail/Calendar Automation
 
 ### Geofrey-Vorteile vs. OpenClaw (beibehalten & ausbauen)
 - 3-Layer Prompt Injection Defense (User/Tool/Model)
@@ -434,6 +401,6 @@ Full gap analysis: `docs/OPENCLAW_GAP_ANALYSIS.md`
 | 2026-02-13 | OpenClaw gap analysis + roadmap | 4-phase roadmap (v1.1→v2.0) based on comprehensive OpenClaw feature comparison |
 | 2026-02-13 | Hub-and-Spoke multi-agent routing | 3 strategies (skill/intent/explicit); per-agent session isolation; persistent agent configs |
 | 2026-02-13 | Skill marketplace with SHA-256 verification | Curated repository, hash-verified downloads, 5 built-in templates |
-| 2026-02-13 | Companion apps via WebSocket + push | ws package, 6-digit pairing (5min TTL), APNS (node:http2) + FCM (native fetch) |
-| 2026-02-13 | Smart home integration (Hue/HA/Sonos) | Hue API v2, HomeAssistant REST, Sonos HTTP; SSDP discovery via node:dgram |
-| 2026-02-13 | Gmail/Calendar via Google OAuth2 | OAuth2 with node:http callback, Gmail API + Calendar API (native fetch) |
+| 2026-02-13 | Companion apps via WebSocket + push | Planned: ws package, 6-digit pairing (5min TTL), APNS (node:http2) + FCM (native fetch) — not yet implemented |
+| 2026-02-13 | Smart home integration (Hue/HA/Sonos) | Planned: Hue API v2, HomeAssistant REST, Sonos HTTP; SSDP discovery — not yet implemented |
+| 2026-02-13 | Gmail/Calendar via Google OAuth2 | Planned: OAuth2 with node:http callback, Gmail API + Calendar API — not yet implemented |

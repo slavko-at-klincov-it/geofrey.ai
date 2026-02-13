@@ -222,7 +222,7 @@ async function main() {
         if (!processed.ocrText && image.caption === undefined) {
           // Warn about OCR failure only if there was no caption fallback
         }
-        await runAgentLoopStreaming(config, chatId, processed.description, platform);
+        await routeMessage(chatId, processed.description);
       } catch (err) {
         if (err instanceof ImageSanitizeError) {
           switch (err.code) {
@@ -254,7 +254,7 @@ async function main() {
         }
         const result = await transcribe(audioBuffer, "wav");
         const text = t("voice.transcribed", { text: result.text });
-        await runAgentLoopStreaming(config, chatId, text, platform);
+        await routeMessage(chatId, text);
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         console.error("Voice transcription error:", msg);

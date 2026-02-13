@@ -60,6 +60,8 @@ export const usageLog = sqliteTable("usage_log", {
   chatId: text("chat_id").notNull(),
 });
 
+// TODO: Not yet wired into webhooks/router.ts — webhooks are currently in-memory only.
+// This table is reserved for future persistence of webhook config across restarts.
 export const webhooks = sqliteTable("webhooks", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),

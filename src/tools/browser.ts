@@ -5,6 +5,7 @@ import {
   connectBrowser,
   closeBrowser,
   closeAllBrowsers,
+  touchSession,
 } from "../browser/launcher.js";
 import type { BrowserSession } from "../browser/launcher.js";
 import { navigate, click, fill, screenshot, evaluate, waitForSelector } from "../browser/actions.js";
@@ -15,6 +16,7 @@ let activeSession: BrowserSession | null = null;
 
 function requireSession(): BrowserSession {
   if (!activeSession) throw new Error(t("browser.notRunning"));
+  touchSession(activeSession.port);
   return activeSession;
 }
 

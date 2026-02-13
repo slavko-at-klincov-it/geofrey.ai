@@ -8,12 +8,21 @@ Last updated: 2026-02-13 (Post-Wiring Cleanup)
 - **Description**: ~40 of ~95 non-test source files lack dedicated tests. Critical untested files include `agent-loop.ts`, `claude-code.ts`, `tool-registry.ts`, and tool files (`tools/*.ts`).
 - **Impact**: Regression risk. Core agent loop and tool execution paths are not regression-protected.
 
+### Phase 4 Backend Infrastructure Not Yet Implemented
+- **Description**: CLAUDE.md previously listed these Phase 4 features as complete, but the backend source files were never created: TTS (ElevenLabs synthesizer), Companion Apps (WebSocket server, pairing, push notifications), Smart Home Integration (Hue, HomeAssistant, Sonos, discovery), Gmail/Calendar Automation (Google OAuth2, Gmail API, Calendar API). Tool wrappers (`tts.ts`, `companion.ts`, `smart-home.ts`, `gmail.ts`, `calendar.ts`) also don't exist.
+- **Impact**: 5 tool types listed in tool registry descriptions are unavailable. CLAUDE.md corrected to reflect actual state.
+- **Status**: Multi-Agent Routing and Skill Marketplace ARE complete and wired.
+
 ## LOW
 
 ### Cron Parser Uses AND Semantics for DoW/DoM
 - **Files**: `src/automation/cron-parser.ts`
 - **Description**: When both day-of-week and day-of-month are set, this parser uses AND logic (both must match). Standard crontab (Vixie cron) uses OR. Documented in code comments.
 - **Impact**: Minimal — edge case. Workaround: use two separate cron jobs.
+
+### pendingApprovals and webhooks DB Tables Not Queried
+- **Description**: `pendingApprovals` and `webhooks` tables are defined in `src/db/schema.ts` but approvals and webhooks use in-memory stores only. Tables reserved for future persistence across restarts.
+- **Impact**: Minimal — in-memory stores work correctly. Data lost on restart is acceptable for current usage.
 
 ## Resolved (2026-02-13)
 
