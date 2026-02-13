@@ -6,6 +6,9 @@ import { setupTelegram, type TelegramConfig } from "./steps/telegram.js";
 import { setupWhatsApp, type WhatsAppConfig } from "./steps/whatsapp.js";
 import { setupSignal, type SignalConfig } from "./steps/signal.js";
 import { setupClaudeAuth, type ClaudeAuthResult } from "./steps/claude-auth.js";
+import { runProfileStep, type ProfileResult } from "./steps/profile.js";
+import { runIntegrationsStep, type IntegrationsResult } from "./steps/integrations.js";
+import { runProactiveStep, type ProactiveResult } from "./steps/proactive.js";
 import { showSummary } from "./steps/summary.js";
 import { setLocale, type Locale } from "../i18n/index.js";
 import { t } from "../i18n/index.js";
@@ -19,6 +22,9 @@ export interface WizardState {
   ollamaUrl: string;
   model: string;
   claude?: ClaudeAuthResult;
+  profile?: ProfileResult;
+  integrations?: IntegrationsResult;
+  proactive?: ProactiveResult;
 }
 
 async function chooseLocale(): Promise<Locale> {
@@ -79,7 +85,18 @@ export async function runWizard(): Promise<WizardState | null> {
   // Step 3: Claude Code
   state.claude = await setupClaudeAuth(prereqs.claudeCliOk);
 
-  // Step 4: Summary + .env
+  // Step 5: User Profile
+  state.profile = await runProfileStep();
+
+  // Step 6: Integrations
+  state.integrations = await runIntegrationsStep();
+
+  // Step 7: Proactive Setup
+  const hasCalendar = state.integrations?.calendarApp.provider !== "none";
+  const hasGoogle = state.integrations?.calendarApp.provider === "google";
+  state.proactive = await runProactiveStep(hasCalendar, hasGoogle);
+
+  // Step 8: Summary + .env
   const saved = await showSummary(state);
   if (!saved) {
     console.log(`\n${t("onboarding.configNotSaved")}\n`);

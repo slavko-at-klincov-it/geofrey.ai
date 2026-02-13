@@ -3,6 +3,8 @@ import { stepHeader, success, info, box } from "../utils/ui.js";
 import { askYesNo } from "../utils/prompt.js";
 import type { WizardState } from "../wizard.js";
 import { t } from "../../i18n/index.js";
+import { saveProfile } from "../../profile/store.js";
+import type { Profile } from "../../profile/schema.js";
 
 export function generateEnv(state: WizardState): string {
   const lines: string[] = [
@@ -64,6 +66,16 @@ export function generateEnv(state: WizardState): string {
     lines.push("");
   }
 
+  // Google (if Google Calendar was chosen)
+  if (state.integrations?.calendarApp.provider === "google") {
+    lines.push("# Google OAuth2");
+    lines.push(`GOOGLE_CLIENT_ID=${process.env.GOOGLE_CLIENT_ID ?? ""}`);
+    lines.push(`GOOGLE_CLIENT_SECRET=${process.env.GOOGLE_CLIENT_SECRET ?? ""}`);
+    lines.push("GOOGLE_REDIRECT_URL=http://localhost:3004/oauth/callback");
+    lines.push("GOOGLE_TOKEN_CACHE=./data/google-token.json");
+    lines.push("");
+  }
+
   // Defaults
   lines.push("# Database");
   lines.push("DATABASE_URL=./data/app.db");
@@ -105,11 +117,29 @@ function buildSummaryLines(state: WizardState): string[] {
     }
   }
 
+  // Profile
+  if (state.profile) {
+    lines.push(`${t("onboarding.summaryName").padEnd(15)}${state.profile.name}`);
+    lines.push(`${t("onboarding.summaryTimezone").padEnd(15)}${state.profile.timezone}`);
+  }
+
+  // Integrations
+  if (state.integrations) {
+    lines.push(`${t("onboarding.summaryCalendar").padEnd(15)}${state.integrations.calendarApp.provider}`);
+    lines.push(`${t("onboarding.summaryNotes").padEnd(15)}${state.integrations.notesApp.provider}`);
+    lines.push(`${t("onboarding.summaryTasks").padEnd(15)}${state.integrations.taskApp.provider}`);
+  }
+
+  // Proactive
+  if (state.proactive?.morningBrief.enabled) {
+    lines.push(`${t("onboarding.summaryMorning").padEnd(15)}${state.proactive.morningBrief.time}`);
+  }
+
   return lines;
 }
 
 export async function showSummary(state: WizardState, envPath = ".env"): Promise<boolean> {
-  stepHeader(4, t("onboarding.summaryTitle"));
+  stepHeader(8, t("onboarding.summaryTitle"));
 
   box(buildSummaryLines(state));
 
@@ -126,6 +156,45 @@ export async function showSummary(state: WizardState, envPath = ".env"): Promise
   const envContent = generateEnv(state);
   writeFileSync(envPath, envContent, "utf-8");
   success(t("onboarding.envSaved"));
+
+  // Save profile if collected
+  if (state.profile) {
+    try {
+      const profile: Profile = {
+        version: 1,
+        name: state.profile.name,
+        timezone: state.profile.timezone,
+        workDirectory: state.profile.workDirectory,
+        communicationStyle: state.profile.communicationStyle,
+        interests: state.profile.interests,
+        calendarApp: state.integrations?.calendarApp ?? { provider: "none" },
+        notesApp: state.integrations?.notesApp ?? { provider: "none" },
+        taskApp: state.integrations?.taskApp ?? { provider: "none" },
+        morningBrief: {
+          enabled: state.proactive?.morningBrief.enabled ?? false,
+          time: state.proactive?.morningBrief.time ?? "07:00",
+          includeCalendar: true,
+          includeEmail: true,
+          includeMemory: true,
+        },
+        calendarWatch: {
+          enabled: state.proactive?.calendarWatch.enabled ?? false,
+          intervalMinutes: 15,
+          reminderMinutesBefore: state.proactive?.calendarWatch.reminderMinutesBefore ?? 10,
+        },
+        emailMonitor: {
+          enabled: state.proactive?.emailMonitor.enabled ?? false,
+          intervalMinutes: 15,
+          vipSenders: state.proactive?.emailMonitor.vipSenders ?? [],
+          keywords: state.proactive?.emailMonitor.keywords ?? [],
+        },
+      };
+      await saveProfile(profile);
+      success(t("onboarding.summaryProfileSaved"));
+    } catch {
+      // Profile save is non-critical
+    }
+  }
 
   return true;
 }

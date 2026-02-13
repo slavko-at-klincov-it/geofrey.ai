@@ -217,6 +217,24 @@ src/
 │       ├── auth.test.ts
 │       ├── gmail.test.ts
 │       └── calendar.test.ts
+├── profile/
+│   ├── schema.ts            # Zod user profile schema (calendar/notes/tasks/proactive)
+│   ├── store.ts             # JSON persistence (.geofrey/profile.json) + caching
+│   ├── inject.ts            # XML profile context for system prompt injection
+│   ├── schema.test.ts
+│   ├── store.test.ts
+│   └── inject.test.ts
+├── proactive/
+│   ├── collector.ts         # Data collection (calendar events, emails, memory)
+│   ├── templates.ts         # Prompt templates (morning brief, reminders, alerts)
+│   ├── dedup.ts             # Calendar reminder deduplication (24h TTL)
+│   ├── handler.ts           # Proactive job dispatcher (__proactive_ prefix routing)
+│   ├── setup.ts             # Cron job creation from profile settings
+│   ├── collector.test.ts
+│   ├── templates.test.ts
+│   ├── dedup.test.ts
+│   ├── handler.test.ts
+│   └── setup.test.ts
 ├── indexer/
 │   ├── cli.ts               # CLI entry point (geofrey index / pnpm index)
 │   ├── index.ts             # Incremental project indexer (AST parsing)
@@ -251,7 +269,10 @@ src/
 │   │   ├── slack.ts         # Slack setup (bot token, app token, channel)
 │   │   ├── discord.ts       # Discord setup (bot token, channel)
 │   │   ├── claude-auth.ts   # Claude Code authentication
-│   │   └── summary.ts       # Config review + .env generation
+│   │   ├── profile.ts      # User profile collection (name, timezone, style)
+│   │   ├── integrations.ts # Calendar/Notes/Tasks app selection + OAuth
+│   │   ├── proactive.ts    # Morning brief, calendar watch, email monitor setup
+│   │   └── summary.ts       # Config review + .env generation + profile save
 │   └── utils/
 │       ├── ui.ts            # chalk/ora formatting
 │       ├── prompt.ts        # German prompt wrappers (@inquirer/prompts)
@@ -287,7 +308,7 @@ src/
 - [x] Integration: Claude Code subprocess driver
 - [x] DB: Drizzle schema + migrations
 - [x] Audit log
-- [x] Unit tests (~950 tests — node:test runner)
+- [x] Unit tests (~1000 tests — node:test runner)
 - [x] Security: obfuscation-resistant L3 patterns (path variants, script network, base64, chmod +x)
 - [x] Security: MCP output sanitization (DATA boundary tags, instruction filtering)
 - [x] Security: MCP server allowlist (`mcp.allowedServers` config)
@@ -340,6 +361,9 @@ src/
 - [x] Companion Apps Backend (WebSocket server, 6-digit pairing, APNS/FCM push)
 - [x] Smart Home Integration (Philips Hue API v2, HomeAssistant REST, Sonos HTTP, SSDP/mDNS discovery)
 - [x] Gmail/Calendar Automation (Google OAuth2, Gmail API, Google Calendar API)
+- [x] User Profile System (Zod schema, JSON persistence, system prompt injection)
+- [x] Extended Onboarding (profile, integrations, proactive wizard steps)
+- [x] Proactive Agent (Morning Brief, Calendar Watch, Email Monitor via scheduler)
 
 ## Roadmap
 
@@ -412,3 +436,6 @@ src/
 | 2026-02-13 | Companion apps via WebSocket + push | ws package, 6-digit pairing (5min TTL), APNS (node:http2) + FCM (native fetch), heartbeat ping/pong |
 | 2026-02-13 | Smart home integration (Hue/HA/Sonos) | Hue API v2, HomeAssistant REST, Sonos HTTP; SSDP + nUPnP discovery |
 | 2026-02-13 | Gmail/Calendar via Google OAuth2 | OAuth2 with node:http callback, file-based token cache with auto-refresh, Gmail API + Calendar API |
+| 2026-02-14 | User Profile in JSON, not DB | User can read/edit `.geofrey/profile.json`, version-control it; `null` = existing users unaffected |
+| 2026-02-14 | Proactive Jobs via existing Scheduler | `__proactive_` prefix for routing; no new system, reuses cron/every jobs |
+| 2026-02-14 | System Prompt Injection for Profile | Profile always available to LLM via `<user_profile>` XML block; no extra tool call needed |

@@ -29,6 +29,9 @@ import { killAllProcesses } from "./tools/process.js";
 import { destroyAllSessions } from "./sandbox/session-pool.js";
 import { isDockerAvailable } from "./sandbox/container.js";
 import { createHub } from "./agents/hub.js";
+import { loadProfile } from "./profile/store.js";
+import { isProactiveTask, buildProactivePrompt } from "./proactive/handler.js";
+import { setupProactiveJobs } from "./proactive/setup.js";
 
 // Import tools to register them
 import "./tools/filesystem.js";
@@ -50,6 +53,18 @@ import "./tools/companion.js";
 import "./tools/smart-home.js";
 import "./tools/gmail.js";
 import "./tools/calendar.js";
+
+function resolveOwnerChatId(config: ReturnType<typeof loadConfig>): string | null {
+  switch (config.platform) {
+    case "telegram": return String(config.telegram.ownerId);
+    case "whatsapp": return config.whatsapp?.ownerPhone ?? null;
+    case "signal": return config.signal?.ownerPhone ?? null;
+    case "slack": return config.slack?.channelId ?? null;
+    case "discord": return config.discord?.channelId ?? null;
+    case "webchat": return "webchat-owner";
+    default: return null;
+  }
+}
 
 let inFlightCount = 0;
 
@@ -237,6 +252,10 @@ async function main() {
     console.log("Smart Home: Integration enabled");
   }
 
+  // Load user profile
+  const profile = await loadProfile();
+  if (profile) console.log(`Profile: ${profile.name} (${profile.timezone})`);
+
   // Initialize Google OAuth
   if (config.google.enabled && config.google.clientId) {
     const { setGoogleConfig } = await import("./integrations/google/auth.js");
@@ -337,9 +356,24 @@ async function main() {
 
   // Initialize scheduler after platform is ready (executor needs platform reference)
   initScheduler(
-    async (chatId, task) => routeMessage(chatId, task),
+    async (chatId, task) => {
+      if (isProactiveTask(task)) {
+        const prompt = await buildProactivePrompt(task);
+        if (prompt) await routeMessage(chatId, prompt);
+        return;
+      }
+      await routeMessage(chatId, task);
+    },
     config.database.url,
   );
+
+  // Set up proactive jobs if profile exists
+  if (profile) {
+    const ownerChatId = resolveOwnerChatId(config);
+    if (ownerChatId) {
+      await setupProactiveJobs(ownerChatId);
+    }
+  }
 
   // Initialize webhook server (if enabled)
   let webhookStop: (() => Promise<void>) | null = null;
