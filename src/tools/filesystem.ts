@@ -7,7 +7,7 @@ const PROJECT_ROOT = process.cwd();
 
 function confine(path: string): string {
   const resolved = resolve(path);
-  if (!resolved.startsWith(PROJECT_ROOT)) {
+  if (resolved !== PROJECT_ROOT && !resolved.startsWith(PROJECT_ROOT + "/")) {
     throw new Error(`Path outside project directory: ${path}`);
   }
   return resolved;

@@ -9,7 +9,7 @@ const MAX_CONTEXT_LINES = 2;
 function confine(path: string): string {
   const resolved = resolve(path);
   const cwd = process.cwd();
-  if (!resolved.startsWith(cwd)) {
+  if (resolved !== cwd && !resolved.startsWith(cwd + "/")) {
     throw new Error(`Path outside project directory: ${path}`);
   }
   return resolved;
