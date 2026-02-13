@@ -31,6 +31,7 @@
     "db:migrate": "drizzle-kit migrate",
     "lint": "tsc --noEmit",
     "test": "node --import tsx/esm --test 'src/**/*.test.ts'",
+    "index": "tsx src/indexer/cli.ts",
     "setup": "tsx src/onboarding/setup.ts",
     "prepublishOnly": "pnpm build"
   },

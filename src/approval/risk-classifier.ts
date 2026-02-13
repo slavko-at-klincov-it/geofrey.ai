@@ -42,7 +42,7 @@ If you cannot confidently classify, default to L2.`;
 
 // Deterministic patterns — no LLM call needed
 const L0_TOOLS = new Set([
-  "read_file", "list_dir", "search", "git_status", "git_log", "git_diff",
+  "read_file", "list_dir", "search", "git_status", "git_log", "git_diff", "project_map",
 ]);
 
 const L3_COMMANDS = /\b(sudo|rm\s+-rf|curl|wget|nc|ssh|scp|telnet|eval|exec|alias)\b/;

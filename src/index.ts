@@ -17,6 +17,7 @@ import "./tools/filesystem.js";
 import "./tools/shell.js";
 import "./tools/git.js";
 import "./tools/claude-code.js";
+import "./tools/project-map.js";
 
 let inFlightCount = 0;
 
