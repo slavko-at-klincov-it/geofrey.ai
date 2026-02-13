@@ -16,6 +16,7 @@ import type { PlatformCallbacks } from "./messaging/platform.js";
 import "./tools/filesystem.js";
 import "./tools/shell.js";
 import "./tools/git.js";
+import "./tools/search.js";
 import "./tools/claude-code.js";
 import "./tools/project-map.js";
 

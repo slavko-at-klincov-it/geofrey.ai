@@ -12,6 +12,7 @@ async function main() {
 
   console.log("");
   success(t("onboarding.envCreated"));
+  info(t("onboarding.indexHint"));
 
   const start = await askYesNo(`\n${t("onboarding.startNow")}`);
   if (start) {

@@ -8,9 +8,8 @@ import { classifyRisk, classifyDeterministic, RiskLevel } from "../approval/risk
 import { t } from "../i18n/index.js";
 import { getOrCreate, addMessage, getHistory } from "./conversation.js";
 import { appendAuditEntry } from "../audit/audit-log.js";
-import { createStream, createClaudeCodeStream } from "../messaging/streamer.js";
-import { invokeClaudeCode, type StreamEvent, type ClaudeResult } from "../tools/claude-code.js";
-import { setClaudeSession } from "./conversation.js";
+import { createStream } from "../messaging/streamer.js";
+import type { ClaudeResult } from "../tools/claude-code.js";
 
 function buildOrchestratorPrompt(): string {
   const respondInstruction = t("orchestrator.respondInstruction", { language: t("orchestrator.language") });
@@ -161,53 +160,6 @@ function buildPrepareStep(config: Config, chatId: ChatId, platform: MessagingPla
 
 // Stores the last Claude Code result per chat for audit logging
 const lastClaudeResult = new Map<string, ClaudeResult>();
-
-/**
- * When the orchestrator calls claude_code, wire up streaming
- * so the user sees live progress from the Claude Code subprocess.
- */
-export function wrapClaudeCodeForStreaming(
-  platform: MessagingPlatform,
-  chatId: ChatId,
-  config: Config,
-): { onToolCall: (toolName: string, args: Record<string, unknown>) => Promise<string | null> } {
-  return {
-    async onToolCall(toolName: string, args: Record<string, unknown>): Promise<string | null> {
-      if (toolName !== "claude_code") return null;
-
-      const prompt = typeof args.prompt === "string" ? args.prompt : "";
-      if (!prompt) return null;
-
-      const stream = createClaudeCodeStream(platform, chatId);
-      await stream.start();
-
-      const result = await invokeClaudeCode({
-        prompt,
-        cwd: typeof args.cwd === "string" ? args.cwd : undefined,
-        allowedTools: typeof args.allowedTools === "string" ? args.allowedTools : undefined,
-        taskKey: typeof args.taskKey === "string" ? args.taskKey : `chat-${chatId}`,
-        onText: (text) => stream.handleEvent({ type: "assistant", content: text }),
-        onToolUse: (name) => stream.handleEvent({ type: "tool_use", toolName: name }),
-      }, config.claude);
-
-      lastClaudeResult.set(chatId, result);
-
-      if (result.sessionId) {
-        setClaudeSession(chatId, result.sessionId);
-        stream.handleEvent({
-          type: "result",
-          content: result.text,
-          sessionId: result.sessionId,
-          costUsd: result.costUsd,
-          tokensUsed: result.tokensUsed,
-          model: result.model,
-        });
-      }
-
-      return await stream.finish();
-    },
-  };
-}
 
 function buildOnStepFinish(config: Config, chatId: ChatId) {
   return async (stepResult: { toolCalls: Array<{ toolName: string; input: unknown }> }) => {

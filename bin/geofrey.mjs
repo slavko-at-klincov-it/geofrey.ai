@@ -7,6 +7,8 @@ const arg = process.argv[2];
 
 if (arg === "setup") {
   await import(resolve(__dirname, "../dist/onboarding/setup.js"));
+} else if (arg === "index") {
+  await import(resolve(__dirname, "../dist/indexer/cli.js"));
 } else {
   await import(resolve(__dirname, "../dist/index.js"));
 }

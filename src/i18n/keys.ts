@@ -69,6 +69,7 @@ export type TranslationKey =
   | "onboarding.startNow"
   | "onboarding.starting"
   | "onboarding.startLater"
+  | "onboarding.indexHint"
   | "onboarding.setupAborted"
   | "onboarding.error"
 

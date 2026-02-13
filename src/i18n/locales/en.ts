@@ -71,6 +71,7 @@ export const en: Record<TranslationKey, string> = {
   "onboarding.startNow": "Start geofrey.ai now?",
   "onboarding.starting": "Starting geofrey.ai...",
   "onboarding.startLater": "Start later with: pnpm dev",
+  "onboarding.indexHint": "Tip: Run 'pnpm index' to build the project index for better prompts.",
   "onboarding.setupAborted": "Setup aborted.",
   "onboarding.error": "Error:",
 
