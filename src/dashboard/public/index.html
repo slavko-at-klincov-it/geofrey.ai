@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>geofrey.ai Dashboard</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div id="app">
+    <aside id="sidebar">
+      <div class="sidebar-header">
+        <h1>geofrey.ai</h1>
+      </div>
+
+      <section class="sidebar-section">
+        <h2>Status</h2>
+        <div id="status-content">
+          <div class="status-item">
+            <span class="status-label">Connection</span>
+            <span id="status-connection" class="status-value status-offline">Offline</span>
+          </div>
+          <div class="status-item">
+            <span class="status-label">Uptime</span>
+            <span id="status-uptime" class="status-value">--</span>
+          </div>
+          <div class="status-item">
+            <span class="status-label">Messages</span>
+            <span id="status-messages" class="status-value">0</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="sidebar-section">
+        <h2>Pending Approvals</h2>
+        <div id="approvals-list">
+          <p class="empty-state">No pending approvals</p>
+        </div>
+      </section>
+
+      <section class="sidebar-section">
+        <h2>Audit Log</h2>
+        <div id="audit-list">
+          <p class="empty-state">No entries</p>
+        </div>
+      </section>
+    </aside>
+
+    <main id="chat-area">
+      <div id="messages"></div>
+      <form id="message-form">
+        <div class="input-row">
+          <textarea id="message-input" placeholder="Type a message..." rows="1" autocomplete="off"></textarea>
+          <button type="submit" id="send-btn" title="Send">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="22" y1="2" x2="11" y2="13"></line>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+            </svg>
+          </button>
+        </div>
+      </form>
+    </main>
+  </div>
+
+  <div id="token-modal" class="modal hidden">
+    <div class="modal-content">
+      <h2>Authentication Required</h2>
+      <p>Enter your dashboard token to connect.</p>
+      <form id="token-form">
+        <input type="password" id="token-input" placeholder="Dashboard token" autocomplete="off">
+        <button type="submit">Connect</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

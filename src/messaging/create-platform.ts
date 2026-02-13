@@ -22,6 +22,10 @@ export async function createPlatform(
       const { createSignalPlatform } = await import("./adapters/signal.js");
       return createSignalPlatform(config.signal, callbacks);
     }
+    case "webchat": {
+      const { createWebChatPlatform } = await import("./adapters/webchat.js");
+      return createWebChatPlatform(config.dashboard, callbacks);
+    }
     default:
       throw new Error(`Unknown platform: ${platformName}`);
   }

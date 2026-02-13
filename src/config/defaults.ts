@@ -14,6 +14,7 @@ const pathToEnvVar: Record<string, string> = {
   "ollama.baseUrl": "OLLAMA_BASE_URL",
   "ollama.model": "ORCHESTRATOR_MODEL",
   "claude.model": "CLAUDE_CODE_MODEL",
+  "billing.maxDailyBudgetUsd": "MAX_DAILY_BUDGET_USD",
 };
 
 function formatZodError(error: ZodError): string {
@@ -122,6 +123,21 @@ export function loadConfig(): Config {
         scanForInjection: process.env.IMAGE_SANITIZER_SCAN_INJECTION !== undefined
           ? process.env.IMAGE_SANITIZER_SCAN_INJECTION === "true"
           : undefined,
+      },
+      dashboard: {
+        enabled: process.env.DASHBOARD_ENABLED !== undefined
+          ? process.env.DASHBOARD_ENABLED === "true"
+          : undefined,
+        port: process.env.DASHBOARD_PORT,
+        token: process.env.DASHBOARD_TOKEN,
+      },
+      search: {
+        provider: process.env.SEARCH_PROVIDER,
+        searxngUrl: process.env.SEARXNG_URL,
+        braveApiKey: process.env.BRAVE_API_KEY,
+      },
+      billing: {
+        maxDailyBudgetUsd: process.env.MAX_DAILY_BUDGET_USD,
       },
       mcp: {
         allowedServers: process.env.MCP_ALLOWED_SERVERS

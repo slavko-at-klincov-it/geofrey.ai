@@ -238,6 +238,28 @@ export const de: Record<TranslationKey, string> = {
   "onboarding.loginNotRecognized": "Login nicht erkannt — prüfe mit 'claude --version'",
   "onboarding.loginCheckFailed": "Prüfung fehlgeschlagen",
 
+  // cron / scheduler
+  "cron.created": "Job erstellt: {id}",
+  "cron.deleted": "Job gelöscht: {id}",
+  "cron.notFound": "Job nicht gefunden: {id}",
+  "cron.listEmpty": "Keine geplanten Jobs",
+  "cron.listHeader": "{count} geplante Jobs:",
+  "cron.jobFailed": "Job {id} fehlgeschlagen (Versuch {attempt}/{max}): {error}",
+  "cron.jobDisabled": "Job {id} deaktiviert nach {max} fehlgeschlagenen Versuchen",
+  "cron.schedulerStarted": "Scheduler gestartet mit {count} Jobs",
+
+  // memory
+  "memory.saved": "Erinnerung gespeichert",
+  "memory.empty": "Keine Erinnerungen gefunden",
+  "memory.searchResults": "{count} relevante Erinnerungen gefunden",
+  "memory.indexing": "Erinnerungen werden indexiert...",
+  "memory.indexed": "{count} Chunks indexiert",
+
+  // search / web
+  "search.noResults": "Keine Suchergebnisse",
+  "search.fetchFailed": "Seite konnte nicht geladen werden: {url}",
+  "search.providerError": "Suchanbieter-Fehler: {msg}",
+
   // security / image-sanitizer
   "security.imageSanitized": "Bild bereinigt: {format}, {originalSize} → {sanitizedSize} Bytes",
   "security.imageUnsupportedFormat": "Nicht unterstütztes Bildformat",
@@ -247,6 +269,17 @@ export const de: Record<TranslationKey, string> = {
   "security.imageSuspiciousMetadata": "Verdächtige Metadaten gefunden: {count} Treffer",
   "security.imageOrientationApplied": "EXIF-Orientierung angewendet",
   "security.imageMetadataStripped": "Metadaten entfernt ({fields})",
+
+  // billing
+  "billing.budgetWarning": "Budget-Warnung: {pct}% erreicht (${spent} von ${limit} heute)",
+  "billing.budgetExceeded": "Tagesbudget überschritten! Kosten: ${spent}, Limit: ${limit}",
+  "billing.usageLogged": "Nutzung: {model} — {tokens} Tokens, ${cost}",
+
+  // dashboard
+  "dashboard.started": "Dashboard gestartet auf Port {port}",
+  "dashboard.unauthorized": "Nicht autorisiert",
+  "dashboard.connected": "WebChat verbunden",
+  "dashboard.disconnected": "WebChat getrennt",
 
   // summary
   "onboarding.summaryTitle": "Konfiguration",

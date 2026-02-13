@@ -10,6 +10,8 @@ import { getOrCreate, addMessage, getHistory } from "./conversation.js";
 import { appendAuditEntry } from "../audit/audit-log.js";
 import { createStream } from "../messaging/streamer.js";
 import { getAndClearLastResult, setStreamCallbacks, clearStreamCallbacks } from "../tools/claude-code.js";
+import { logUsage, getDailyUsage } from "../billing/usage-logger.js";
+import { checkBudgetThresholds } from "../billing/budget-monitor.js";
 
 function buildOrchestratorPrompt(): string {
   const respondInstruction = t("orchestrator.respondInstruction", { language: t("orchestrator.language") });
@@ -181,7 +183,7 @@ function buildPrepareStep(config: Config, chatId: ChatId, platform: MessagingPla
   };
 }
 
-function buildOnStepFinish(config: Config, chatId: ChatId) {
+function buildOnStepFinish(config: Config, chatId: ChatId, platform: MessagingPlatform) {
   return async (stepResult: { toolCalls: Array<{ toolName: string; input: unknown }> }) => {
     for (const tc of stepResult.toolCalls) {
       const args = tc.input as Record<string, unknown>;
@@ -208,12 +210,43 @@ function buildOnStepFinish(config: Config, chatId: ChatId) {
           entry.tokensUsed = claudeResult.tokensUsed;
           const allowedTools = typeof args.allowedTools === "string" ? args.allowedTools : undefined;
           if (allowedTools) entry.allowedTools = allowedTools;
+
+          // Log Claude Code usage to billing
+          if (claudeResult.costUsd != null && claudeResult.tokensUsed != null) {
+            try {
+              logUsage(config.database.url, {
+                model: claudeResult.model ?? config.claude.model,
+                inputTokens: claudeResult.tokensUsed,
+                outputTokens: 0, // Claude Code reports total tokens only
+                costUsd: claudeResult.costUsd,
+                chatId,
+              });
+              maybeSendBudgetAlert(config, chatId, platform);
+            } catch {
+              // Non-critical: don't break agent loop if billing fails
+            }
+          }
         }
       }
 
       await appendAuditEntry(config.audit.logDir, entry);
     }
   };
+}
+
+function maybeSendBudgetAlert(config: Config, chatId: ChatId, platform: MessagingPlatform): void {
+  const budget = config.billing?.maxDailyBudgetUsd;
+  if (!budget) return;
+
+  try {
+    const { totalCostUsd } = getDailyUsage(config.database.url);
+    const alert = checkBudgetThresholds(totalCostUsd, budget);
+    if (alert) {
+      platform.sendMessage(chatId, alert.message).catch(() => {});
+    }
+  } catch {
+    // Non-critical: don't break agent loop if billing DB query fails
+  }
 }
 
 // Consecutive error tracking per chat (F17)
@@ -259,7 +292,7 @@ export async function runAgentLoopStreaming(
       tools: aiTools,
       stopWhen: stepCountIs(config.limits.maxAgentSteps),
       prepareStep: buildPrepareStep(config, chatId, platform),
-      onStepFinish: buildOnStepFinish(config, chatId),
+      onStepFinish: buildOnStepFinish(config, chatId, platform),
     });
 
     for await (const chunk of result.textStream) {
@@ -270,6 +303,28 @@ export async function runAgentLoopStreaming(
 
     const fullText = (await result.text) || t("orchestrator.noResponse");
     addMessage(chatId, { role: "assistant", content: fullText });
+
+    // Log orchestrator usage to billing
+    try {
+      const usage = await result.usage;
+      if (usage) {
+        const inputTokens = usage.inputTokens ?? 0;
+        const outputTokens = usage.outputTokens ?? 0;
+        const { calculateCost } = await import("../billing/pricing.js");
+        const costUsd = calculateCost(config.ollama.model, inputTokens, outputTokens);
+        logUsage(config.database.url, {
+          model: config.ollama.model,
+          inputTokens,
+          outputTokens,
+          costUsd,
+          chatId,
+        });
+        maybeSendBudgetAlert(config, chatId, platform);
+      }
+    } catch {
+      // Non-critical: don't break agent loop if billing fails
+    }
+
     // F17: Reset error counter on success
     consecutiveErrors.delete(chatId);
   } catch (err) {

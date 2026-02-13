@@ -7,7 +7,7 @@ const DEFAULT_SIGNAL_SOCKET = platform() === "win32"
 
 export const configSchema = z.object({
   locale: z.enum(["de", "en"]).default("de"),
-  platform: z.enum(["telegram", "whatsapp", "signal"]).default("telegram"),
+  platform: z.enum(["telegram", "whatsapp", "signal", "webchat"]).default("telegram"),
   telegram: z.object({
     botToken: z.string().min(1),
     ownerId: z.coerce.number().int().positive(),
@@ -62,6 +62,19 @@ export const configSchema = z.object({
     maxInputSizeBytes: z.coerce.number().int().positive().default(20_971_520),
     scanForInjection: z.boolean().default(true),
   }).default({}),
+  dashboard: z.object({
+    enabled: z.boolean().default(false),
+    port: z.coerce.number().int().default(3001),
+    token: z.string().optional(),
+  }).default({}),
+  search: z.object({
+    provider: z.enum(["searxng", "brave"]).default("searxng"),
+    searxngUrl: z.string().url().default("http://localhost:8080"),
+    braveApiKey: z.string().optional(),
+  }).default({}),
+  billing: z.object({
+    maxDailyBudgetUsd: z.coerce.number().positive().optional(),
+  }).default({}),
   mcp: z.object({
     // Empty array = all servers allowed (no restriction). Non-empty = only listed servers.
     allowedServers: z.array(z.string()).default([]),
@@ -73,9 +86,12 @@ export const configSchema = z.object({
   if (data.platform === "signal" && !data.signal) {
     return false;
   }
+  if (data.platform === "webchat" && !data.dashboard.enabled) {
+    return false;
+  }
   return true;
 }, {
-  message: "Selected platform config must be provided (e.g. whatsapp config for platform: 'whatsapp')",
+  message: "Selected platform config must be provided (e.g. whatsapp config for platform: 'whatsapp', dashboard.enabled for platform: 'webchat')",
 });
 
 export type Config = z.infer<typeof configSchema>;

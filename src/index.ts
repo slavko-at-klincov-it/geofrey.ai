@@ -14,6 +14,9 @@ import { runAgentLoopStreaming } from "./orchestrator/agent-loop.js";
 import type { PlatformCallbacks } from "./messaging/platform.js";
 import { processImage } from "./messaging/image-handler.js";
 import { ImageSanitizeError } from "./security/image-sanitizer.js";
+import { setSearchConfig } from "./tools/web-search.js";
+import { initScheduler, stopScheduler } from "./automation/scheduler.js";
+import { setOllamaConfig } from "./memory/embeddings.js";
 
 // Import tools to register them
 import "./tools/filesystem.js";
@@ -22,6 +25,10 @@ import "./tools/git.js";
 import "./tools/search.js";
 import "./tools/claude-code.js";
 import "./tools/project-map.js";
+import "./tools/web-search.js";
+import "./tools/web-fetch.js";
+import "./tools/cron.js";
+import "./tools/memory.js";
 
 let inFlightCount = 0;
 
@@ -86,6 +93,15 @@ async function main() {
 
   // Initialize Claude Code driver
   initClaudeCode(config.claude);
+
+  // Initialize web search config
+  setSearchConfig(config.search);
+
+  // Initialize memory embeddings config
+  setOllamaConfig(config.ollama);
+
+  // Ensure memory directory exists
+  await mkdir("data/memory", { recursive: true });
 
   // Claude Code onboarding check
   const claudeStatus = await checkClaudeCodeReady(config.claude);
@@ -158,8 +174,15 @@ async function main() {
 
   const platform = await createPlatform(config, callbacks);
 
+  // Initialize scheduler after platform is ready (executor needs platform reference)
+  initScheduler(
+    async (chatId, task) => runAgentLoopStreaming(config, chatId, task, platform),
+    config.database.url,
+  );
+
   const shutdown = async (signal: string) => {
     console.log(`\n${signal} received, shutting down...`);
+    await stopScheduler();
     await platform.stop();
     rejectAllPending("SHUTDOWN");
     await waitForInflight(10_000);

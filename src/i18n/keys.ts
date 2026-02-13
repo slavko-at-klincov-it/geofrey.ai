@@ -218,6 +218,28 @@ export type TranslationKey =
   | "onboarding.loginNotRecognized"
   | "onboarding.loginCheckFailed"
 
+  // cron / scheduler
+  | "cron.created"
+  | "cron.deleted"
+  | "cron.notFound"
+  | "cron.listEmpty"
+  | "cron.listHeader"
+  | "cron.jobFailed"
+  | "cron.jobDisabled"
+  | "cron.schedulerStarted"
+
+  // memory
+  | "memory.saved"
+  | "memory.empty"
+  | "memory.searchResults"
+  | "memory.indexing"
+  | "memory.indexed"
+
+  // search / web
+  | "search.noResults"
+  | "search.fetchFailed"
+  | "search.providerError"
+
   // security / image-sanitizer
   | "security.imageSanitized"
   | "security.imageUnsupportedFormat"
@@ -227,6 +249,17 @@ export type TranslationKey =
   | "security.imageSuspiciousMetadata"
   | "security.imageOrientationApplied"
   | "security.imageMetadataStripped"
+
+  // billing
+  | "billing.budgetWarning"
+  | "billing.budgetExceeded"
+  | "billing.usageLogged"
+
+  // dashboard
+  | "dashboard.started"
+  | "dashboard.unauthorized"
+  | "dashboard.connected"
+  | "dashboard.disconnected"
 
   // summary
   | "onboarding.summaryTitle"

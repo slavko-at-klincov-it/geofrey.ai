@@ -238,6 +238,28 @@ export const en: Record<TranslationKey, string> = {
   "onboarding.loginNotRecognized": "Login not recognized — check with 'claude --version'",
   "onboarding.loginCheckFailed": "Check failed",
 
+  // cron / scheduler
+  "cron.created": "Job created: {id}",
+  "cron.deleted": "Job deleted: {id}",
+  "cron.notFound": "Job not found: {id}",
+  "cron.listEmpty": "No scheduled jobs",
+  "cron.listHeader": "{count} scheduled jobs:",
+  "cron.jobFailed": "Job {id} failed (attempt {attempt}/{max}): {error}",
+  "cron.jobDisabled": "Job {id} disabled after {max} failed attempts",
+  "cron.schedulerStarted": "Scheduler started with {count} jobs",
+
+  // memory
+  "memory.saved": "Memory saved",
+  "memory.empty": "No memories found",
+  "memory.searchResults": "{count} relevant memories found",
+  "memory.indexing": "Indexing memories...",
+  "memory.indexed": "{count} chunks indexed",
+
+  // search / web
+  "search.noResults": "No search results",
+  "search.fetchFailed": "Failed to fetch page: {url}",
+  "search.providerError": "Search provider error: {msg}",
+
   // security / image-sanitizer
   "security.imageSanitized": "Image sanitized: {format}, {originalSize} → {sanitizedSize} bytes",
   "security.imageUnsupportedFormat": "Unsupported image format",
@@ -247,6 +269,17 @@ export const en: Record<TranslationKey, string> = {
   "security.imageSuspiciousMetadata": "Suspicious metadata found: {count} matches",
   "security.imageOrientationApplied": "EXIF orientation applied",
   "security.imageMetadataStripped": "Metadata stripped ({fields})",
+
+  // billing
+  "billing.budgetWarning": "Budget warning: {pct}% reached (${spent} of ${limit} today)",
+  "billing.budgetExceeded": "Daily budget exceeded! Cost: ${spent}, Limit: ${limit}",
+  "billing.usageLogged": "Usage: {model} — {tokens} tokens, ${cost}",
+
+  // dashboard
+  "dashboard.started": "Dashboard started on port {port}",
+  "dashboard.unauthorized": "Unauthorized",
+  "dashboard.connected": "WebChat connected",
+  "dashboard.disconnected": "WebChat disconnected",
 
   // summary
   "onboarding.summaryTitle": "Configuration",

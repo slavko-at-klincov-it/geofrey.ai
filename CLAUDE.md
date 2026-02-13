@@ -83,14 +83,43 @@ src/
 │   └── adapters/
 │       ├── telegram.ts      # grammY bot + approval UI (inline buttons)
 │       ├── whatsapp.ts      # WhatsApp Business API (Cloud API, webhook)
-│       └── signal.ts        # signal-cli JSON-RPC (text-based approvals)
+│       ├── signal.ts        # signal-cli JSON-RPC (text-based approvals)
+│       ├── webchat.ts       # WebChat adapter (SSE streaming, REST API)
+│       └── webchat.test.ts
 ├── tools/
 │   ├── tool-registry.ts     # Tool schema + handler registry (native + MCP)
 │   ├── mcp-client.ts        # MCP server discovery + tool wrapping
 │   ├── claude-code.ts       # Claude Code CLI driver
 │   ├── shell.ts             # Shell command executor
 │   ├── filesystem.ts        # File operations
-│   └── git.ts               # Git operations
+│   ├── git.ts               # Git operations
+│   ├── web-search.ts        # SearXNG + Brave Search providers
+│   ├── web-fetch.ts         # URL fetch + HTML→Markdown converter
+│   ├── memory.ts            # memory_read, memory_write, memory_search tools
+│   └── cron.ts              # Cron job management tool (create/list/delete)
+├── memory/
+│   ├── store.ts             # MEMORY.md read/write/append + daily notes
+│   ├── embeddings.ts        # Ollama embeddings + cosine similarity search
+│   ├── recall.ts            # Auto-recall (semantic search + threshold)
+│   ├── store.test.ts
+│   └── embeddings.test.ts
+├── automation/
+│   ├── cron-parser.ts       # 5-field cron expression parser + next-run
+│   ├── scheduler.ts         # Job scheduler (30s tick, retry backoff)
+│   ├── cron-parser.test.ts
+│   └── scheduler.test.ts
+├── billing/
+│   ├── pricing.ts           # Model pricing table + cost calculator
+│   ├── usage-logger.ts      # Per-request usage logging + daily aggregates
+│   ├── budget-monitor.ts    # Budget threshold alerts (50/75/90%)
+│   ├── pricing.test.ts
+│   ├── usage-logger.test.ts
+│   └── budget-monitor.test.ts
+├── dashboard/
+│   └── public/
+│       ├── index.html       # Single-page chat UI
+│       ├── style.css        # Dark theme, responsive
+│       └── app.js           # SSE client + markdown rendering
 ├── security/
 │   ├── image-sanitizer.ts   # EXIF/XMP/IPTC stripping + injection scanning
 │   └── image-sanitizer.test.ts
@@ -146,7 +175,7 @@ src/
 - [x] Integration: Claude Code subprocess driver
 - [x] DB: Drizzle schema + migrations
 - [x] Audit log
-- [x] Unit tests (225 tests — node:test runner)
+- [x] Unit tests (430 tests — node:test runner)
 - [x] Security: obfuscation-resistant L3 patterns (path variants, script network, base64, chmod +x)
 - [x] Security: MCP output sanitization (DATA boundary tags, instruction filtering)
 - [x] Security: MCP server allowlist (`mcp.allowedServers` config)
@@ -179,6 +208,53 @@ src/
 - [x] v1.0.0 release
 - [x] v1.0.1 release — image metadata sanitizer (EXIF/XMP/IPTC stripping + injection scanning)
 - [x] Image upload support (Telegram/WhatsApp/Signal → sanitize → OCR → text description to orchestrator)
+- [x] OpenClaw gap analysis → `docs/OPENCLAW_GAP_ANALYSIS.md`
+- [x] Web-Dashboard + WebChat (SSE streaming, REST API, Bearer auth, dark theme UI)
+- [x] Persistent Memory (MEMORY.md store, Ollama embeddings, cosine similarity search)
+- [x] Web Search + Web Fetch (SearXNG + Brave Search, HTML→Markdown converter)
+- [x] Cron/Scheduler (5-field cron parser, persistent jobs, exponential retry backoff)
+- [x] Cost Tracking (per-request logging, daily aggregates, budget threshold alerts)
+
+## Roadmap (OpenClaw Feature Parity + Beyond)
+
+Full gap analysis: `docs/OPENCLAW_GAP_ANALYSIS.md`
+
+### Phase 1 — Essentials (v1.1)
+- [x] Web-Dashboard + WebChat (Desktop-Nutzung ohne Telegram)
+- [x] Persistent Memory (MEMORY.md + semantic search — Langzeitgedächtnis)
+- [x] Web Search + Web Fetch Tools (Internet-Fähigkeiten)
+- [x] Cron/Scheduler (proaktive Aufgaben, persistent, at/every/cron)
+- [x] Cost Tracking (per-request Token/Cost Logging, Budget-Limits)
+
+### Phase 2 — Power Features (v1.2)
+- [ ] Browser-Automation (Chrome DevTools Protocol)
+- [ ] Skill-System (SKILL.md Format + Registry)
+- [ ] Slack + Discord Adapter
+- [ ] Voice Messages STT (Whisper — WhatsApp/Telegram Sprachnachrichten)
+- [ ] Session Compaction (intelligentes Context-Window-Management)
+
+### Phase 3 — Differenzierung (v1.3)
+- [ ] Docker Sandbox per Session (isolierte Tool-Ausführung)
+- [ ] Multi-Model Support via OpenRouter (100+ Modelle)
+- [ ] Webhook-Triggers (externe Events als Auslöser)
+- [ ] Process Management Tool (Hintergrund-Prozesse)
+- [ ] TTS (ElevenLabs — Sprachantworten)
+
+### Phase 4 — Ecosystem (v2.0)
+- [ ] Multi-Agent Routing (Hub-and-Spoke, per-Agent Config)
+- [ ] Skill-Marketplace (Community-Skills)
+- [ ] Companion Apps (macOS/iOS/Android)
+- [ ] Smart Home Integration (Hue, HomeAssistant, Sonos)
+- [ ] Gmail/Calendar Automation
+
+### Geofrey-Vorteile vs. OpenClaw (beibehalten & ausbauen)
+- 3-Layer Prompt Injection Defense (User/Tool/Model)
+- Nativer MCP Client mit Security (Output Sanitization, Allowlist, Zod Validation)
+- Image Metadata Sanitization (EXIF/XMP/IPTC + Injection Scanning)
+- Lokaler Orchestrator als Sicherheitsschicht (80-90% günstiger)
+- Hybrid Risk Classification (Deterministic 90% + LLM 10%)
+- Filesystem Confinement (confine())
+- Obfuscation-resistant L3 Blocking
 
 ## Conventions
 - Code language: English
@@ -228,3 +304,4 @@ src/
 | 2026-02-12 | Language selection in setup wizard | First wizard step is bilingual "Language / Sprache:", stored as `LOCALE` in `.env` |
 | 2026-02-12 | Image metadata sanitization | EXIF/XMP/IPTC can carry prompt injection — strip before LLM, scan for patterns, audit findings |
 | 2026-02-12 | sharp for image processing | Prebuilt binaries, EXIF orientation, metadata stripping in one pipeline; configurable via env vars |
+| 2026-02-13 | OpenClaw gap analysis + roadmap | 4-phase roadmap (v1.1→v2.0) based on comprehensive OpenClaw feature comparison |

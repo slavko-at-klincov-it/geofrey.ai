@@ -11,7 +11,7 @@ export interface ImageAttachment {
 }
 
 export interface MessagingPlatform {
-  readonly name: "telegram" | "whatsapp" | "signal";
+  readonly name: "telegram" | "whatsapp" | "signal" | "webchat";
   readonly maxMessageLength: number;
   readonly supportsEdit: boolean;
 
