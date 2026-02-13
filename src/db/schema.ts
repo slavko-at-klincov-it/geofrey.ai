@@ -18,6 +18,8 @@ export const messages = sqliteTable("messages", {
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
 });
 
+// TODO: Not yet wired into approval-gate.ts — approvals are currently in-memory only.
+// This table is reserved for future persistence of approval state across restarts.
 export const pendingApprovals = sqliteTable("pending_approvals", {
   id: text("id").primaryKey(),
   conversationId: text("conversation_id")

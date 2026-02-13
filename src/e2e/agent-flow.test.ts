@@ -7,7 +7,7 @@ import type { MessagingPlatform, ChatId, MessageRef, PlatformCallbacks } from ".
 import type { Classification } from "../approval/risk-classifier.js";
 import { createApproval, resolveApproval, rejectAllPending, pendingCount } from "../approval/approval-gate.js";
 import { classifyDeterministic, RiskLevel, decomposeCommand, classifySingleCommand } from "../approval/risk-classifier.js";
-import { getOrCreate, addMessage, getHistory, clearConversation } from "../orchestrator/conversation.js";
+import { getOrCreate, addMessage, getHistory } from "../orchestrator/conversation.js";
 import { appendAuditEntry, verifyChain, type AuditEntry } from "../audit/audit-log.js";
 import { createStream, createClaudeCodeStream } from "../messaging/streamer.js";
 import { configSchema } from "../config/schema.js";
@@ -271,7 +271,6 @@ describe("E2E: Component Integration Tests", () => {
     beforeEach(() => {
       counter++;
       chatId = `conv-${counter}`;
-      clearConversation(chatId);
     });
 
     it("conversation messages persist across getOrCreate calls", () => {
@@ -305,13 +304,9 @@ describe("E2E: Component Integration Tests", () => {
       assert.equal(historyB[0].content, "chat B message 1");
     });
 
-    it("clearConversation removes messages", () => {
-      addMessage(chatId, { role: "user", content: "test" });
-      assert.equal(getHistory(chatId).length, 1);
-
-      clearConversation(chatId);
-
-      const conv = getOrCreate(chatId);
+    it("new chatId starts with empty messages", () => {
+      const freshChat = `conv-fresh-${Date.now()}`;
+      const conv = getOrCreate(freshChat);
       assert.equal(conv.messages.length, 0);
     });
   });

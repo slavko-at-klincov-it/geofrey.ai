@@ -25,6 +25,28 @@ interface StoredEntry extends AuditEntry {
 
 let lastHash = "GENESIS";
 
+export async function initLastHash(logDir: string): Promise<void> {
+  try {
+    const { readdirSync } = await import("node:fs");
+    const files = readdirSync(logDir)
+      .filter((f: string) => f.endsWith(".jsonl"))
+      .sort();
+    if (files.length === 0) return;
+
+    const lastFile = join(logDir, files[files.length - 1]);
+    const content = await readFile(lastFile, "utf-8");
+    const lines = content.trim().split("\n").filter(Boolean);
+    if (lines.length === 0) return;
+
+    const lastEntry = JSON.parse(lines[lines.length - 1]) as { hash: string };
+    if (lastEntry.hash) {
+      lastHash = lastEntry.hash;
+    }
+  } catch {
+    // No existing audit log — start fresh with GENESIS
+  }
+}
+
 export async function appendAuditEntry(
   logDir: string,
   entry: AuditEntry,

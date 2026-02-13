@@ -17,6 +17,7 @@ export function createApproval(
   toolName: string,
   toolArgs: Record<string, unknown>,
   classification: Classification,
+  timeoutMs?: number,
 ): { nonce: string; promise: Promise<boolean> } {
   const nonce = randomBytes(4).toString("hex");
   let resolve!: (approved: boolean) => void;
@@ -36,6 +37,22 @@ export function createApproval(
   };
 
   pending.set(nonce, approval);
+
+  if (timeoutMs && timeoutMs > 0) {
+    const timer = setTimeout(() => {
+      if (pending.has(nonce)) {
+        pending.delete(nonce);
+        resolve(false);
+      }
+    }, timeoutMs);
+    // Wrap resolve to clear timeout on manual resolution
+    const manualResolve = approval.resolve;
+    approval.resolve = (approved: boolean) => {
+      clearTimeout(timer);
+      manualResolve(approved);
+    };
+  }
+
   return { nonce, promise };
 }
 

@@ -1,6 +1,6 @@
 import { describe, it, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { getOrCreate, addMessage, getHistory, clearConversation } from "./conversation.js";
+import { getOrCreate, addMessage, getHistory } from "./conversation.js";
 
 describe("conversation", () => {
   let chatId = "1000";
@@ -49,12 +49,4 @@ describe("conversation", () => {
     });
   });
 
-  describe("clearConversation", () => {
-    it("removes conversation from cache", () => {
-      addMessage(chatId, { role: "user", content: "test" });
-      clearConversation(chatId);
-      const conv = getOrCreate(chatId);
-      assert.deepEqual(conv.messages, []);
-    });
-  });
 });

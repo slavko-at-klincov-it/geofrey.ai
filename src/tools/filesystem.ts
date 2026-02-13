@@ -3,10 +3,11 @@ import { resolve } from "node:path";
 import { z } from "zod";
 import { registerTool } from "./tool-registry.js";
 
+const PROJECT_ROOT = process.cwd();
+
 function confine(path: string): string {
   const resolved = resolve(path);
-  const cwd = process.cwd();
-  if (!resolved.startsWith(cwd)) {
+  if (!resolved.startsWith(PROJECT_ROOT)) {
     throw new Error(`Path outside project directory: ${path}`);
   }
   return resolved;

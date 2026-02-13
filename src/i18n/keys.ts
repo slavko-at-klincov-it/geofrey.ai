@@ -33,6 +33,7 @@ export type TranslationKey =
   | "orchestrator.noResponse"
   | "orchestrator.errorPrefix"
   | "orchestrator.errorShort"
+  | "orchestrator.tooManyErrors"
 
   // messaging
   | "messaging.claudeWorking"

@@ -4,7 +4,8 @@ import { setLocale } from "./i18n/index.js";
 import { t } from "./i18n/index.js";
 import { createPlatform } from "./messaging/create-platform.js";
 import { rejectAllPending, resolveApproval } from "./approval/approval-gate.js";
-import { disconnectAll, connectMcpServer } from "./tools/mcp-client.js";
+import { disconnectAll, connectMcpServer, setAllowedServers } from "./tools/mcp-client.js";
+import { initLastHash } from "./audit/audit-log.js";
 import { getDb, closeDb } from "./db/client.js";
 import { setDbUrl } from "./orchestrator/conversation.js";
 import { initClaudeCode } from "./tools/claude-code.js";
@@ -73,6 +74,9 @@ async function main() {
   // Ensure data directories exist
   await mkdir("data/audit", { recursive: true });
 
+  // Restore audit hash chain from last entry (F13)
+  await initLastHash(config.audit.logDir);
+
   // Initialize database
   getDb(config.database.url);
   setDbUrl(config.database.url);
@@ -89,6 +93,9 @@ async function main() {
 
   // Health check Ollama (non-blocking)
   await healthCheckOllama(config.ollama.baseUrl);
+
+  // Apply MCP server allowlist (F10)
+  setAllowedServers(config.mcp.allowedServers);
 
   // Connect MCP servers (if configured via env)
   const mcpServersEnv = process.env.MCP_SERVERS;

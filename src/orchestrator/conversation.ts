@@ -14,7 +14,6 @@ export interface Conversation {
   id: string;
   chatId: string;
   messages: Message[];
-  claudeSessionId?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -118,17 +117,4 @@ export function addMessage(chatId: string, message: Omit<Message, "id" | "create
 
 export function getHistory(chatId: string): Message[] {
   return getOrCreate(chatId).messages;
-}
-
-export function setClaudeSession(chatId: string, sessionId: string): void {
-  const conv = getOrCreate(chatId);
-  conv.claudeSessionId = sessionId;
-}
-
-export function getClaudeSession(chatId: string): string | undefined {
-  return active.get(chatId)?.claudeSessionId;
-}
-
-export function clearConversation(chatId: string): void {
-  active.delete(chatId);
 }

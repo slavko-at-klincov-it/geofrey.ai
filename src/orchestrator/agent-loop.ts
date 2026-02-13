@@ -1,4 +1,4 @@
-import { generateText, streamText, stepCountIs, type ModelMessage } from "ai";
+import { streamText, stepCountIs, type ModelMessage } from "ai";
 import { createOllama } from "ai-sdk-ollama";
 import type { Config } from "../config/schema.js";
 import type { MessagingPlatform, ChatId } from "../messaging/platform.js";
@@ -9,7 +9,7 @@ import { t } from "../i18n/index.js";
 import { getOrCreate, addMessage, getHistory } from "./conversation.js";
 import { appendAuditEntry } from "../audit/audit-log.js";
 import { createStream } from "../messaging/streamer.js";
-import type { ClaudeResult } from "../tools/claude-code.js";
+import { getAndClearLastResult, setStreamCallbacks, clearStreamCallbacks } from "../tools/claude-code.js";
 
 function buildOrchestratorPrompt(): string {
   const respondInstruction = t("orchestrator.respondInstruction", { language: t("orchestrator.language") });
@@ -119,10 +119,20 @@ function buildPrepareStep(config: Config, chatId: ChatId, platform: MessagingPla
                 approvalId: req.approvalId,
                 approved: false,
               });
+              await appendAuditEntry(config.audit.logDir, {
+                timestamp: new Date().toISOString(),
+                action: "tool_blocked",
+                toolName,
+                toolArgs,
+                riskLevel: "L3",
+                approved: false,
+                result: classification.reason,
+                userId: chatId,
+              });
               continue;
             }
 
-            const { nonce, promise } = createApproval(toolName, toolArgs, classification);
+            const { nonce, promise } = createApproval(toolName, toolArgs, classification, config.limits.approvalTimeoutMs);
 
             try {
               await platform.sendApproval(chatId, nonce, toolName, toolArgs, classification);
@@ -141,6 +151,19 @@ function buildPrepareStep(config: Config, chatId: ChatId, platform: MessagingPla
               approvalId: req.approvalId,
               approved,
             });
+
+            if (!approved) {
+              await appendAuditEntry(config.audit.logDir, {
+                timestamp: new Date().toISOString(),
+                action: "tool_denied",
+                toolName,
+                toolArgs,
+                riskLevel: classification.level,
+                approved: false,
+                result: classification.reason,
+                userId: chatId,
+              });
+            }
           }
         }
       }
@@ -157,9 +180,6 @@ function buildPrepareStep(config: Config, chatId: ChatId, platform: MessagingPla
     return {};
   };
 }
-
-// Stores the last Claude Code result per chat for audit logging
-const lastClaudeResult = new Map<string, ClaudeResult>();
 
 function buildOnStepFinish(config: Config, chatId: ChatId) {
   return async (stepResult: { toolCalls: Array<{ toolName: string; input: unknown }> }) => {
@@ -180,7 +200,7 @@ function buildOnStepFinish(config: Config, chatId: ChatId) {
       };
 
       if (tc.toolName === "claude_code") {
-        const claudeResult = lastClaudeResult.get(chatId);
+        const claudeResult = getAndClearLastResult();
         if (claudeResult) {
           entry.claudeSessionId = claudeResult.sessionId;
           entry.claudeModel = claudeResult.model;
@@ -188,7 +208,6 @@ function buildOnStepFinish(config: Config, chatId: ChatId) {
           entry.tokensUsed = claudeResult.tokensUsed;
           const allowedTools = typeof args.allowedTools === "string" ? args.allowedTools : undefined;
           if (allowedTools) entry.allowedTools = allowedTools;
-          lastClaudeResult.delete(chatId);
         }
       }
 
@@ -197,55 +216,11 @@ function buildOnStepFinish(config: Config, chatId: ChatId) {
   };
 }
 
-export async function runAgentLoop(
-  config: Config,
-  chatId: ChatId,
-  userMessage: string,
-  platform: MessagingPlatform,
-): Promise<string> {
-  getOrCreate(chatId);
-  addMessage(chatId, { role: "user", content: userMessage });
+// Consecutive error tracking per chat (F17)
+const consecutiveErrors = new Map<string, number>();
 
-  const history = getHistory(chatId);
-  const messages: ModelMessage[] = history.map((m) => ({
-    role: m.role as "user" | "assistant",
-    content: m.content,
-  }));
-
-  const ollama = createOllama({ baseURL: config.ollama.baseUrl });
-  const aiTools = getAiSdkTools();
-
-  try {
-    const result = await generateText({
-      model: ollama(config.ollama.model, { options: { num_ctx: config.ollama.numCtx } }),
-      system: buildOrchestratorPrompt(),
-      messages,
-      tools: aiTools,
-      stopWhen: stepCountIs(config.limits.maxAgentSteps),
-      prepareStep: buildPrepareStep(config, chatId, platform),
-      onStepFinish: buildOnStepFinish(config, chatId),
-    });
-
-    const responseText = result.text || t("orchestrator.noResponse");
-    addMessage(chatId, { role: "assistant", content: responseText });
-    return responseText;
-  } catch (err) {
-    const errorMsg = err instanceof Error ? err.message : String(err);
-    console.error(`Agent loop error for chat ${chatId}:`, errorMsg);
-
-    // Check if this is an Ollama connection error
-    const isOllamaError = errorMsg.includes("ECONNREFUSED") ||
-                          errorMsg.includes("fetch failed") ||
-                          errorMsg.includes("connect");
-
-    const fallback = isOllamaError
-      ? t("app.ollamaConnectionError")
-      : t("orchestrator.errorPrefix", { msg: errorMsg.slice(0, 200) });
-
-    addMessage(chatId, { role: "assistant", content: fallback });
-    return fallback;
-  }
-}
+// Max messages to include in LLM context (F16)
+const MAX_HISTORY_MESSAGES = 50;
 
 export async function runAgentLoopStreaming(
   config: Config,
@@ -257,7 +232,9 @@ export async function runAgentLoopStreaming(
   addMessage(chatId, { role: "user", content: userMessage });
 
   const history = getHistory(chatId);
-  const messages: ModelMessage[] = history.map((m) => ({
+  // F16: Limit history to prevent unbounded context growth
+  const recentHistory = history.slice(-MAX_HISTORY_MESSAGES);
+  const messages: ModelMessage[] = recentHistory.map((m) => ({
     role: m.role as "user" | "assistant",
     content: m.content,
   }));
@@ -267,6 +244,12 @@ export async function runAgentLoopStreaming(
   const stream = createStream(platform, chatId);
 
   await stream.start();
+
+  // F11: Set streaming callbacks so claude_code tool streams live to platform
+  setStreamCallbacks({
+    onText: (text) => stream.append(text),
+    onToolUse: (name) => stream.append(`\n> ${name}...`),
+  });
 
   try {
     const result = await streamText({
@@ -287,21 +270,36 @@ export async function runAgentLoopStreaming(
 
     const fullText = (await result.text) || t("orchestrator.noResponse");
     addMessage(chatId, { role: "assistant", content: fullText });
+    // F17: Reset error counter on success
+    consecutiveErrors.delete(chatId);
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : String(err);
     console.error(`Streaming agent loop error for chat ${chatId}:`, errorMsg);
+
+    // F17: Track consecutive errors
+    const errorCount = (consecutiveErrors.get(chatId) ?? 0) + 1;
+    consecutiveErrors.set(chatId, errorCount);
 
     // Check if this is an Ollama connection error
     const isOllamaError = errorMsg.includes("ECONNREFUSED") ||
                           errorMsg.includes("fetch failed") ||
                           errorMsg.includes("connect");
 
-    const fallback = isOllamaError
-      ? t("app.ollamaConnectionError")
-      : t("orchestrator.errorShort", { msg: errorMsg.slice(0, 200) });
+    let fallback: string;
+    if (errorCount >= config.limits.maxConsecutiveErrors) {
+      fallback = t("orchestrator.tooManyErrors", { count: String(errorCount) });
+      consecutiveErrors.delete(chatId);
+    } else if (isOllamaError) {
+      fallback = t("app.ollamaConnectionError");
+    } else {
+      fallback = t("orchestrator.errorShort", { msg: errorMsg.slice(0, 200) });
+    }
 
     stream.append(`\n\n${fallback}`);
     await stream.finish();
     addMessage(chatId, { role: "assistant", content: fallback });
+  } finally {
+    // F11: Always clear streaming callbacks
+    clearStreamCallbacks();
   }
 }

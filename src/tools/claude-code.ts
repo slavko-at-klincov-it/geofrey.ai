@@ -47,6 +47,26 @@ interface ClaudeSession {
 let claudeConfig: Config["claude"] | null = null;
 const sessions = new Map<string, ClaudeSession>();
 
+// Last invoke result for audit enrichment (read by agent-loop onStepFinish)
+let lastInvokeResult: ClaudeResult | null = null;
+
+export function getAndClearLastResult(): ClaudeResult | null {
+  const r = lastInvokeResult;
+  lastInvokeResult = null;
+  return r;
+}
+
+// Streaming callbacks set by agent-loop for live platform updates
+let activeStreamCallbacks: Pick<ClaudeInvocation, 'onText' | 'onToolUse' | 'onToolResult'> | null = null;
+
+export function setStreamCallbacks(cb: typeof activeStreamCallbacks): void {
+  activeStreamCallbacks = cb;
+}
+
+export function clearStreamCallbacks(): void {
+  activeStreamCallbacks = null;
+}
+
 const TOKEN_LIMIT_PATTERN = /output.token.limit.exceeded|exceeded the \d+ output token maximum/i;
 const CONCISE_SUFFIX =
   "\n\nIMPORTANT: Be concise. Limit your response length. Summarize where possible.";
@@ -287,9 +307,6 @@ async function runClaudeProcess(
   let resultModel: string | undefined;
 
   if (cfg.outputFormat === "stream-json" && proc.stdout) {
-    const textDecoder = new TextDecoderStream();
-    const readable = proc.stdout as unknown as ReadableStream<Uint8Array>;
-
     // For execa, stdout is a readable stream we can iterate
     const chunks: string[] = [];
     proc.stdout.on?.("data", (data: Buffer) => {
@@ -389,7 +406,12 @@ registerTool({
   }),
   source: "native",
   execute: async ({ prompt, cwd, allowedTools, taskKey }) => {
-    const result = await invokeClaudeCode({ prompt, cwd, allowedTools, taskKey });
+    const effectiveTools = allowedTools ?? claudeConfig?.toolProfiles?.standard;
+    const result = await invokeClaudeCode({
+      prompt, cwd, allowedTools: effectiveTools, taskKey,
+      ...activeStreamCallbacks,
+    });
+    lastInvokeResult = result;
     if (result.exitCode === 0) {
       return result.text;
     }

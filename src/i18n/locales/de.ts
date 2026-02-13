@@ -35,6 +35,7 @@ export const de: Record<TranslationKey, string> = {
   "orchestrator.noResponse": "Keine Antwort.",
   "orchestrator.errorPrefix": "Fehler im Agent Loop: {msg}",
   "orchestrator.errorShort": "Fehler: {msg}",
+  "orchestrator.tooManyErrors": "Zu viele aufeinanderfolgende Fehler ({count}). Bitte prüfe die Konfiguration oder versuche es erneut.",
 
   // messaging
   "messaging.claudeWorking": "Claude Code arbeitet...",

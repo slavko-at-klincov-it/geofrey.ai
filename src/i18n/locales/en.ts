@@ -35,6 +35,7 @@ export const en: Record<TranslationKey, string> = {
   "orchestrator.noResponse": "No response.",
   "orchestrator.errorPrefix": "Agent loop error: {msg}",
   "orchestrator.errorShort": "Error: {msg}",
+  "orchestrator.tooManyErrors": "Too many consecutive errors ({count}). Please check your configuration or try again.",
 
   // messaging
   "messaging.claudeWorking": "Claude Code is working...",
