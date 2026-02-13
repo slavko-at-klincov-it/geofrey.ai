@@ -210,7 +210,19 @@ export function classifyDeterministic(
     if (action === "list" || action === "check" || action === "logs") {
       return { level: RiskLevel.L0, reason: t("approval.readOnly"), deterministic: true };
     }
-    if (action === "spawn" || action === "kill") {
+    if (action === "spawn") {
+      // Check the command against L3 patterns before allowing as L2
+      const spawnCmd = typeof args.command === "string" ? args.command : "";
+      if (spawnCmd) {
+        const segments = decomposeCommand(spawnCmd);
+        for (const segment of segments) {
+          const result = classifySingleCommand(segment);
+          if (result && result.level === RiskLevel.L3) return result;
+        }
+      }
+      return { level: RiskLevel.L2, reason: t("approval.configFile"), deterministic: true };
+    }
+    if (action === "kill") {
       return { level: RiskLevel.L2, reason: t("approval.configFile"), deterministic: true };
     }
   }
@@ -367,13 +379,26 @@ export function tryParseClassification(text: string): { level: RiskLevel; reason
 
 const MAX_LLM_RETRIES = 2;
 
+const SENSITIVE_ARG_KEYS = new Set([
+  "secret", "token", "pushToken", "apiKey", "password", "code",
+  "accessToken", "refreshToken", "botToken", "appToken", "clientSecret",
+]);
+
+function scrubArgsForLlm(args: Record<string, unknown>): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(args)) {
+    result[key] = SENSITIVE_ARG_KEYS.has(key) ? "[REDACTED]" : value;
+  }
+  return result;
+}
+
 export async function classifyWithLlm(
   toolName: string,
   args: Record<string, unknown>,
   config: Config,
 ): Promise<Classification> {
   const ollama = createOllama({ baseURL: config.ollama.baseUrl });
-  const prompt = `Classify: tool=${toolName}, args=${JSON.stringify(args)}`;
+  const prompt = `Classify: tool=${toolName}, args=${JSON.stringify(scrubArgsForLlm(args))}`;
 
   for (let attempt = 0; attempt < MAX_LLM_RETRIES; attempt++) {
     try {

@@ -38,9 +38,12 @@ export function getToolSchemas() {
   );
 }
 
-export function getAiSdkTools() {
+export function getAiSdkTools(allowedToolNames?: string[]) {
+  const entries = allowedToolNames && allowedToolNames.length > 0
+    ? Array.from(tools.entries()).filter(([name]) => allowedToolNames.includes(name))
+    : Array.from(tools.entries());
   return Object.fromEntries(
-    Array.from(tools.entries()).map(([name, toolDef]) => [
+    entries.map(([name, toolDef]) => [
       name,
       tool({
         description: toolDef.description,

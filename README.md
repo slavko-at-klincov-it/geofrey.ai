@@ -19,7 +19,7 @@ geofrey.ai runs a local LLM (Qwen3 8B via Ollama) as an intelligent orchestrator
 | Security vulnerabilities | CVE-2026-25253 (RCE), CVE-2026-25157 | No public attack surface |
 | Command injection defense | Basic | 4-layer (decomposition + regex + LLM + gate) |
 | Image metadata defense | None | EXIF/XMP/IPTC stripping + injection scanning |
-| Test coverage | Some | 575 tests across 100+ suites |
+| Test coverage | Some | 1143 tests across 130+ suites |
 
 ## Features
 
@@ -243,7 +243,7 @@ See `docs/ARCHITECTURE.md` for full technical details.
 # Run in development mode with auto-reload
 pnpm dev
 
-# Run tests (node:test runner, 575 tests across 100+ suites)
+# Run tests (node:test runner, 1143 tests across 130+ suites)
 pnpm test
 
 # Type check
@@ -577,7 +577,7 @@ All MCP tool calls are automatically routed through the risk classifier. The MCP
 pnpm dev          # Run with hot reload (tsx watch)
 pnpm build        # TypeScript compilation
 pnpm lint         # Type check (tsc --noEmit)
-pnpm test         # 575 tests across 100+ suites
+pnpm test         # 1143 tests across 130+ suites
 pnpm setup        # Interactive setup wizard
 pnpm index        # Generate project map (.geofrey/project-map.json)
 pnpm start        # Run compiled output
@@ -588,7 +588,7 @@ pnpm db:generate  # Generate Drizzle migrations
 
 ## Project Status
 
-**575 tests passing** across 100+ suites (543 unit + 32 E2E integration).
+**1143 tests passing** across 130+ suites (543 unit + 32 E2E integration).
 
 - [x] Local LLM orchestrator (Qwen3 8B)
 - [x] Hybrid risk classification (deterministic + LLM, XML output)

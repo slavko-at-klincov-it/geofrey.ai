@@ -326,7 +326,7 @@ Target users:
 - [x] npm CLI entry point (`geofrey` / `geofrey setup`)
 - [x] GitHub Actions CI (Node 22, pnpm, lint + test)
 - [x] CHANGELOG.md + MIT LICENSE
-- [x] v1.0.0 release
+- [x] ~~v1.0.0 release~~ (deleted due to bugs)
 
 ### Phase 2 — Hardening (Next)
 - [x] Image metadata sanitization (EXIF/XMP/IPTC stripping + prompt injection scanning)

@@ -52,6 +52,12 @@ export async function loadSkill(filePath: string, source: "global" | "local"): P
   };
 }
 
+let enforcementMode: EnforcementMode = "warn";
+
+export function setSkillEnforcementMode(mode: EnforcementMode): void {
+  enforcementMode = mode;
+}
+
 export async function discoverSkills(): Promise<Skill[]> {
   skills.clear();
 
@@ -59,6 +65,14 @@ export async function discoverSkills(): Promise<Skill[]> {
   for (const f of globalFiles) {
     try {
       const skill = await loadSkill(f, "global");
+      const { allowed, warnings } = checkPermissions(skill, enforcementMode);
+      if (!allowed) {
+        console.warn(`Skill "${skill.frontmatter.name}" blocked (${enforcementMode}): ${warnings.join(", ")}`);
+        continue;
+      }
+      if (warnings.length > 0) {
+        console.warn(`Skill "${skill.frontmatter.name}" warnings: ${warnings.join(", ")}`);
+      }
       skills.set(skill.id, skill);
     } catch {
       // Skip invalid skill files
@@ -70,6 +84,14 @@ export async function discoverSkills(): Promise<Skill[]> {
   for (const f of marketplaceFiles) {
     try {
       const skill = await loadSkill(f, "local");
+      const { allowed, warnings } = checkPermissions(skill, enforcementMode);
+      if (!allowed) {
+        console.warn(`Skill "${skill.frontmatter.name}" blocked (${enforcementMode}): ${warnings.join(", ")}`);
+        continue;
+      }
+      if (warnings.length > 0) {
+        console.warn(`Skill "${skill.frontmatter.name}" warnings: ${warnings.join(", ")}`);
+      }
       skills.set(skill.id, skill);
     } catch {
       // Skip invalid skill files
@@ -81,6 +103,14 @@ export async function discoverSkills(): Promise<Skill[]> {
   for (const f of localFiles) {
     try {
       const skill = await loadSkill(f, "local");
+      const { allowed, warnings } = checkPermissions(skill, enforcementMode);
+      if (!allowed) {
+        console.warn(`Skill "${skill.frontmatter.name}" blocked (${enforcementMode}): ${warnings.join(", ")}`);
+        continue;
+      }
+      if (warnings.length > 0) {
+        console.warn(`Skill "${skill.frontmatter.name}" warnings: ${warnings.join(", ")}`);
+      }
       skills.set(skill.id, skill);
     } catch {
       // Skip invalid skill files

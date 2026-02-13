@@ -403,8 +403,8 @@ describe("skills/marketplace - installFromMarketplace", () => {
       assert.ok(result.includes("Test Skill"));
       assert.ok(!result.includes("SKIPPED"));
 
-      // Verify file was written
-      const filePath = join(tempDir, "test-skill", "SKILL.md");
+      // Verify file was written (flat file, not subdirectory)
+      const filePath = join(tempDir, "test-skill.md");
       const content = await readFile(filePath, "utf-8");
       assert.equal(content, VALID_SKILL_MD);
     } finally {

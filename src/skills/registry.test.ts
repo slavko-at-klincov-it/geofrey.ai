@@ -85,21 +85,30 @@ describe("skills/registry", () => {
 
   describe("enable/disable", () => {
     it("enableSkill and disableSkill toggle skill state", async () => {
-      const filePath = join(tempDir, "test-skill.md");
-      await writeFile(filePath, VALID_SKILL, "utf-8");
-
-      const skill = await loadSkill(filePath, "local");
-      // Manually register for test
       _resetSkills();
-      // We need to simulate having it in the map, so use getSkillById after a manual add
-      // Instead, we'll test via the full flow using generateSkill
 
-      const genPath = join(tempDir, ".geofrey", "skills");
-      await mkdir(genPath, { recursive: true });
+      // generateSkill registers the skill into the internal map
+      await generateSkill("toggle-test", "A toggling skill", "Do toggleable things");
 
-      // Test enable/disable via the internal state — load then toggle
-      // loadSkill doesn't register into map, only discoverSkills does
-      // So let's test via generateSkill which does register
+      // Starts enabled
+      assert.equal(getSkillById("toggle-test")?.enabled, true);
+      assert.ok(getEnabledSkills().some((s) => s.id === "toggle-test"));
+
+      // Disable
+      disableSkill("toggle-test");
+      assert.equal(getSkillById("toggle-test")?.enabled, false);
+      assert.ok(!getEnabledSkills().some((s) => s.id === "toggle-test"));
+
+      // Re-enable
+      enableSkill("toggle-test");
+      assert.equal(getSkillById("toggle-test")?.enabled, true);
+      assert.ok(getEnabledSkills().some((s) => s.id === "toggle-test"));
+    });
+
+    it("disableSkill is a no-op for unknown id", () => {
+      _resetSkills();
+      disableSkill("nonexistent"); // should not throw
+      assert.equal(getSkillById("nonexistent"), undefined);
     });
   });
 

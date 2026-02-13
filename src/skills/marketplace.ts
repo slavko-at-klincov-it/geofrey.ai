@@ -11,7 +11,7 @@ import type { SkillTemplate } from "./templates.js";
 // --- Constants ---
 
 const MARKETPLACE_REPO_BASE = "https://raw.githubusercontent.com/geofrey-ai/skills/main";
-const MARKETPLACE_DIR = join(homedir(), ".geofrey", "skills", "marketplace");
+const MARKETPLACE_DIR = join(process.cwd(), ".geofrey", "marketplace");
 const FETCH_TIMEOUT_MS = 15_000;
 
 const MARKETPLACE_CATEGORIES = [
@@ -271,10 +271,9 @@ export async function installFromMarketplace(
     // Warn user that hash verification is disabled
   }
 
-  // Write to marketplace directory
-  const skillDir = join(installDir, entry.id);
-  await mkdir(skillDir, { recursive: true });
-  const filePath = join(skillDir, "SKILL.md");
+  // Write to marketplace directory as flat file (registry discovers *.md files)
+  await mkdir(installDir, { recursive: true });
+  const filePath = join(installDir, `${entry.id}.md`);
   await writeFile(filePath, skillContent, "utf-8");
 
   const warningSuffix = verifyHashes ? "" : " (hash verification was SKIPPED)";

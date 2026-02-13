@@ -1,4 +1,5 @@
 import { execa } from "execa";
+import { resolve } from "node:path";
 import { z } from "zod";
 import { registerTool } from "./tool-registry.js";
 import type { Config } from "../config/schema.js";
@@ -406,9 +407,19 @@ registerTool({
   }),
   source: "native",
   execute: async ({ prompt, cwd, allowedTools, taskKey }) => {
+    // Confine cwd to project root
+    let safeCwd = cwd;
+    if (safeCwd) {
+      const resolved = resolve(safeCwd);
+      const root = process.cwd();
+      if (!resolved.startsWith(root + "/") && resolved !== root) {
+        return `Error: Directory "${cwd}" is outside the project root`;
+      }
+      safeCwd = resolved;
+    }
     const effectiveTools = allowedTools ?? claudeConfig?.toolProfiles?.standard;
     const result = await invokeClaudeCode({
-      prompt, cwd, allowedTools: effectiveTools, taskKey,
+      prompt, cwd: safeCwd, allowedTools: effectiveTools, taskKey,
       ...activeStreamCallbacks,
     });
     lastInvokeResult = result;

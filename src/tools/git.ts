@@ -1,9 +1,21 @@
 import { execa } from "execa";
+import { resolve } from "node:path";
 import { z } from "zod";
 import { registerTool } from "./tool-registry.js";
 
+function confineGitCwd(dir: string | undefined): string | undefined {
+  if (!dir) return undefined;
+  const resolved = resolve(dir);
+  const root = process.cwd();
+  if (!resolved.startsWith(root + "/") && resolved !== root) {
+    throw new Error(`Directory "${dir}" is outside the project root`);
+  }
+  return resolved;
+}
+
 async function git(args: string[], cwd?: string): Promise<string> {
-  const result = await execa("git", args, { cwd, reject: false });
+  const safeCwd = confineGitCwd(cwd);
+  const result = await execa("git", args, { cwd: safeCwd, reject: false });
   if (result.exitCode !== 0) {
     return `git error (${result.exitCode}): ${result.stderr}`;
   }

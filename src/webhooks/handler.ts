@@ -120,7 +120,9 @@ export function createWebhookHandler(executor: WebhookExecutor): WebhookHandler 
     }
 
     try {
-      await executor(webhook.chatId, message);
+      // Wrap in DATA boundary tags to prevent prompt injection from webhook payloads
+      const safeMessage = `<webhook_data>${message}</webhook_data>`;
+      await executor(webhook.chatId, safeMessage);
       return { status: "ok", message: "Webhook event delivered" };
     } catch {
       return { status: "error", message: "Failed to deliver webhook event" };

@@ -15,6 +15,14 @@ const pathToEnvVar: Record<string, string> = {
   "ollama.model": "ORCHESTRATOR_MODEL",
   "claude.model": "CLAUDE_CODE_MODEL",
   "billing.maxDailyBudgetUsd": "MAX_DAILY_BUDGET_USD",
+  "slack.botToken": "SLACK_BOT_TOKEN",
+  "slack.appToken": "SLACK_APP_TOKEN",
+  "slack.channelId": "SLACK_CHANNEL_ID",
+  "discord.botToken": "DISCORD_BOT_TOKEN",
+  "discord.channelId": "DISCORD_CHANNEL_ID",
+  "voice.sttProvider": "VOICE_STT_PROVIDER",
+  "voice.openaiApiKey": "OPENAI_API_KEY",
+  "voice.whisperModelPath": "WHISPER_MODEL_PATH",
 };
 
 function formatZodError(error: ZodError): string {
@@ -81,6 +89,20 @@ export function loadConfig(): Config {
         ownerPhone: process.env.SIGNAL_OWNER_PHONE,
         botPhone: process.env.SIGNAL_BOT_PHONE,
       } : undefined,
+      slack: process.env.SLACK_BOT_TOKEN ? {
+        botToken: process.env.SLACK_BOT_TOKEN,
+        appToken: process.env.SLACK_APP_TOKEN,
+        channelId: process.env.SLACK_CHANNEL_ID,
+      } : undefined,
+      discord: process.env.DISCORD_BOT_TOKEN ? {
+        botToken: process.env.DISCORD_BOT_TOKEN,
+        channelId: process.env.DISCORD_CHANNEL_ID,
+      } : undefined,
+      voice: {
+        sttProvider: process.env.VOICE_STT_PROVIDER,
+        openaiApiKey: process.env.OPENAI_API_KEY,
+        whisperModelPath: process.env.WHISPER_MODEL_PATH,
+      },
       ollama: {
         baseUrl: process.env.OLLAMA_BASE_URL,
         model: process.env.ORCHESTRATOR_MODEL,

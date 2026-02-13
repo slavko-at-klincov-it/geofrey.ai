@@ -78,9 +78,7 @@ src/
 │       └── pruner.test.ts
 ├── approval/
 │   ├── risk-classifier.ts   # Hybrid: deterministic patterns + LLM fallback
-│   ├── approval-gate.ts     # Promise-based blocking gate (nonce IDs)
-│   ├── action-registry.ts   # Action definitions + escalation rules
-│   └── execution-guard.ts   # Final revocation check
+│   └── approval-gate.ts     # Promise-based blocking gate (nonce IDs)
 ├── messaging/
 │   ├── platform.ts          # MessagingPlatform interface + types
 │   ├── create-platform.ts   # Async factory: config → adapter
@@ -118,7 +116,9 @@ src/
 │   ├── companion.ts         # Companion device tool (pair/unpair/list/push_token)
 │   ├── smart-home.ts        # Smart home tool (discover/list/control/scene/automation)
 │   ├── gmail.ts             # Gmail tool (auth/read/send/label/delete)
-│   └── calendar.ts          # Calendar tool (auth/list/create/update/delete)
+│   ├── calendar.ts          # Calendar tool (auth/list/create/update/delete)
+│   ├── search.ts            # Recursive content search (regex, max 20 results)
+│   └── project-map.ts       # Project structure queries (.geofrey/project-map.json)
 ├── memory/
 │   ├── store.ts             # MEMORY.md read/write/append + daily notes
 │   ├── embeddings.ts        # Ollama embeddings + cosine similarity search
@@ -217,6 +217,14 @@ src/
 │   ├── homeassistant.test.ts
 │   ├── sonos.test.ts
 │   └── discovery.test.ts
+├── indexer/
+│   ├── cli.ts               # CLI entry point (geofrey index / pnpm index)
+│   ├── index.ts             # Incremental project indexer (AST parsing)
+│   ├── parser.ts            # TypeScript Compiler API → exports/imports
+│   ├── summary.ts           # File categorization + summary generation
+│   └── index.test.ts        # Indexer tests
+├── e2e/
+│   └── agent-flow.test.ts   # End-to-end integration tests
 ├── dashboard/
 │   └── public/
 │       ├── index.html       # Single-page chat UI
@@ -279,7 +287,7 @@ src/
 - [x] Integration: Claude Code subprocess driver
 - [x] DB: Drizzle schema + migrations
 - [x] Audit log
-- [x] Unit tests (1137 tests — node:test runner)
+- [x] Unit tests (1143 tests — node:test runner)
 - [x] Security: obfuscation-resistant L3 patterns (path variants, script network, base64, chmod +x)
 - [x] Security: MCP output sanitization (DATA boundary tags, instruction filtering)
 - [x] Security: MCP server allowlist (`mcp.allowedServers` config)

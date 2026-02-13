@@ -23,6 +23,25 @@ interface StoredEntry extends AuditEntry {
   hash: string;
 }
 
+const SENSITIVE_KEYS = new Set([
+  "secret", "token", "pushToken", "apiKey", "password", "code",
+  "accessToken", "refreshToken", "botToken", "appToken", "clientSecret",
+]);
+
+function scrubSensitive(obj: Record<string, unknown>): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (SENSITIVE_KEYS.has(key)) {
+      result[key] = "[REDACTED]";
+    } else if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+      result[key] = scrubSensitive(value as Record<string, unknown>);
+    } else {
+      result[key] = value;
+    }
+  }
+  return result;
+}
+
 let lastHash = "GENESIS";
 
 export async function initLastHash(logDir: string): Promise<void> {
@@ -55,6 +74,7 @@ export async function appendAuditEntry(
 
   const stored: StoredEntry = {
     ...entry,
+    toolArgs: scrubSensitive(entry.toolArgs),
     prevHash: lastHash,
     hash: "",
   };

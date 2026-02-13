@@ -198,10 +198,25 @@ async function main() {
     }
   }
 
+  // Initialize agent hub early (before platform, so routeMessage can reference it)
+  const agentHub = config.agents.enabled
+    ? createHub({ routingStrategy: config.agents.routingStrategy })
+    : null;
+
+  // Unified routing: hub if active, otherwise direct agent loop
+  // Note: `platform` is defined below; this closure captures it by reference
+  async function routeMessage(chatId: string, text: string) {
+    if (agentHub) {
+      await agentHub.route(chatId, text);
+    } else {
+      await runAgentLoopStreaming(config, chatId, text, platform);
+    }
+  }
+
   // Create messaging platform with callbacks
   const callbacks: PlatformCallbacks = {
     async onMessage(chatId, text) {
-      await runAgentLoopStreaming(config, chatId, text, platform);
+      await routeMessage(chatId, text);
     },
     async onImageMessage(chatId, image) {
       if (!config.imageSanitizer.enabled) {
@@ -261,13 +276,14 @@ async function main() {
   const platform = await createPlatform(config, callbacks);
 
   // Initialize companion WebSocket server (after platform is ready)
+  // Skip if platform is already "companion" (adapter creates its own WS server)
   let companionServer: CompanionWSServer | null = null;
-  if (config.companion.enabled) {
+  if (config.companion.enabled && config.platform !== "companion") {
     companionServer = createCompanionWSServer({
       port: config.companion.wsPort,
       callbacks: {
         async onMessage(chatId, text) {
-          await runAgentLoopStreaming(config, chatId, text, platform);
+          await routeMessage(chatId, text);
         },
         async onImageMessage(chatId, data, mime) {
           await callbacks.onImageMessage(chatId, { buffer: data, mimeType: mime });
@@ -287,10 +303,7 @@ async function main() {
     console.log(`Companion: WebSocket server on port ${config.companion.wsPort}`);
   }
 
-  // Initialize agent hub (after platform is ready)
-  const agentHub = config.agents.enabled
-    ? createHub({ routingStrategy: config.agents.routingStrategy })
-    : null;
+  // Initialize agent hub executor (hub was created early, now wire the executor)
   if (agentHub) {
     await agentHub.init(async (_agentId, chatId, message) => {
       await runAgentLoopStreaming(config, chatId, message, platform);
@@ -301,7 +314,7 @@ async function main() {
 
   // Initialize scheduler after platform is ready (executor needs platform reference)
   initScheduler(
-    async (chatId, task) => runAgentLoopStreaming(config, chatId, task, platform),
+    async (chatId, task) => routeMessage(chatId, task),
     config.database.url,
   );
 
@@ -309,7 +322,7 @@ async function main() {
   let webhookStop: (() => Promise<void>) | null = null;
   if (config.webhook.enabled) {
     const { router, handler } = initWebhookTool({
-      executor: async (chatId, message) => runAgentLoopStreaming(config, chatId, message, platform),
+      executor: async (chatId, message) => routeMessage(chatId, message),
       port: config.webhook.port,
       host: config.webhook.host,
     });

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { registerTool } from "./tool-registry.js";
 import { t } from "../i18n/index.js";
+import { sanitizeMcpOutput } from "./mcp-client.js";
 
 const USER_AGENT = "Geofrey/1.0 (AI Assistant)";
 const FETCH_TIMEOUT_MS = 10_000;
@@ -113,11 +114,12 @@ registerTool({
       const markdown = htmlToMarkdown(html);
 
       const limit = maxLength ?? 5000;
-      if (markdown.length > limit) {
-        return markdown.slice(0, limit) + "\n\n[... truncated]";
-      }
+      const trimmed = markdown.length > limit
+        ? markdown.slice(0, limit) + "\n\n[... truncated]"
+        : markdown;
 
-      return markdown;
+      // Sanitize web content for prompt injection (same as MCP output)
+      return sanitizeMcpOutput(trimmed);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       return t("search.fetchFailed", { url: `${url} (${msg})` });
