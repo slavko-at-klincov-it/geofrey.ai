@@ -118,4 +118,22 @@ describe("buildClaudeCodePrompt", () => {
     const l1 = buildClaudeCodePrompt({ intent: "fix", request: "fix", riskLevel: RiskLevel.L1 });
     assert.ok(l1.allowedTools.includes("Edit"));
   });
+
+  it("includes codeContext in prompt when provided", () => {
+    const result = buildClaudeCodePrompt({
+      intent: "fix",
+      request: "fix the bug",
+      codeContext: "// src/auth.ts\nexport function login() { ... }",
+    });
+    assert.ok(result.prompt.includes("<code_context>"));
+    assert.ok(result.prompt.includes("export function login()"));
+  });
+
+  it("omits code_context tag when codeContext is not provided", () => {
+    const result = buildClaudeCodePrompt({
+      intent: "fix",
+      request: "fix the bug",
+    });
+    assert.ok(!result.prompt.includes("<code_context>"));
+  });
 });

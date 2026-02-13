@@ -149,6 +149,7 @@ export function buildClaudeCodePrompt(task: {
   request: string;
   files?: string;
   error?: string;
+  codeContext?: string;
   riskLevel?: RiskLevel;
   toolProfiles?: Config["claude"]["toolProfiles"];
 }): ClaudeCodePrompt {
@@ -157,6 +158,7 @@ export function buildClaudeCodePrompt(task: {
     request,
     files,
     error,
+    codeContext,
     riskLevel = RiskLevel.L1,
     toolProfiles = { readOnly: "Read Glob Grep", standard: "Read Glob Grep Edit Write Bash(git:*)", full: "Read Glob Grep Edit Write Bash" },
   } = task;
@@ -184,9 +186,14 @@ export function buildClaudeCodePrompt(task: {
     scope: "",
   });
 
+  // Append pre-gathered code context if available
+  const fullPrompt = codeContext
+    ? `${prompt}\n\n<code_context>\n${codeContext}\n</code_context>`
+    : prompt;
+
   const allowedTools = scopeToolsForRisk(riskLevel, toolProfiles);
 
   const systemPrompt = "You are working on a TypeScript project. Follow existing patterns. Don't commit changes.";
 
-  return { prompt, allowedTools, systemPrompt };
+  return { prompt: fullPrompt, allowedTools, systemPrompt };
 }
