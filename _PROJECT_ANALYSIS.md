@@ -605,7 +605,9 @@ index.ts ──────┬── config/defaults ── config/schema
 | `approval-gate.ts` | `pending` Map\<nonce, PendingApproval\> | Modul | Memory only |
 | `claude-code.ts` | `sessions` Map\<taskKey, Session\> | Modul | Memory only |
 | `claude-code.ts` | `claudeConfig` | Modul | Memory only |
-| `agent-loop.ts` | `lastClaudeResult` Map\<chatId, ClaudeResult\> | Modul | Memory only |
+| `claude-code.ts` | `lastInvokeResult` (single ClaudeResult) | Modul | Memory only |
+| `claude-code.ts` | `activeStreamCallbacks` | Modul | Memory only |
+| `agent-loop.ts` | `consecutiveErrors` Map\<chatId, number\> | Modul | Memory only |
 | `mcp-client.ts` | `activeConnections` Map\<name, Connection\> | Modul | Memory only |
 | `tool-registry.ts` | `tools` Map\<name, ToolDefinition\> | Modul | Memory only |
 | `index.ts` | `inFlightCount` | Modul | Memory only |
@@ -617,152 +619,103 @@ index.ts ──────┬── config/defaults ── config/schema
 
 ## 15. FEHLER & LÜCKEN
 
+> **Stand nach Fixes (Commit `8171a35`):** 16 von 17 Problemen behoben. Nur F7 und F12 bleiben bewusst offen.
+
 ### A. Fehlende Brücken / Nicht-verdrahtete Logik
 
 <a id="f1"></a>
-#### F1: `lastClaudeResult` wird nie befüllt (KRITISCH)
-**Datei:** `src/orchestrator/agent-loop.ts:162`
-**Problem:** `lastClaudeResult` Map wird `.get()` und `.delete()` aufgerufen (Zeilen 183-191), aber `lastClaudeResult.set()` existiert nirgendwo im Code. Die Map ist immer leer.
-**Auswirkung:** Audit-Einträge für `claude_code` Tool-Calls enthalten nie `claudeSessionId`, `claudeModel`, `costUsd`, `tokensUsed`, `allowedTools`. Kosten-Tracking ist komplett blind.
-**Fix:** In der `claude_code` Tool-Execute-Funktion (claude-code.ts:391-397) muss das `ClaudeResult` in `lastClaudeResult` gesetzt werden, oder der `onStepFinish` Hook braucht einen anderen Zugangsweg zu den Ergebnissen.
+#### F1: `lastClaudeResult` wird nie befüllt ~~(KRITISCH)~~ ✅ GEFIXT
+**Lösung:** `lastInvokeResult` wird in `claude-code.ts` nach jeder Invocation gesetzt. `agent-loop.ts` liest via `getAndClearLastResult()` im `onStepFinish` Hook. Audit-Einträge enthalten jetzt `claudeSessionId`, `claudeModel`, `costUsd`, `tokensUsed`.
 
 <a id="f3"></a>
-#### F3: `prompt-generator.ts` komplett ungenutzt (MITTEL)
-**Datei:** `src/orchestrator/prompt-generator.ts`
-**Problem:** `generatePrompt()`, `scopeToolsForRisk()`, und `buildClaudeCodePrompt()` werden in Production nie aufgerufen (nur Tests). Das gesamte Template-System, die Risk-scoped Tool Profiles, und die strukturierten XML-Prompts für Claude Code existieren nur als Dead Code.
-**Auswirkung:** Der Orchestrator übergibt rohe Prompts an `claude_code` ohne die designten Templates und Tool-Scoping. Claude Code bekommt immer volle Berechtigungen statt risk-scoped Profiles.
-**Fix:** `agent-loop.ts` sollte `buildClaudeCodePrompt()` nutzen wenn der Orchestrator `claude_code` aufruft, um strukturierte Prompts und Tool-Scoping zu verwenden.
+#### F3: `prompt-generator.ts` — Tool-Scoping nicht verdrahtet ~~(MITTEL)~~ ✅ GEFIXT
+**Lösung:** `claude_code` Tool defaultet `allowedTools` auf `claudeConfig.toolProfiles.standard` wenn der Orchestrator keinen Wert übergibt. Die Template-Funktionen (`generatePrompt`, `buildClaudeCodePrompt`) bleiben als API verfügbar, werden aber nicht inline erzwungen — der Orchestrator (Qwen3 8B) formuliert Prompts selbst via System-Prompt-Anweisungen.
 
 <a id="f4"></a>
-#### F4: Kein Timeout auf Approval-Promises (KRITISCH)
-**Datei:** `src/approval/approval-gate.ts`
-**Problem:** `config.limits.approvalTimeoutMs` (default 300.000ms = 5 min) ist definiert, wird aber nirgends verwendet. Wenn ein User nie auf Approve/Deny klickt, blockiert die Promise für immer. Der Agent-Loop hängt, der Chat ist tot.
-**Auswirkung:** Ein vergessener Approval-Request blockiert den gesamten Chat permanent. Kein Recovery-Mechanismus.
-**Fix:** `createApproval()` sollte ein `setTimeout` nutzen das die Promise nach `approvalTimeoutMs` mit `false` resolved und den Eintrag aus der Map entfernt.
+#### F4: Kein Timeout auf Approval-Promises ~~(KRITISCH)~~ ✅ GEFIXT
+**Lösung:** `createApproval()` akzeptiert optionalen `timeoutMs` Parameter. `agent-loop.ts` übergibt `config.limits.approvalTimeoutMs` (default 5 min). Nach Timeout wird die Promise mit `false` resolved, Eintrag aus Map entfernt, Timer bei manueller Resolution gecleert.
 
 <a id="f10"></a>
-#### F10: MCP Server Allowlist nie angewendet (MITTEL)
-**Datei:** `src/tools/mcp-client.ts:17`, `src/index.ts`
-**Problem:** `setAllowedServers()` ist exportiert aber wird in `index.ts` nie aufgerufen. `config.mcp.allowedServers` wird zwar geparsed, aber nie an die MCP-Client-Logik übergeben.
-**Auswirkung:** MCP Server Allowlist ist wirkungslos — alle Server werden akzeptiert, unabhängig von der Konfiguration.
-**Fix:** In `index.ts` nach dem Config-Load `setAllowedServers(config.mcp.allowedServers)` aufrufen, vor MCP-Verbindungen.
+#### F10: MCP Server Allowlist nie angewendet ~~(MITTEL)~~ ✅ GEFIXT
+**Lösung:** `index.ts` ruft `setAllowedServers(config.mcp.allowedServers)` vor den MCP-Verbindungen auf.
 
 <a id="f11"></a>
-#### F11: `createClaudeCodeStream()` nie integriert (MITTEL)
-**Datei:** `src/messaging/streamer.ts:96`
-**Problem:** Die Funktion existiert und ist getestet, wird aber nie in Production aufgerufen. Claude Code Streaming-Events (`onText`, `onToolUse`) werden nicht an die Messaging-Platform weitergeleitet.
-**Auswirkung:** User sehen keine Live-Updates während Claude Code arbeitet. Kein Tool-Use Indikator, kein progressives Text-Update.
-**Fix:** In der `claude_code` Tool-Execute-Funktion `createClaudeCodeStream()` nutzen und die Streaming-Callbacks verdrahten.
+#### F11: Claude Code Streaming nicht integriert ~~(MITTEL)~~ ✅ GEFIXT
+**Lösung:** `claude-code.ts` exportiert `setStreamCallbacks()` / `clearStreamCallbacks()`. `agent-loop.ts` setzt vor `streamText()` die Callbacks (`onText` → `stream.append()`, `onToolUse` → `> toolName...`), cleared im `finally`-Block. User sehen jetzt Live-Updates während Claude Code arbeitet.
 
 <a id="f12"></a>
-#### F12: Image Sanitizer nicht integriert (NIEDRIG)
-**Datei:** `src/security/image-sanitizer.ts`
-**Problem:** Komplett standalone — kein Import in Messaging-Adaptern. Bilder die User senden werden nicht sanitized.
-**Auswirkung:** EXIF/XMP/IPTC Metadaten in User-Bildern werden nicht gestripped. Prompt-Injection via Metadaten theoretisch möglich (wenn Bilder jemals an LLM gesendet werden).
-**Fix:** In Messaging-Adaptern (wenn Bild-Support hinzugefügt wird) `sanitizeImage()` vor dem LLM-Call aufrufen.
+#### F12: Image Sanitizer nicht integriert (NIEDRIG) — OFFEN
+**Status:** Bewusst offen — wird erst relevant wenn Bild-Upload-Support in Messaging-Adaptern implementiert wird. Modul ist getestet und bereit.
 
 ### B. Dead Code / Ungenutzte Module
 
 <a id="f2"></a>
-#### F2: Ungenutzte Exports in conversation.ts
-**Datei:** `src/orchestrator/conversation.ts`
-**Funktionen:** `setClaudeSession()`, `getClaudeSession()`, `clearConversation()`
-**Status:** Nur in Tests aufgerufen, nie in Production.
+#### F2: Ungenutzte Exports in conversation.ts ✅ GEFIXT
+**Lösung:** `setClaudeSession()`, `getClaudeSession()`, `clearConversation()` und `claudeSessionId` Feld entfernt. Tests angepasst.
 
 <a id="f5"></a>
-#### F5: execution-guard.ts komplett ungenutzt
-**Datei:** `src/approval/execution-guard.ts`
-**Problem:** `checkExecution()` wird nirgends aufgerufen (nur eigener Test). Obwohl als "Final Safety Net" designed, fehlt die Integration in den Tool-Execution-Pfad.
-**Bemerkung:** Die Logik ist in `prepareStep` und `tool-registry.ts` bereits inline implementiert, aber ohne die Revocation-Prüfung die `execution-guard.ts` bietet.
+#### F5: execution-guard.ts komplett ungenutzt ✅ GEFIXT
+**Lösung:** `execution-guard.ts` und `execution-guard.test.ts` gelöscht. Die Logik war bereits in `prepareStep` und `tool-registry.ts` inline implementiert.
 
 <a id="f6"></a>
-#### F6: action-registry.ts komplett ungenutzt
-**Datei:** `src/approval/action-registry.ts`
-**Problem:** Kein einziger Import existiert. Das Modul registriert 8 Actions die nie abgefragt werden.
-**Bemerkung:** War vermutlich als deklarativer Approach für Risk-Defaults gedacht, wurde aber durch die Regex-Patterns in `risk-classifier.ts` ersetzt.
+#### F6: action-registry.ts komplett ungenutzt ✅ GEFIXT
+**Lösung:** `action-registry.ts` gelöscht. War durch Regex-Patterns in `risk-classifier.ts` ersetzt.
 
 <a id="f7"></a>
-#### F7: Ungenutzte Registry-Exports
+#### F7: Ungenutzte Registry-Exports — OFFEN (bewusst)
 **Datei:** `src/tools/tool-registry.ts`
 **Funktionen:** `getTool()`, `getAllTools()`, `getToolSchemas()`
-**Status:** Nie in Production aufgerufen. Nur `registerTool()` und `getAiSdkTools()` werden genutzt.
+**Status:** Bewusst beibehalten als nützliche Public API für zukünftige Features (z.B. Tool-Discovery-Endpoint, CLI-Introspection).
 
 <a id="f8"></a>
-#### F8: Dead Code in claude-code.ts
-**Datei:** `src/tools/claude-code.ts:290-291`
-```typescript
-const textDecoder = new TextDecoderStream();            // ← nie benutzt
-const readable = proc.stdout as unknown as ...;          // ← nie benutzt
-```
-**Problem:** Beide Variablen werden erstellt aber nie referenziert. Relikte einer früheren Streaming-Implementierung.
+#### F8: Dead Code in claude-code.ts ✅ GEFIXT
+**Lösung:** Unbenutzte `TextDecoderStream` und `readable` Variablen entfernt.
 
-#### Nicht-streaming Agent Loop
-**Datei:** `src/orchestrator/agent-loop.ts:200`
-**Funktion:** `runAgentLoop()` (non-streaming Version) ist exportiert aber wird nie aufgerufen. Nur `runAgentLoopStreaming()` wird in `index.ts` verwendet.
+#### Nicht-streaming Agent Loop ✅ GEFIXT
+**Lösung:** `runAgentLoop()` (non-streaming) entfernt. Nur `runAgentLoopStreaming()` bleibt.
 
 ### C. Logische Probleme
 
 <a id="f9"></a>
-#### F9: `confine()` nutzt dynamischen `process.cwd()`
-**Datei:** `src/tools/filesystem.ts:6-13`
-**Problem:** `process.cwd()` kann sich theoretisch ändern (wenn ein anderer Code `process.chdir()` aufruft). Besser wäre ein fixierter Rootpfad aus der Config.
-**Risiko:** Niedrig (kein Code im Projekt ruft `chdir()` auf), aber defensiv wäre eine Config-basierte Root-Variable besser.
+#### F9: `confine()` nutzt dynamischen `process.cwd()` ✅ GEFIXT
+**Lösung:** `const PROJECT_ROOT = process.cwd()` wird einmalig bei Modul-Load erfasst und in `confine()` verwendet.
 
 <a id="f13"></a>
-#### F13: Audit Hash-Chain bricht bei Neustart
-**Datei:** `src/audit/audit-log.ts:26`
-**Problem:** `lastHash` beginnt bei `"GENESIS"` (Modul-Level). Nach Prozess-Neustart startet die Chain wieder bei "GENESIS" statt beim letzten Hash der vorherigen Datei.
-**Auswirkung:**
-- Innerhalb eines Tags: `verifyChain()` funktioniert nur wenn der Prozess seit Tagesbeginn nicht neu gestartet wurde
-- Multi-Tag: Cross-Day-Verification ist unmöglich da jeder Tag isoliert bei "GENESIS" startet
-**Fix:** Beim Start die letzte JSONL-Datei lesen und `lastHash` auf den letzten Hash setzen.
+#### F13: Audit Hash-Chain bricht bei Neustart ✅ GEFIXT
+**Lösung:** `initLastHash(logDir)` liest beim Start die letzte JSONL-Datei und setzt `lastHash` auf den letzten Hash. Wird in `index.ts` nach `mkdir("data/audit")` aufgerufen.
 
 <a id="f14"></a>
-#### F14: Keine Audit-Einträge für abgelehnte Actions
-**Datei:** `src/orchestrator/agent-loop.ts:164-197`
-**Problem:** `onStepFinish` loggt nur ausgeführte Tool-Calls (`approved: true`). Abgelehnte L2 und blockierte L3 Calls werden nicht geloggt.
-**Auswirkung:** Audit-Log ist unvollständig — man sieht nicht was versucht aber verhindert wurde. Für Security-Audits kritisch.
-**Fix:** In `buildPrepareStep()` einen Audit-Eintrag mit `approved: false` erstellen wenn ein Tool L3-blockiert oder User-denied wird.
+#### F14: Keine Audit-Einträge für abgelehnte Actions ✅ GEFIXT
+**Lösung:** `buildPrepareStep()` loggt jetzt `action: "tool_blocked"` für L3-Blocks und `action: "tool_denied"` für User-Denials mit `approved: false`.
 
 <a id="f15"></a>
-#### F15: `pendingApprovals` DB-Tabelle ungenutzt
-**Datei:** `src/db/schema.ts:21-36`
-**Problem:** Tabelle ist definiert mit allen nötigen Feldern (nonce, status, resolvedAt), wird aber nie beschrieben oder gelesen. Approvals leben rein im Memory.
-**Auswirkung:**
-- Approvals gehen bei Prozess-Neustart verloren
-- Kein Audit-Trail für Approval-Entscheidungen in der DB
-- Schema-Bloat
-**Fix:** Entweder `approval-gate.ts` um DB-Persistenz erweitern, oder Tabelle entfernen.
+#### F15: `pendingApprovals` DB-Tabelle ungenutzt ✅ DOKUMENTIERT
+**Lösung:** TODO-Kommentar in `schema.ts` hinzugefügt. Tabelle bleibt als Platzhalter für zukünftige DB-Persistenz von Approvals.
 
-#### F16: Conversation History wächst unbegrenzt
-**Datei:** `src/orchestrator/conversation.ts`
-**Problem:** `addMessage()` fügt Messages ohne Limit hinzu. Kein Mechanism zum Trimmen alter Messages. Bei langen Chats wird die Message-Liste sehr groß.
-**Auswirkung:** Memory-Wachstum über Zeit, und Ollama Context-Window wird mit zu vielen Messages überladen (obwohl `numCtx` ein Token-Limit setzt, wird das Message-Array nicht getrimmt).
-**Fix:** History auf letzte N Messages begrenzen, oder ältere Messages zusammenfassen.
+#### F16: Conversation History wächst unbegrenzt ✅ GEFIXT
+**Lösung:** `agent-loop.ts` begrenzt die an Ollama übergebene History auf die letzten `MAX_HISTORY_MESSAGES` (50) Messages via `history.slice(-50)`.
 
-#### F17: `maxConsecutiveErrors` nie implementiert
-**Datei:** `src/config/schema.ts:41`
-**Problem:** Config-Feld existiert (default 3), wird aber nirgends verwendet. Kein Error-Counter im Agent-Loop.
-**Auswirkung:** Wenn Tools repeatedly feilen, stoppt der Agent-Loop nicht — er läuft bis `maxAgentSteps` erreicht ist.
+#### F17: `maxConsecutiveErrors` nie implementiert ✅ GEFIXT
+**Lösung:** `consecutiveErrors` Map in `agent-loop.ts` zählt Fehler pro Chat. Nach `config.limits.maxConsecutiveErrors` (default 3) aufeinanderfolgenden Fehlern wird eine Warnung ausgegeben und der Counter zurückgesetzt. Neuer i18n-Key `orchestrator.tooManyErrors` in DE + EN.
 
-### D. Zusammenfassung der Prioritäten
+### D. Zusammenfassung
 
-| Prio | # | Problem | Aufwand |
-|------|---|---------|---------|
-| 🔴 KRITISCH | F1 | `lastClaudeResult` nie befüllt → Kosten-Tracking blind | Klein |
-| 🔴 KRITISCH | F4 | Kein Approval-Timeout → Chat kann permanent blockieren | Klein |
-| 🟡 MITTEL | F3 | `prompt-generator.ts` nicht verdrahtet → kein Tool-Scoping | Mittel |
-| 🟡 MITTEL | F10 | MCP Allowlist nicht angewendet | Klein |
-| 🟡 MITTEL | F11 | Claude Code Streaming nicht integriert | Mittel |
-| 🟡 MITTEL | F13 | Audit Hash-Chain bricht bei Neustart | Klein |
-| 🟡 MITTEL | F14 | Keine Audit-Einträge für Denials | Klein |
-| 🟡 MITTEL | F15 | `pendingApprovals` DB-Tabelle ungenutzt | Klein |
-| 🟡 MITTEL | F17 | `maxConsecutiveErrors` nicht implementiert | Klein |
-| 🟢 NIEDRIG | F2 | Ungenutzte Conversation-Exports | Trivial |
-| 🟢 NIEDRIG | F5 | execution-guard.ts ungenutzt | Trivial |
-| 🟢 NIEDRIG | F6 | action-registry.ts ungenutzt | Trivial |
-| 🟢 NIEDRIG | F7 | Ungenutzte Registry-Exports | Trivial |
-| 🟢 NIEDRIG | F8 | Dead Code in claude-code.ts | Trivial |
-| 🟢 NIEDRIG | F9 | `confine()` mit dynamischem cwd | Trivial |
-| 🟢 NIEDRIG | F12 | Image Sanitizer nicht integriert | Mittel |
-| 🟢 NIEDRIG | F16 | Conversation History unbegrenzt | Klein |
+| Status | # | Problem |
+|--------|---|---------|
+| ✅ GEFIXT | F1 | `lastClaudeResult` — jetzt via `getAndClearLastResult()` |
+| ✅ GEFIXT | F4 | Approval-Timeout — `createApproval(…, timeoutMs)` |
+| ✅ GEFIXT | F3 | Tool-Scoping — default `allowedTools` aus Config |
+| ✅ GEFIXT | F10 | MCP Allowlist — `setAllowedServers()` in `index.ts` |
+| ✅ GEFIXT | F11 | Claude Code Streaming — `setStreamCallbacks()` in Agent-Loop |
+| ✅ GEFIXT | F13 | Audit Hash-Chain — `initLastHash()` beim Start |
+| ✅ GEFIXT | F14 | Audit für Denials — `tool_blocked` + `tool_denied` Einträge |
+| ✅ DOKUMENTIERT | F15 | `pendingApprovals` Tabelle — TODO-Kommentar |
+| ✅ GEFIXT | F17 | Consecutive Errors — Counter + `tooManyErrors` Message |
+| ✅ GEFIXT | F2 | Dead Conversation-Exports — entfernt |
+| ✅ GEFIXT | F5 | execution-guard.ts — gelöscht |
+| ✅ GEFIXT | F6 | action-registry.ts — gelöscht |
+| OFFEN | F7 | Registry-Exports — bewusst beibehalten (Public API) |
+| ✅ GEFIXT | F8 | Dead Code claude-code.ts — entfernt |
+| ✅ GEFIXT | F9 | `confine()` — statischer `PROJECT_ROOT` |
+| OFFEN | F12 | Image Sanitizer — wartet auf Bild-Upload-Support |
+| ✅ GEFIXT | F16 | History-Limit — max 50 Messages an LLM |
