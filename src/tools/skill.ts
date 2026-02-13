@@ -45,7 +45,7 @@ registerTool({
       }
 
       case "enable": {
-        if (!args.id) return "Error: 'id' is required for enable";
+        if (!args.id) return t("tools.paramRequired", { param: "id", action: "enable" });
         const skill = getSkillById(args.id);
         if (!skill) return t("skills.notFound", { id: args.id });
         enableSkill(args.id);
@@ -53,7 +53,7 @@ registerTool({
       }
 
       case "disable": {
-        if (!args.id) return "Error: 'id' is required for disable";
+        if (!args.id) return t("tools.paramRequired", { param: "id", action: "disable" });
         const skill = getSkillById(args.id);
         if (!skill) return t("skills.notFound", { id: args.id });
         disableSkill(args.id);
@@ -61,14 +61,14 @@ registerTool({
       }
 
       case "install": {
-        if (!args.url) return "Error: 'url' is required for install";
+        if (!args.url) return t("tools.paramRequired", { param: "url", action: "install" });
         const source = args.url;
 
         let content: string;
         if (source.startsWith("http://") || source.startsWith("https://")) {
           const response = await fetch(source);
           if (!response.ok) {
-            return `Error: failed to fetch ${source} (${response.status})`;
+            return t("tools.fetchFailed", { url: source, status: String(response.status) });
           }
           content = await response.text();
         } else {
@@ -97,9 +97,9 @@ registerTool({
       }
 
       case "generate": {
-        if (!args.name) return "Error: 'name' is required for generate";
-        if (!args.description) return "Error: 'description' is required for generate";
-        if (!args.instructions) return "Error: 'instructions' is required for generate";
+        if (!args.name) return t("tools.paramRequired", { param: "name", action: "generate" });
+        if (!args.description) return t("tools.paramRequired", { param: "description", action: "generate" });
+        if (!args.instructions) return t("tools.paramRequired", { param: "instructions", action: "generate" });
 
         const filePath = await generateSkill(args.name, args.description, args.instructions);
         return t("skills.generated", { name: args.name, path: filePath });

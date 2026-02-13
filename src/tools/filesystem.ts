@@ -2,13 +2,14 @@ import { readFile, writeFile, unlink, readdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import { z } from "zod";
 import { registerTool } from "./tool-registry.js";
+import { t } from "../i18n/index.js";
 
 const PROJECT_ROOT = process.cwd();
 
 function confine(path: string): string {
   const resolved = resolve(path);
   if (resolved !== PROJECT_ROOT && !resolved.startsWith(PROJECT_ROOT + "/")) {
-    throw new Error(`Path outside project directory: ${path}`);
+    throw new Error(t("tools.pathOutsideProject", { path }));
   }
   return resolved;
 }
@@ -31,7 +32,7 @@ registerTool({
   source: "native",
   execute: async ({ path, content }) => {
     await writeFile(confine(path), content, "utf-8");
-    return `Written: ${path}`;
+    return t("tools.fileWritten", { path });
   },
 });
 
@@ -42,7 +43,7 @@ registerTool({
   source: "native",
   execute: async ({ path }) => {
     await unlink(confine(path));
-    return `Deleted: ${path}`;
+    return t("tools.fileDeleted", { path });
   },
 });
 

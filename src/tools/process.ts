@@ -46,7 +46,7 @@ registerTool({
       }
 
       case "check": {
-        if (pid === undefined) return "Error: 'pid' is required for check";
+        if (pid === undefined) return t("tools.paramRequired", { param: "pid", action: "check" });
         const info = checkProcess(pid);
         if (!info) return t("process.notFound", { pid: String(pid) });
         const exitStr = info.exitCode !== undefined ? ` exit=${info.exitCode}` : "";
@@ -54,7 +54,7 @@ registerTool({
       }
 
       case "kill": {
-        if (pid === undefined) return "Error: 'pid' is required for kill";
+        if (pid === undefined) return t("tools.paramRequired", { param: "pid", action: "kill" });
         const entry = checkProcess(pid);
         if (!entry) return t("process.notFound", { pid: String(pid) });
         const result = await killProcess(pid);
@@ -64,19 +64,19 @@ registerTool({
       }
 
       case "spawn": {
-        if (!name) return "Error: 'name' is required for spawn";
-        if (!command) return "Error: 'command' is required for spawn";
+        if (!name) return t("tools.paramRequired", { param: "name", action: "spawn" });
+        if (!command) return t("tools.paramRequired", { param: "command", action: "spawn" });
         try {
           const info = spawnProcess({ name, command, cwd });
           return t("process.spawned", { pid: String(info.pid), name: info.name });
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
-          return `Error spawning process: ${msg}`;
+          return t("process.spawnFailed", { msg });
         }
       }
 
       case "logs": {
-        if (pid === undefined) return "Error: 'pid' is required for logs";
+        if (pid === undefined) return t("tools.paramRequired", { param: "pid", action: "logs" });
         const proc = checkProcess(pid);
         if (!proc) return t("process.notFound", { pid: String(pid) });
         const logLines = getProcessLogs(pid, lines);

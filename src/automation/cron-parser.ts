@@ -1,6 +1,12 @@
 // Simple 5-field cron expression parser (minute hour dom month dow).
 // Supports: wildcards, specific values, ranges (1-5), steps, comma-separated (1,15,30).
 // All times are in UTC.
+//
+// NOTE: Day-of-week / Day-of-month semantics
+// When both fields are set (not wildcard), this parser uses AND logic: a time
+// matches only if BOTH dom AND dow match. Standard crontab (Vixie cron) uses OR
+// logic instead. This is a deliberate simplification — if you need OR semantics,
+// create two separate cron jobs.
 
 interface CronField {
   values: number[];

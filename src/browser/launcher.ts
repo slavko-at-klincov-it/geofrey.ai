@@ -7,11 +7,14 @@ import { join } from "node:path";
 import { createServer } from "node:net";
 import { existsSync } from "node:fs";
 
+const BROWSER_IDLE_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
+
 export interface BrowserSession {
   client: CDP.Client;
   process?: ReturnType<typeof execa>;
   port: number;
   profileDir?: string;
+  idleTimer?: ReturnType<typeof setTimeout>;
 }
 
 export interface LaunchOptions {
@@ -128,6 +131,12 @@ export async function launchBrowser(options?: LaunchOptions): Promise<BrowserSes
     profileDir: options?.profileDir ? undefined : profileDir,
   };
 
+  // Auto-close after idle timeout
+  session.idleTimer = setTimeout(() => {
+    void closeBrowser(session);
+  }, BROWSER_IDLE_TIMEOUT_MS);
+  if (session.idleTimer.unref) session.idleTimer.unref();
+
   sessions.set(port, session);
   return session;
 }
@@ -144,8 +153,24 @@ export async function connectBrowser(port = 9222): Promise<BrowserSession> {
   return session;
 }
 
+/** Resets the idle timer for a session (called by browser actions). */
+export function touchSession(port: number): void {
+  const session = sessions.get(port);
+  if (session?.idleTimer) {
+    clearTimeout(session.idleTimer);
+    session.idleTimer = setTimeout(() => {
+      void closeBrowser(session);
+    }, BROWSER_IDLE_TIMEOUT_MS);
+    if (session.idleTimer.unref) session.idleTimer.unref();
+  }
+}
+
 export async function closeBrowser(session: BrowserSession): Promise<void> {
   sessions.delete(session.port);
+
+  if (session.idleTimer) {
+    clearTimeout(session.idleTimer);
+  }
 
   try {
     await session.client.close();

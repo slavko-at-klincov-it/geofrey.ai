@@ -24,9 +24,23 @@ export const en: Record<TranslationKey, string> = {
   "approval.noReason": "No reason provided",
   "approval.classifierLanguage": "English",
 
-  // tools
+  // tools - common
   "tools.l3Blocked": "L3: Action blocked — {reason}",
   "tools.executionFailed": "ERROR: {name} failed — {msg}",
+  "tools.paramRequired": "Error: '{param}' is required for {action}",
+  "tools.unknownAction": "Unknown action: {action}",
+  "tools.fetchFailed": "Error: failed to fetch {url} ({status})",
+  "tools.fileWritten": "Written: {path}",
+  "tools.fileDeleted": "Deleted: {path}",
+  "tools.gitError": "git error ({exitCode}): {stderr}",
+  "tools.searchNoMatches": "No matches for \"{pattern}\"",
+  "tools.searchResults": "{count} matches (max {max}):",
+  "tools.projectMapNotFound": "Project map not found. Run `pnpm index` to generate it.",
+  "tools.noMatchingFiles": "No matching files found.",
+  "tools.projectMapResults": "{count} files (indexed {date})",
+  "tools.pathOutsideProject": "Path outside project directory: {path}",
+  "tools.dirOutsideProject": "Directory \"{dir}\" is outside the project root",
+  "tools.notInitialized": "Error: {name} not initialized",
 
   // orchestrator
   "orchestrator.respondInstruction": "Respond to the user in {language}. Code, commands, and technical identifiers stay in English.",
@@ -247,6 +261,7 @@ export const en: Record<TranslationKey, string> = {
   "cron.jobFailed": "Job {id} failed (attempt {attempt}/{max}): {error}",
   "cron.jobDisabled": "Job {id} disabled after {max} failed attempts",
   "cron.schedulerStarted": "Scheduler started with {count} jobs",
+  "cron.createFailed": "Error creating job: {msg}",
 
   // memory
   "memory.saved": "Memory saved",
@@ -342,6 +357,10 @@ export const en: Record<TranslationKey, string> = {
   "browser.notRunning": "No browser active — launch one first",
   "browser.launchFailed": "Browser launch failed: {msg}",
   "browser.actionFailed": "Browser action failed: {msg}",
+  "browser.clicked": "Clicked node {nodeId}",
+  "browser.filled": "Filled node {nodeId} with text",
+  "browser.screenshotCaptured": "Screenshot captured ({size} bytes)",
+  "browser.selectorFound": "Selector \"{selector}\" found",
 
   // compaction
   "compaction.started": "Compacting conversation...",
@@ -358,6 +377,7 @@ export const en: Record<TranslationKey, string> = {
   "process.listEmpty": "No active processes",
   "process.listHeader": "{count} active processes:",
   "process.noLogs": "No logs for process {pid}",
+  "process.spawnFailed": "Error spawning process: {msg}",
 
   // sandbox
   "sandbox.created": "Sandbox created: {id}",
@@ -368,6 +388,12 @@ export const en: Record<TranslationKey, string> = {
   // webhook
   "webhook.serverStarted": "Webhook server started on port {port}",
   "webhook.fired": "Webhook triggered: {name} → chat {chatId}",
+  "webhook.created": "Webhook created: {id}",
+  "webhook.listEmpty": "No webhooks registered",
+  "webhook.listHeader": "{count} webhooks:",
+  "webhook.notFound": "Webhook not found",
+  "webhook.deleted": "Webhook deleted: {id}",
+  "webhook.testResult": "Test result: {status} — {message}",
 
   // agents
   "agents.hubStarted": "Agent hub started ({strategy})",
@@ -377,6 +403,9 @@ export const en: Record<TranslationKey, string> = {
   "agents.deleted": "Agent deleted: {id}",
   "agents.listEmpty": "No agents configured",
   "agents.listHeader": "{count} agents:",
+  "agents.templates": "Available templates: {list}",
+  "agents.notFoundDetailed": "Error: agent \"{id}\" not found. Available: {available}",
+  "agents.agentDisabled": "Error: agent \"{id}\" is disabled",
 
   // marketplace
   "marketplace.listed": "{count} skills in marketplace",

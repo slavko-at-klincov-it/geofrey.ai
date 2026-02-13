@@ -17,7 +17,13 @@ export function getLocale(): Locale {
 }
 
 export function t(key: TranslationKey, params?: Record<string, string | number>): string {
-  const template = locales[currentLocale]?.[key] ?? locales.de[key] ?? key;
+  let template = locales[currentLocale]?.[key];
+  if (!template) {
+    if (currentLocale !== "de") {
+      console.warn(`i18n: missing key "${key}" for locale "${currentLocale}", falling back to de`);
+    }
+    template = locales.de[key] ?? key;
+  }
   if (!params) return template;
   return template.replace(/\{(\w+)\}/g, (_, name) => String(params[name] ?? `{${name}}`));
 }

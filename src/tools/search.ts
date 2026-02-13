@@ -2,6 +2,7 @@ import { readFile, readdir } from "node:fs/promises";
 import { join, relative, resolve } from "node:path";
 import { z } from "zod";
 import { registerTool } from "./tool-registry.js";
+import { t } from "../i18n/index.js";
 
 const MAX_RESULTS = 20;
 const MAX_CONTEXT_LINES = 2;
@@ -10,7 +11,7 @@ function confine(path: string): string {
   const resolved = resolve(path);
   const cwd = process.cwd();
   if (resolved !== cwd && !resolved.startsWith(cwd + "/")) {
-    throw new Error(`Path outside project directory: ${path}`);
+    throw new Error(t("tools.pathOutsideProject", { path }));
   }
   return resolved;
 }
@@ -69,8 +70,8 @@ registerTool({
     }
 
     if (results.length === 0) {
-      return `No matches for "${pattern}"`;
+      return t("tools.searchNoMatches", { pattern });
     }
-    return `${results.length} match${results.length > 1 ? "es" : ""} (max ${MAX_RESULTS}):\n\n${results.join("\n\n")}`;
+    return `${t("tools.searchResults", { count: String(results.length), max: String(MAX_RESULTS) })}\n\n${results.join("\n\n")}`;
   },
 });

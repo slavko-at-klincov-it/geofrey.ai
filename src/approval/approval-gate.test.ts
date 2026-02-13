@@ -50,6 +50,24 @@ describe("resolveApproval", () => {
   });
 });
 
+describe("timeout", () => {
+  beforeEach(() => rejectAllPending("cleanup"));
+
+  it("resolves false when timeout expires", async () => {
+    const { promise } = createApproval("delete_file", {}, classification, 50);
+    const result = await promise;
+    assert.equal(result, false);
+  });
+
+  it("clears timeout on manual resolve before expiry", async () => {
+    const { nonce, promise } = createApproval("delete_file", {}, classification, 200);
+    resolveApproval(nonce, true);
+    const result = await promise;
+    assert.equal(result, true);
+    assert.equal(pendingCount(), 0);
+  });
+});
+
 describe("rejectAllPending", () => {
   beforeEach(() => rejectAllPending("cleanup"));
 

@@ -28,6 +28,8 @@ const MIME_TYPES: Record<string, string> = {
 };
 
 const WEBCHAT_CHAT_ID = "webchat";
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const RATE_LIMIT_MAX_REQUESTS = 30;
 
 export function formatSSEEvent(event: SSEEvent): string {
   return `event: ${event.type}\ndata: ${JSON.stringify(event.data)}\n\n`;
@@ -40,6 +42,20 @@ export function createWebChatPlatform(
   let server: Server | null = null;
   let msgCounter = 0;
   const startTime = Date.now();
+
+  // Rate limiting per IP
+  const rateLimits = new Map<string, { count: number; resetAt: number }>();
+
+  function checkRateLimit(ip: string): boolean {
+    const now = Date.now();
+    const entry = rateLimits.get(ip);
+    if (!entry || now > entry.resetAt) {
+      rateLimits.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+      return true;
+    }
+    entry.count++;
+    return entry.count <= RATE_LIMIT_MAX_REQUESTS;
+  }
 
   // SSE client connections
   const sseClients = new Set<ServerResponse>();
@@ -137,10 +153,16 @@ export function createWebChatPlatform(
       return;
     }
 
-    // API routes require auth
+    // API routes require auth + rate limiting
     if (pathname.startsWith("/api/")) {
       if (!checkAuth(req)) {
         sendJson(res, 401, { error: t("dashboard.unauthorized") });
+        return;
+      }
+
+      const clientIp = req.socket.remoteAddress ?? "unknown";
+      if (!checkRateLimit(clientIp)) {
+        sendJson(res, 429, { error: "Rate limit exceeded" });
         return;
       }
 

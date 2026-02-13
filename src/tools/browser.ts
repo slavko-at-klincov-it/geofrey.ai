@@ -60,35 +60,35 @@ registerTool({
 
         case "navigate": {
           const session = requireSession();
-          if (!args.url) throw new Error("url is required for navigate");
+          if (!args.url) throw new Error(t("tools.paramRequired", { param: "url", action: "navigate" }));
           await navigate(session.client, args.url);
           return t("browser.navigated", { url: args.url });
         }
 
         case "click": {
           const session = requireSession();
-          if (!args.nodeId) throw new Error("nodeId is required for click");
+          if (!args.nodeId) throw new Error(t("tools.paramRequired", { param: "nodeId", action: "click" }));
           await click(session.client, args.nodeId);
-          return `Clicked node ${args.nodeId}`;
+          return t("browser.clicked", { nodeId: args.nodeId });
         }
 
         case "fill": {
           const session = requireSession();
-          if (!args.nodeId) throw new Error("nodeId is required for fill");
-          if (!args.text) throw new Error("text is required for fill");
+          if (!args.nodeId) throw new Error(t("tools.paramRequired", { param: "nodeId", action: "fill" }));
+          if (!args.text) throw new Error(t("tools.paramRequired", { param: "text", action: "fill" }));
           await fill(session.client, args.nodeId, args.text);
-          return `Filled node ${args.nodeId} with text`;
+          return t("browser.filled", { nodeId: args.nodeId });
         }
 
         case "screenshot": {
           const session = requireSession();
           const buf = await screenshot(session.client);
-          return `Screenshot captured (${buf.length} bytes, base64: ${buf.toString("base64").slice(0, 100)}...)`;
+          return t("browser.screenshotCaptured", { size: String(buf.length) });
         }
 
         case "evaluate": {
           const session = requireSession();
-          if (!args.expression) throw new Error("expression is required for evaluate");
+          if (!args.expression) throw new Error(t("tools.paramRequired", { param: "expression", action: "evaluate" }));
           const result = await evaluate(session.client, args.expression);
           return JSON.stringify(result, null, 2) ?? "(undefined)";
         }
@@ -101,9 +101,9 @@ registerTool({
 
         case "waitForSelector": {
           const session = requireSession();
-          if (!args.selector) throw new Error("selector is required for waitForSelector");
+          if (!args.selector) throw new Error(t("tools.paramRequired", { param: "selector", action: "waitForSelector" }));
           await waitForSelector(session.client, args.selector, args.timeoutMs);
-          return `Selector "${args.selector}" found`;
+          return t("browser.selectorFound", { selector: args.selector });
         }
 
         case "close": {
@@ -116,7 +116,7 @@ registerTool({
         }
 
         default:
-          return `Unknown action: ${args.action as string}`;
+          return t("tools.unknownAction", { action: args.action as string });
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);

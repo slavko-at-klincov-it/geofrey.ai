@@ -25,9 +25,9 @@ registerTool({
   execute: async ({ action, type, schedule, task, jobId, chatId }) => {
     switch (action) {
       case "create": {
-        if (!type) return "Error: 'type' is required for create";
-        if (!schedule) return "Error: 'schedule' is required for create";
-        if (!task) return "Error: 'task' is required for create";
+        if (!type) return t("tools.paramRequired", { param: "type", action: "create" });
+        if (!schedule) return t("tools.paramRequired", { param: "schedule", action: "create" });
+        if (!task) return t("tools.paramRequired", { param: "task", action: "create" });
 
         try {
           const job = createJob({
@@ -39,7 +39,7 @@ registerTool({
           return t("cron.created", { id: job.id }) + "\n" + formatJob(job);
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
-          return `Error creating job: ${msg}`;
+          return t("cron.createFailed", { msg });
         }
       }
 
@@ -52,7 +52,7 @@ registerTool({
       }
 
       case "delete": {
-        if (!jobId) return "Error: 'jobId' is required for delete";
+        if (!jobId) return t("tools.paramRequired", { param: "jobId", action: "delete" });
         const deleted = deleteJob(jobId);
         if (!deleted) return t("cron.notFound", { id: jobId });
         return t("cron.deleted", { id: jobId });

@@ -87,6 +87,9 @@ export function getOrCreate(chatId: string): Conversation {
   return conv;
 }
 
+// Hard cap on in-memory messages per conversation to prevent unbounded growth
+const MAX_IN_MEMORY_MESSAGES = 200;
+
 export function addMessage(chatId: string, message: Omit<Message, "id" | "createdAt">): Message {
   const conv = getOrCreate(chatId);
   const msg: Message = {
@@ -96,6 +99,11 @@ export function addMessage(chatId: string, message: Omit<Message, "id" | "create
   };
   conv.messages.push(msg);
   conv.updatedAt = new Date();
+
+  // Trim oldest messages if over hard cap (DB retains full history)
+  if (conv.messages.length > MAX_IN_MEMORY_MESSAGES) {
+    conv.messages = conv.messages.slice(-MAX_IN_MEMORY_MESSAGES);
+  }
 
   if (db) {
     db.insert(messages).values({

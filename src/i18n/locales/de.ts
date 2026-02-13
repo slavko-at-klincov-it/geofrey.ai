@@ -24,9 +24,23 @@ export const de: Record<TranslationKey, string> = {
   "approval.noReason": "Keine Begründung",
   "approval.classifierLanguage": "German",
 
-  // tools
+  // tools - common
   "tools.l3Blocked": "L3: Aktion blockiert — {reason}",
   "tools.executionFailed": "ERROR: {name} fehlgeschlagen — {msg}",
+  "tools.paramRequired": "Fehler: '{param}' ist erforderlich für {action}",
+  "tools.unknownAction": "Unbekannte Aktion: {action}",
+  "tools.fetchFailed": "Fehler: {url} konnte nicht geladen werden ({status})",
+  "tools.fileWritten": "Geschrieben: {path}",
+  "tools.fileDeleted": "Gelöscht: {path}",
+  "tools.gitError": "git-Fehler ({exitCode}): {stderr}",
+  "tools.searchNoMatches": "Keine Treffer für \"{pattern}\"",
+  "tools.searchResults": "{count} Treffer (max {max}):",
+  "tools.projectMapNotFound": "Projekt-Map nicht gefunden. Erstelle sie mit `pnpm index`.",
+  "tools.noMatchingFiles": "Keine passenden Dateien gefunden.",
+  "tools.projectMapResults": "{count} Dateien (indexiert {date})",
+  "tools.pathOutsideProject": "Pfad außerhalb des Projektverzeichnisses: {path}",
+  "tools.dirOutsideProject": "Verzeichnis \"{dir}\" liegt außerhalb des Projektstamms",
+  "tools.notInitialized": "Fehler: {name} nicht initialisiert",
 
   // orchestrator
   "orchestrator.respondInstruction": "Respond to the user in {language}. Code, commands, and technical identifiers stay in English.",
@@ -247,6 +261,7 @@ export const de: Record<TranslationKey, string> = {
   "cron.jobFailed": "Job {id} fehlgeschlagen (Versuch {attempt}/{max}): {error}",
   "cron.jobDisabled": "Job {id} deaktiviert nach {max} fehlgeschlagenen Versuchen",
   "cron.schedulerStarted": "Scheduler gestartet mit {count} Jobs",
+  "cron.createFailed": "Fehler beim Erstellen des Jobs: {msg}",
 
   // memory
   "memory.saved": "Erinnerung gespeichert",
@@ -342,6 +357,10 @@ export const de: Record<TranslationKey, string> = {
   "browser.notRunning": "Kein Browser aktiv — starte zuerst mit 'launch'",
   "browser.launchFailed": "Browser konnte nicht gestartet werden: {msg}",
   "browser.actionFailed": "Browser-Aktion fehlgeschlagen: {msg}",
+  "browser.clicked": "Node {nodeId} geklickt",
+  "browser.filled": "Node {nodeId} mit Text gefüllt",
+  "browser.screenshotCaptured": "Screenshot aufgenommen ({size} Bytes)",
+  "browser.selectorFound": "Selector \"{selector}\" gefunden",
 
   // compaction
   "compaction.started": "Konversation wird kompaktiert...",
@@ -358,6 +377,7 @@ export const de: Record<TranslationKey, string> = {
   "process.listEmpty": "Keine aktiven Prozesse",
   "process.listHeader": "{count} aktive Prozesse:",
   "process.noLogs": "Keine Logs für Prozess {pid}",
+  "process.spawnFailed": "Fehler beim Starten des Prozesses: {msg}",
 
   // sandbox
   "sandbox.created": "Sandbox erstellt: {id}",
@@ -368,6 +388,12 @@ export const de: Record<TranslationKey, string> = {
   // webhook
   "webhook.serverStarted": "Webhook-Server gestartet auf Port {port}",
   "webhook.fired": "Webhook ausgelöst: {name} → Chat {chatId}",
+  "webhook.created": "Webhook erstellt: {id}",
+  "webhook.listEmpty": "Keine Webhooks registriert",
+  "webhook.listHeader": "{count} Webhooks:",
+  "webhook.notFound": "Webhook nicht gefunden",
+  "webhook.deleted": "Webhook gelöscht: {id}",
+  "webhook.testResult": "Testergebnis: {status} — {message}",
 
   // agents
   "agents.hubStarted": "Agent-Hub gestartet ({strategy})",
@@ -377,6 +403,9 @@ export const de: Record<TranslationKey, string> = {
   "agents.deleted": "Agent gelöscht: {id}",
   "agents.listEmpty": "Keine Agenten konfiguriert",
   "agents.listHeader": "{count} Agenten:",
+  "agents.templates": "Verfügbare Vorlagen: {list}",
+  "agents.notFoundDetailed": "Fehler: Agent \"{id}\" nicht gefunden. Verfügbar: {available}",
+  "agents.agentDisabled": "Fehler: Agent \"{id}\" ist deaktiviert",
 
   // marketplace
   "marketplace.listed": "{count} Skills im Marketplace",

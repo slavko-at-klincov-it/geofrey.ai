@@ -22,9 +22,23 @@ export type TranslationKey =
   | "approval.noReason"
   | "approval.classifierLanguage"
 
-  // tools
+  // tools - common
   | "tools.l3Blocked"
   | "tools.executionFailed"
+  | "tools.paramRequired"
+  | "tools.unknownAction"
+  | "tools.fetchFailed"
+  | "tools.fileWritten"
+  | "tools.fileDeleted"
+  | "tools.gitError"
+  | "tools.searchNoMatches"
+  | "tools.searchResults"
+  | "tools.projectMapNotFound"
+  | "tools.noMatchingFiles"
+  | "tools.projectMapResults"
+  | "tools.pathOutsideProject"
+  | "tools.dirOutsideProject"
+  | "tools.notInitialized"
 
   // orchestrator
   | "orchestrator.respondInstruction"
@@ -227,6 +241,7 @@ export type TranslationKey =
   | "cron.jobFailed"
   | "cron.jobDisabled"
   | "cron.schedulerStarted"
+  | "cron.createFailed"
 
   // memory
   | "memory.saved"
@@ -322,6 +337,10 @@ export type TranslationKey =
   | "browser.notRunning"
   | "browser.launchFailed"
   | "browser.actionFailed"
+  | "browser.clicked"
+  | "browser.filled"
+  | "browser.screenshotCaptured"
+  | "browser.selectorFound"
 
   // compaction
   | "compaction.started"
@@ -338,6 +357,7 @@ export type TranslationKey =
   | "process.listEmpty"
   | "process.listHeader"
   | "process.noLogs"
+  | "process.spawnFailed"
 
   // sandbox
   | "sandbox.created"
@@ -348,6 +368,12 @@ export type TranslationKey =
   // webhook
   | "webhook.serverStarted"
   | "webhook.fired"
+  | "webhook.created"
+  | "webhook.listEmpty"
+  | "webhook.listHeader"
+  | "webhook.notFound"
+  | "webhook.deleted"
+  | "webhook.testResult"
 
   // agents
   | "agents.hubStarted"
@@ -357,6 +383,9 @@ export type TranslationKey =
   | "agents.deleted"
   | "agents.listEmpty"
   | "agents.listHeader"
+  | "agents.templates"
+  | "agents.notFoundDetailed"
+  | "agents.agentDisabled"
 
   // marketplace
   | "marketplace.listed"

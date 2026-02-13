@@ -168,8 +168,22 @@ export async function* parseStreamJson(
   }
 }
 
+function str(v: unknown): string | undefined {
+  return typeof v === "string" ? v : undefined;
+}
+
+function num(v: unknown): number | undefined {
+  return typeof v === "number" ? v : undefined;
+}
+
+function obj(v: unknown): Record<string, unknown> | undefined {
+  return typeof v === "object" && v !== null && !Array.isArray(v)
+    ? v as Record<string, unknown>
+    : undefined;
+}
+
 function normalizeEvent(raw: Record<string, unknown>): StreamEvent {
-  const type = (raw.type as string) ?? "system";
+  const type = str(raw.type) ?? "system";
 
   if (type === "assistant" || type === "text") {
     return {
@@ -181,15 +195,15 @@ function normalizeEvent(raw: Record<string, unknown>): StreamEvent {
   if (type === "tool_use") {
     return {
       type: "tool_use",
-      toolName: (raw.tool ?? raw.name) as string,
-      toolInput: (raw.input ?? raw.args ?? {}) as Record<string, unknown>,
+      toolName: str(raw.tool) ?? str(raw.name),
+      toolInput: obj(raw.input) ?? obj(raw.args) ?? {},
     };
   }
 
   if (type === "tool_result") {
     return {
       type: "tool_result",
-      toolName: (raw.tool ?? raw.name) as string,
+      toolName: str(raw.tool) ?? str(raw.name),
       content: typeof raw.content === "string" ? raw.content : JSON.stringify(raw.content),
     };
   }
@@ -198,15 +212,15 @@ function normalizeEvent(raw: Record<string, unknown>): StreamEvent {
     return {
       type: "result",
       content: extractText(raw),
-      costUsd: raw.cost_usd as number | undefined,
-      tokensUsed: raw.total_tokens as number | undefined,
-      model: raw.model as string | undefined,
-      sessionId: raw.session_id as string | undefined,
+      costUsd: num(raw.cost_usd),
+      tokensUsed: num(raw.total_tokens),
+      model: str(raw.model),
+      sessionId: str(raw.session_id),
     };
   }
 
   if (type === "error") {
-    return { type: "error", content: raw.error as string ?? raw.message as string ?? "Unknown error" };
+    return { type: "error", content: str(raw.error) ?? str(raw.message) ?? "Unknown error" };
   }
 
   return { type: "system", content: JSON.stringify(raw) };

@@ -3,6 +3,7 @@ import { platform } from "node:os";
 import { resolve } from "node:path";
 import { z } from "zod";
 import { registerTool } from "./tool-registry.js";
+import { t } from "../i18n/index.js";
 import type { SandboxOptions } from "../sandbox/container.js";
 
 const SHELL_TIMEOUT_MS = 30_000;
@@ -38,7 +39,7 @@ function confineShellCwd(dir: string | undefined): string | undefined {
   const resolved = resolve(dir);
   const root = process.cwd();
   if (!resolved.startsWith(root + "/") && resolved !== root) {
-    throw new Error(`Directory "${dir}" is outside the project root`);
+    throw new Error(t("tools.dirOutsideProject", { dir }));
   }
   return resolved;
 }

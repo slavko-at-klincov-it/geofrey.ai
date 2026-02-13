@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { registerTool } from "./tool-registry.js";
 import { createWebhookRouter, type WebhookRouter, type WebhookEntry } from "../webhooks/router.js";
 import { createWebhookHandler, type WebhookHandler, type WebhookExecutor } from "../webhooks/handler.js";
+import { t } from "../i18n/index.js";
 
 let router: WebhookRouter | null = null;
 let handler: WebhookHandler | null = null;
@@ -52,12 +53,12 @@ registerTool({
   source: "native",
   execute: async ({ action, name, template, secret, webhookId, chatId }) => {
     if (!router || !handler) {
-      return "Error: webhook system not initialized";
+      return t("tools.notInitialized", { name: "webhook" });
     }
 
     switch (action) {
       case "create": {
-        if (!name) return "Error: 'name' is required for create";
+        if (!name) return t("tools.paramRequired", { param: "name", action: "create" });
 
         const id = randomUUID();
         const path = `/webhook/${id}`;
@@ -73,37 +74,37 @@ registerTool({
 
         router.register(entry);
         const url = `http://${webhookHost}:${webhookPort}${path}`;
-        return `Webhook created: ${id}\n${formatWebhook(entry)}\nURL: ${url}`;
+        return `${t("webhook.created", { id })}\n${formatWebhook(entry)}\nURL: ${url}`;
       }
 
       case "list": {
         const webhooks = router.listAll();
-        if (webhooks.length === 0) return "No webhooks registered";
-        const header = `${webhooks.length} webhooks:`;
+        if (webhooks.length === 0) return t("webhook.listEmpty");
+        const header = t("webhook.listHeader", { count: String(webhooks.length) });
         const lines = webhooks.map(formatWebhook);
         return `${header}\n${lines.join("\n")}`;
       }
 
       case "delete": {
-        if (!webhookId) return "Error: 'webhookId' is required for delete";
+        if (!webhookId) return t("tools.paramRequired", { param: "webhookId", action: "delete" });
         const all = router.listAll();
         const exists = all.some((wh) => wh.id === webhookId);
-        if (!exists) return "Webhook not found";
+        if (!exists) return t("webhook.notFound");
         router.unregister(webhookId);
-        return `Webhook deleted: ${webhookId}`;
+        return t("webhook.deleted", { id: webhookId });
       }
 
       case "test": {
-        if (!webhookId) return "Error: 'webhookId' is required for test";
+        if (!webhookId) return t("tools.paramRequired", { param: "webhookId", action: "test" });
         const all = router.listAll();
         const webhook = all.find((wh) => wh.id === webhookId);
-        if (!webhook) return "Webhook not found";
+        if (!webhook) return t("webhook.notFound");
 
         const mockPayload: Record<string, unknown> = getMockPayload(webhook.template);
         const mockHeaders: Record<string, string> = getMockHeaders(webhook.template);
 
         const result = await handler.handle(webhook, mockPayload, mockHeaders);
-        return `Test result: ${result.status} — ${result.message}`;
+        return t("webhook.testResult", { status: result.status, message: result.message });
       }
     }
   },

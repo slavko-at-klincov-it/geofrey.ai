@@ -13,6 +13,7 @@ import {
   getAgent,
 } from "../agents/communication.js";
 import { listTemplates, createFromTemplate } from "../agents/agent-config.js";
+import { t } from "../i18n/index.js";
 
 registerTool({
   name: "agent_list",
@@ -23,7 +24,7 @@ registerTool({
     const result = formatAgentList();
     const templates = listTemplates();
     if (templates.length > 0) {
-      return `${result}\n\nAvailable templates: ${templates.join(", ")}`;
+      return `${result}\n\n${t("agents.templates", { list: templates.join(", ") })}`;
     }
     return result;
   },
@@ -42,11 +43,11 @@ registerTool({
     const agent = getAgent(agentId);
     if (!agent) {
       const available = listAgents().map((a) => a.id).join(", ");
-      return `Error: agent "${agentId}" not found. Available agents: ${available || "none"}`;
+      return t("agents.notFoundDetailed", { id: agentId, available: available || "none" });
     }
 
     if (!agent.enabled) {
-      return `Error: agent "${agentId}" is disabled`;
+      return t("agents.agentDisabled", { id: agentId });
     }
 
     const result = await sendToAgent(agentId, chatId ?? "default", message);

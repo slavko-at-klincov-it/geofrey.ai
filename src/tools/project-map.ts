@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { z } from "zod";
 import { registerTool } from "./tool-registry.js";
+import { t } from "../i18n/index.js";
 
 interface ExportInfo {
   name: string;
@@ -75,7 +76,7 @@ registerTool({
   execute: async ({ query, category }) => {
     const map = await loadMap();
     if (!map) {
-      return "Project map not found. Run `pnpm index` to generate it.";
+      return t("tools.projectMapNotFound");
     }
 
     let entries = Object.entries(map.files);
@@ -90,10 +91,10 @@ registerTool({
     }
 
     if (entries.length === 0) {
-      return "No matching files found.";
+      return t("tools.noMatchingFiles");
     }
 
-    const header = `${entries.length} files (indexed ${map.generatedAt})\n`;
+    const header = `${t("tools.projectMapResults", { count: String(entries.length), date: map.generatedAt })}\n`;
     const body = entries.map(([path, entry]) => formatEntry(path, entry)).join("\n\n");
     return header + body;
   },

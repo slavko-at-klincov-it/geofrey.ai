@@ -15,15 +15,18 @@ export interface WebhookHandler {
   ): Promise<WebhookResult>;
 }
 
+function nested(parent: unknown, key: string): unknown {
+  if (typeof parent === "object" && parent !== null && !Array.isArray(parent)) {
+    return (parent as Record<string, unknown>)[key];
+  }
+  return undefined;
+}
+
 function formatGitHubEvent(body: Record<string, unknown>, headers: Record<string, string>): string {
   const eventType = headers["x-github-event"] ?? "unknown";
   const action = typeof body.action === "string" ? body.action : undefined;
-  const repo = typeof body.repository === "object" && body.repository !== null
-    ? (body.repository as Record<string, unknown>).full_name
-    : undefined;
-  const sender = typeof body.sender === "object" && body.sender !== null
-    ? (body.sender as Record<string, unknown>).login
-    : undefined;
+  const repo = nested(body.repository, "full_name");
+  const sender = nested(body.sender, "login");
 
   const parts: string[] = [
     "Webhook event received (GitHub)",
@@ -39,14 +42,16 @@ function formatGitHubEvent(body: Record<string, unknown>, headers: Record<string
     if (Array.isArray(body.commits)) {
       parts.push(`Commits: ${body.commits.length}`);
     }
-  } else if (eventType === "pull_request" && typeof body.pull_request === "object" && body.pull_request !== null) {
-    const pr = body.pull_request as Record<string, unknown>;
-    if (typeof pr.title === "string") parts.push(`Title: ${pr.title}`);
-    if (typeof pr.number === "number") parts.push(`#${pr.number}`);
-  } else if (eventType === "issues" && typeof body.issue === "object" && body.issue !== null) {
-    const issue = body.issue as Record<string, unknown>;
-    if (typeof issue.title === "string") parts.push(`Title: ${issue.title}`);
-    if (typeof issue.number === "number") parts.push(`#${issue.number}`);
+  } else if (eventType === "pull_request") {
+    const prTitle = nested(body.pull_request, "title");
+    const prNumber = nested(body.pull_request, "number");
+    if (typeof prTitle === "string") parts.push(`Title: ${prTitle}`);
+    if (typeof prNumber === "number") parts.push(`#${prNumber}`);
+  } else if (eventType === "issues") {
+    const issueTitle = nested(body.issue, "title");
+    const issueNumber = nested(body.issue, "number");
+    if (typeof issueTitle === "string") parts.push(`Title: ${issueTitle}`);
+    if (typeof issueNumber === "number") parts.push(`#${issueNumber}`);
   }
 
   return parts.join("\n");
@@ -60,20 +65,19 @@ function formatStripeEvent(body: Record<string, unknown>): string {
     `Event: ${eventType}`,
   ];
 
-  if (typeof body.data === "object" && body.data !== null) {
-    const data = body.data as Record<string, unknown>;
-    if (typeof data.object === "object" && data.object !== null) {
-      const obj = data.object as Record<string, unknown>;
-      if (typeof obj.amount === "number") {
-        const currency = typeof obj.currency === "string" ? obj.currency.toUpperCase() : "???";
-        parts.push(`Amount: ${(obj.amount / 100).toFixed(2)} ${currency}`);
-      }
-      if (typeof obj.status === "string") {
-        parts.push(`Status: ${obj.status}`);
-      }
-      if (typeof obj.customer === "string") {
-        parts.push(`Customer: ${obj.customer}`);
-      }
+  const dataObj = nested(body.data, "object");
+  if (dataObj !== undefined && typeof dataObj === "object" && dataObj !== null) {
+    const stripeObj = dataObj as Record<string, unknown>;
+    const amount = stripeObj.amount;
+    if (typeof amount === "number") {
+      const currency = typeof stripeObj.currency === "string" ? stripeObj.currency.toUpperCase() : "???";
+      parts.push(`Amount: ${(amount / 100).toFixed(2)} ${currency}`);
+    }
+    if (typeof stripeObj.status === "string") {
+      parts.push(`Status: ${stripeObj.status}`);
+    }
+    if (typeof stripeObj.customer === "string") {
+      parts.push(`Customer: ${stripeObj.customer}`);
     }
   }
 
