@@ -11,8 +11,21 @@ import {
 import {
   searchMemory,
   getOllamaConfig,
+  indexMemoryFile,
 } from "../memory/embeddings.js";
+import { appendStructuredEntry, type MemoryCategory } from "../memory/structured.js";
 import { t } from "../i18n/index.js";
+
+function reindexMemory(): void {
+  try {
+    const config = getOllamaConfig();
+    readMemory().then((content) => {
+      indexMemoryFile("MEMORY.md", content, config).catch(() => {});
+    }).catch(() => {});
+  } catch {
+    // Non-critical: embeddings config may not be set yet
+  }
+}
 
 registerTool({
   name: "memory_read",
@@ -55,8 +68,24 @@ registerTool({
       } else {
         await appendMemory(content, agentId);
       }
+      reindexMemory();
     }
     return t("memory.saved");
+  },
+});
+
+registerTool({
+  name: "memory_store",
+  description: "Store a categorized entry in persistent memory. Categories: preferences, decisions, facts, wants, doesnt-want.",
+  parameters: z.object({
+    category: z.enum(["preferences", "decisions", "facts", "wants", "doesnt-want"]),
+    content: z.string(),
+  }),
+  source: "native",
+  execute: async ({ category, content }) => {
+    await appendStructuredEntry({ category: category as MemoryCategory, content });
+    reindexMemory();
+    return t("memory.stored", { category });
   },
 });
 

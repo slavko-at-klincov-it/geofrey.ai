@@ -245,10 +245,12 @@ export type TranslationKey =
 
   // memory
   | "memory.saved"
+  | "memory.stored"
   | "memory.empty"
   | "memory.searchResults"
   | "memory.indexing"
   | "memory.indexed"
+  | "memory.conflictWarning"
 
   // search / web
   | "search.noResults"

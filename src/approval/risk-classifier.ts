@@ -44,7 +44,7 @@ If you cannot confidently classify, default to L2.`;
 const L0_TOOLS = new Set([
   "read_file", "list_dir", "search", "git_status", "git_log", "git_diff", "project_map",
   "web_search", "web_fetch",
-  "memory_read", "memory_search",
+  "memory_read", "memory_search", "memory_store",
   "process_manager:list", "process_manager:check", "process_manager:logs",
   "agent_list",
 ]);

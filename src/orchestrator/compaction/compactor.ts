@@ -3,9 +3,10 @@
  */
 
 import { getHistory, compactMessages } from "../conversation.js";
-import { appendMemory } from "../../memory/store.js";
+import { appendMemory, readMemory } from "../../memory/store.js";
 import { estimateMessagesTokens, shouldCompact } from "./token-counter.js";
 import { pruneOldMessages } from "./pruner.js";
+import { indexMemoryFile, getOllamaConfig } from "../../memory/embeddings.js";
 
 export interface CompactionResult {
   originalMessageCount: number;
@@ -103,6 +104,15 @@ Key facts:`;
   if (facts.length > 0) {
     const header = `\n## Compaction — ${new Date().toISOString().slice(0, 10)}\n`;
     await appendMemory(header + facts);
+
+    // Re-index memory after flush (fire-and-forget)
+    try {
+      const ollamaConfig = getOllamaConfig();
+      const content = await readMemory();
+      indexMemoryFile("MEMORY.md", content, ollamaConfig).catch(() => {});
+    } catch {
+      // Non-critical: re-indexing can fail
+    }
   }
 }
 

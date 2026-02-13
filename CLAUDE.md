@@ -127,10 +127,14 @@ src/
 │   └── calendar.ts          # Calendar tool (auth/list/get/create/update/delete)
 ├── memory/
 │   ├── store.ts             # MEMORY.md read/write/append + daily notes
-│   ├── embeddings.ts        # Ollama embeddings + cosine similarity search
-│   ├── recall.ts            # Auto-recall (semantic search + threshold)
+│   ├── embeddings.ts        # Ollama embeddings + cosine similarity search + incremental indexing
+│   ├── recall.ts            # Auto-recall (semantic search + threshold + category boosting)
+│   ├── structured.ts        # Categorized memory entries (parse/format/append to sections)
+│   ├── guard.ts             # Decision conflict detection (semantic search + negation)
 │   ├── store.test.ts
-│   └── embeddings.test.ts
+│   ├── embeddings.test.ts
+│   ├── structured.test.ts
+│   └── guard.test.ts
 ├── automation/
 │   ├── cron-parser.ts       # 5-field cron expression parser + next-run
 │   ├── scheduler.ts         # Job scheduler (30s tick, retry backoff)
@@ -364,6 +368,7 @@ src/
 - [x] User Profile System (Zod schema, JSON persistence, system prompt injection)
 - [x] Extended Onboarding (profile, integrations, proactive wizard steps)
 - [x] Proactive Agent (Morning Brief, Calendar Watch, Email Monitor via scheduler)
+- [x] Memory System Wiring (autoRecall, startup indexing, structured entries, decision conflict guard, re-index triggers)
 
 ## Roadmap
 
@@ -376,6 +381,8 @@ src/
 - [ ] Hard block enforcement: credentials + biometrie bypass prevention
 - [ ] Rule lookup in anonymizer: check privacy_rules DB before LLM pass
 - [ ] Benchmark: Risk Classifier LLM path — `pnpm benchmark:classifier qwen3:8b`
+- [ ] Profile → Anonymizer: Name, VIP-Emails als custom PII-Patterns beim Startup registrieren
+- [ ] Proaktive Tasks: expliziter `SIMPLE_TASK`-Hint in Templates, damit Orchestrator nie Claude Code dafür nutzt
 
 ### Completed (v1.0–v2.0)
 - [x] All core features implemented (see Project Status above)

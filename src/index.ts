@@ -16,7 +16,7 @@ import { processImage } from "./messaging/image-handler.js";
 import { ImageSanitizeError } from "./security/image-sanitizer.js";
 import { setSearchConfig } from "./tools/web-search.js";
 import { initScheduler, stopScheduler } from "./automation/scheduler.js";
-import { setOllamaConfig } from "./memory/embeddings.js";
+import { setOllamaConfig, indexMemory, getOllamaConfig } from "./memory/embeddings.js";
 import { closeAllBrowsers } from "./browser/launcher.js";
 import { setTranscriberConfig } from "./voice/transcriber.js";
 import { convertToWav, isConversionNeeded } from "./voice/converter.js";
@@ -162,6 +162,14 @@ async function main() {
 
   // Ensure memory directory exists
   await mkdir("data/memory", { recursive: true });
+
+  // Index memory for semantic search at startup
+  try {
+    const chunks = await indexMemory(getOllamaConfig(), config.database.url);
+    if (chunks > 0) console.log(`Memory indexed: ${chunks} chunks`);
+  } catch {
+    // Non-critical: memory indexing can fail if Ollama is not ready
+  }
 
   // Discover and load skills
   try {

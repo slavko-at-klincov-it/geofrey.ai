@@ -265,10 +265,12 @@ export const en: Record<TranslationKey, string> = {
 
   // memory
   "memory.saved": "Memory saved",
+  "memory.stored": "Stored in '{category}' category",
   "memory.empty": "No memories found",
   "memory.searchResults": "{count} relevant memories found",
   "memory.indexing": "Indexing memories...",
   "memory.indexed": "{count} chunks indexed",
+  "memory.conflictWarning": "⚠ Possible conflict with previous decision: {content}",
 
   // search / web
   "search.noResults": "No search results",

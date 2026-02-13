@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import { getDb } from "../db/client.js";
 import { memoryChunks } from "../db/schema.js";
 import { readMemory, listMemoryFiles, readDailyNote } from "./store.js";
@@ -141,6 +142,40 @@ export async function indexMemory(config: OllamaConfig, dbUrl?: string): Promise
   }
 
   return totalChunks;
+}
+
+export async function indexMemoryFile(
+  source: string,
+  content: string,
+  config: OllamaConfig,
+  dbUrl?: string,
+): Promise<number> {
+  const db = getDb(dbUrl ?? "./data/app.db");
+
+  // Delete only chunks from this source
+  db.delete(memoryChunks).where(eq(memoryChunks.source, source)).run();
+
+  if (content.trim().length === 0) return 0;
+
+  const chunks = chunkText(content);
+  let count = 0;
+
+  for (let i = 0; i < chunks.length; i++) {
+    const embedding = await generateEmbedding(chunks[i], config);
+
+    db.insert(memoryChunks).values({
+      id: `${source}:${i}`,
+      source,
+      chunkIndex: i,
+      content: chunks[i],
+      embedding: JSON.stringify(embedding),
+      createdAt: new Date(),
+    }).run();
+
+    count++;
+  }
+
+  return count;
 }
 
 export interface SearchResult {
