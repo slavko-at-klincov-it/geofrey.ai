@@ -133,7 +133,7 @@ Approval-Gate in der Tool-Loop:
 Audit-Logging nach jeder Tool-Execution:
 - `classifyDeterministic()` für Risk-Level
 - `appendAuditEntry()` mit Tool-Name, Args, Risk-Level
-- Claude Code Enrichment: `lastClaudeResult.get(chatId)` für Session/Cost/Tokens
+- Claude Code Enrichment: `getAndClearLastResult()` für Session/Cost/Tokens
 
 #### `lastInvokeResult` + `getAndClearLastResult()` (Modul-Level)
 - **Zweck:** Speichert letztes Claude Code Ergebnis für Audit-Enrichment
