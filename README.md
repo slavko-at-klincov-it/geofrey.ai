@@ -1,28 +1,21 @@
 # geofrey.ai
 
-**A safer, cheaper alternative to cloud-dependent AI agent platforms**
+**Privacy-first AI agent — your data stays on your machine.**
 
-Local-first AI agent with a local LLM orchestrator that acts as a safety layer between users and tool execution. Unlike OpenClaw and similar platforms, geofrey.ai structurally cannot execute dangerous actions without explicit user approval — and it costs $0/month to run the orchestrator.
+geofrey.ai is an open-source personal AI agent with a local LLM orchestrator that controls what data leaves your computer. Nothing goes to cloud APIs unreviewed, unanonymized, or without your explicit approval.
 
 ## What is this?
 
-geofrey.ai runs a local LLM (Qwen3 8B via Ollama) as an intelligent orchestrator that classifies every action by risk level (L0-L3) before execution. High-risk actions trigger a Promise-based approval gate that blocks the agent until you tap "Approve" or "Deny" via Telegram, WhatsApp, or Signal. The orchestrator handles cheap, frequent work (intent classification, risk assessment, user communication) locally, while delegating complex coding tasks to Claude Code CLI. This architecture eliminates the $200-600/month cloud API costs of platforms like OpenClaw while providing stronger security guarantees through structural blocking rather than policy-based checks.
+geofrey.ai runs a local LLM (Qwen3 8B via Ollama) as an intelligent orchestrator that sits between you and cloud AI services like Claude Code. It does three things:
 
-## Why not OpenClaw?
-
-| Feature | OpenClaw | geofrey.ai |
-|---------|----------|------------|
-| Monthly cost (moderate use) | $200-600 | $0-30 |
-| Orchestrator | Cloud API (resends 10K token prompt every call) | Local Qwen3 8B (loaded once) |
-| Approval mechanism | Fire-and-forget (bug #2402) | Structural blocking via Promise |
-| Network exposure | Web UI (42K+ exposed instances) | Optional dashboard (localhost, Bearer auth) |
-| Security vulnerabilities | CVE-2026-25253 (RCE), CVE-2026-25157 | No public attack surface |
-| Command injection defense | Basic | 4-layer (decomposition + regex + LLM + gate) |
-| Image metadata defense | None | EXIF/XMP/IPTC stripping + injection scanning |
-| Test coverage | Some | 1143 tests across 130+ suites |
+1. **Privacy**: Detects personal data (names, emails, credentials, faces in photos) and anonymizes or blocks it before forwarding to cloud APIs. Credentials and biometric data never leave your machine.
+2. **Safety**: Classifies every action by risk level (L0-L3). High-risk actions block until you tap "Approve" via Telegram, WhatsApp, or Signal. No code path around it.
+3. **Efficiency**: Handles frequent work (intent classification, risk assessment, summarization, user communication) locally. Only delegates complex coding tasks to Claude Code CLI.
 
 ## Features
 
+- **Privacy layer** — aggressive opt-out anonymization (regex 90% + LLM 10%), reversible placeholders, streaming de-anonymization, user-learns scope (global/project)
+- **Image privacy** — Qwen3-VL-2B classifies images locally (on-demand load/process/unload), face photos never leave your machine, screenshots → OCR only
 - **4-tier risk classification (L0-L3)** — auto-approve reads, notify on safe writes, require approval for dangerous actions, block destructive commands
 - **Hybrid classifier** — deterministic patterns handle 90% of cases instantly, LLM fallback for ambiguous commands
 - **Structural approval blocking** — Promise-based gate with no code path around it
@@ -625,9 +618,9 @@ pnpm db:generate  # Generate Drizzle migrations
 
 ---
 
-## geofrey.ai vs. OpenClaw — Detaillierter Vergleich
+## Appendix: Comparison with OpenClaw
 
-OpenClaw (ehemals Clawdbot/Moltbot) ist die bekannteste Open-Source AI-Agent-Plattform. geofrey.ai wurde als direkte Antwort auf dessen architekturelle Schwächen entwickelt. Dieser Abschnitt erklärt jeden Unterschied im Detail.
+OpenClaw (ehemals Clawdbot/Moltbot) ist die bekannteste Open-Source AI-Agent-Plattform. geofrey.ai verfolgt einen fundamental anderen Ansatz: Datenschutz und Sicherheit sind keine Features sondern die Architektur. Dieser Abschnitt dokumentiert die technischen Unterschiede.
 
 ### 1. Kosten: Lokal statt Cloud
 

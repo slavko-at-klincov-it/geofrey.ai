@@ -1,13 +1,22 @@
 # geofrey.ai
 
 ## Overview
-An open-source personal AI agent with a **local LLM as orchestrator** that acts as a safety layer, prompt optimizer, and user communication bridge.
+An open-source, privacy-first AI agent that runs on your machine. A local LLM orchestrator controls what data leaves your computer — nothing goes to cloud APIs unreviewed, unanonymized, or without your explicit approval.
+
+geofrey.ai is NOT a second OpenClaw. It is a fundamentally different architecture: the local LLM is a **privacy and safety layer** between you and cloud services, not just a cheaper way to call APIs.
 
 ## Core Concept
-1. **Local LLM Orchestrator** (Qwen3 8B via Ollama, configurable via `ORCHESTRATOR_MODEL`) — reviews and approves actions before execution
-2. **User Confirmation via Messaging** — "Do you really want to delete these photos?" via Telegram
-3. **Hybrid Risk Classification** — deterministic patterns (90%) + LLM fallback (10%) for all tools (native + MCP)
-4. **Resource Efficient** — local orchestrator instead of expensive cloud API loops
+1. **Privacy Layer** — personal data (names, emails, images, credentials) is detected, anonymized, or blocked before it ever reaches Claude Code or any cloud API. See `docs/PRIVACY_LAYER.md`.
+2. **Local LLM Orchestrator** (Qwen3 8B via Ollama) — classifies intent, assesses risk, anonymizes data, communicates with the user. All locally, no cloud dependency.
+3. **User Confirmation via Messaging** — risky actions require explicit approval via Telegram/WhatsApp/Signal. Promise-based blocking — no code path around it.
+4. **Hybrid Risk Classification** — deterministic patterns (90%) + LLM fallback (10%) for all tools (native + MCP).
+5. **Local Vision Model** (Qwen3-VL-2B via Ollama) — classifies images on-demand (load → process → unload). Face photos never leave your machine.
+
+## What We Don't Want
+- **Cloud LLM Routers (OpenRouter, etc.)** — violates local-first philosophy. Was implemented and removed. All LLM inference stays local via Ollama.
+- **TTS via Cloud APIs (ElevenLabs, etc.)** — paid cloud dependency. If TTS is needed, it must be local (e.g. Piper, Coqui).
+- **Blind data forwarding** — no images, emails, or personal data sent to Claude Code without anonymization. This is the core difference to OpenClaw.
+- **"Just works" at the cost of privacy** — we ask before forwarding, we anonymize by default, we remember the user's decisions.
 
 ## Tech Stack
 | Component | Technology |
@@ -331,47 +340,23 @@ src/
 - [x] Companion Apps Backend (WebSocket server, 6-digit pairing, APNS/FCM push)
 - [x] Smart Home Integration (Philips Hue API v2, HomeAssistant REST, Sonos HTTP, SSDP/mDNS discovery)
 - [x] Gmail/Calendar Automation (Google OAuth2, Gmail API, Google Calendar API)
-- [ ] Benchmark: Risk Classifier LLM path — `pnpm benchmark:classifier qwen3:8b` (Qwen3 8B vs 4B evaluation)
 
-## Roadmap (OpenClaw Feature Parity + Beyond)
+## Roadmap
 
-Full gap analysis: `docs/OPENCLAW_GAP_ANALYSIS.md`
+### Next — Privacy Layer (v2.1)
+- [ ] Privacy Memory: `privacy_rules` SQLite table + MD export
+- [ ] Approval flow: "Soll ich X anonymisieren? Global oder nur hier?"
+- [ ] Image classifier: Qwen3-VL-2B on-demand (load → process → unload)
+- [ ] Image routing: category → OCR-only / describe / block
+- [ ] Email pre-processing: anonymize before Claude Code
+- [ ] Hard block enforcement: credentials + biometrie bypass prevention
+- [ ] Rule lookup in anonymizer: check privacy_rules DB before LLM pass
+- [ ] Benchmark: Risk Classifier LLM path — `pnpm benchmark:classifier qwen3:8b`
 
-### Phase 1 — Essentials (v1.1)
-- [x] Web-Dashboard + WebChat (Desktop-Nutzung ohne Telegram)
-- [x] Persistent Memory (MEMORY.md + semantic search — Langzeitgedächtnis)
-- [x] Web Search + Web Fetch Tools (Internet-Fähigkeiten)
-- [x] Cron/Scheduler (proaktive Aufgaben, persistent, at/every/cron)
-- [x] Cost Tracking (per-request Token/Cost Logging, Budget-Limits)
-
-### Phase 2 — Power Features (v1.2)
-- [x] Browser-Automation (Chrome DevTools Protocol)
-- [x] Skill-System (SKILL.md Format + Registry)
-- [x] Slack + Discord Adapter
-- [x] Voice Messages STT (Whisper — WhatsApp/Telegram Sprachnachrichten)
-- [x] Session Compaction (intelligentes Context-Window-Management)
-
-### Phase 3 — Differenzierung (v1.3)
-- [x] Docker Sandbox per Session (isolierte Tool-Ausführung)
-- [x] Webhook-Triggers (externe Events als Auslöser)
-- [x] Process Management Tool (Hintergrund-Prozesse)
-- [x] TTS (ElevenLabs — Sprachantworten)
-
-### Phase 4 — Ecosystem (v2.0)
-- [x] Multi-Agent Routing (Hub-and-Spoke, per-Agent Config)
-- [x] Skill-Marketplace (Community-Skills)
-- [x] Companion Apps (macOS/iOS/Android)
-- [x] Smart Home Integration (Hue, HomeAssistant, Sonos)
-- [x] Gmail/Calendar Automation
-
-### Geofrey-Vorteile vs. OpenClaw (beibehalten & ausbauen)
-- 3-Layer Prompt Injection Defense (User/Tool/Model)
-- Nativer MCP Client mit Security (Output Sanitization, Allowlist, Zod Validation)
-- Image Metadata Sanitization (EXIF/XMP/IPTC + Injection Scanning)
-- Lokaler Orchestrator als Sicherheitsschicht (80-90% günstiger)
-- Hybrid Risk Classification (Deterministic 90% + LLM 10%)
-- Filesystem Confinement (confine())
-- Obfuscation-resistant L3 Blocking
+### Completed (v1.0–v2.0)
+- [x] All core features implemented (see Project Status above)
+- [x] 20+ native tools, 6 messaging platforms, 950+ tests
+- [x] Anonymizer foundation (regex + LLM extraction + reversible mapping + streaming de-anonymization)
 
 ## Conventions
 - Code language: English
@@ -385,10 +370,10 @@ Full gap analysis: `docs/OPENCLAW_GAP_ANALYSIS.md`
 ## Key Decisions Log
 | Date | Decision | Reasoning |
 |------|----------|-----------|
-| 2026-02-11 | Project created | Better OpenClaw with local AI orchestrator |
+| 2026-02-11 | Project created | Privacy-first AI agent with local LLM orchestrator |
 | 2026-02-11 | Qwen3 8B as default orchestrator | 0.933 F1, 5GB Q4, ~40 tok/s — fits 18GB RAM comfortably |
-| 2026-02-11 | Mandatory blocking approvals | OpenClaw's fire-and-forget approval is a critical flaw (still not truly fixed) |
-| 2026-02-11 | TypeScript over Python | Async-native, better subprocess mgmt, same stack as OpenClaw/Claude Code |
+| 2026-02-11 | Mandatory blocking approvals | Fire-and-forget approval is architecturally broken — Promise-based blocking has no code path around it |
+| 2026-02-11 | TypeScript over Python | Async-native, better subprocess mgmt, same ecosystem as Claude Code |
 | 2026-02-11 | grammY for Telegram | Best TS types, conversations plugin, active ecosystem |
 | 2026-02-11 | 4-tier risk classification | Binary allow/deny too coarse; L0-L3 gives nuance without over-prompting |
 | 2026-02-11 | Long Polling over Webhooks | Local-first, no public URL needed |
@@ -409,7 +394,7 @@ Full gap analysis: `docs/OPENCLAW_GAP_ANALYSIS.md`
 | 2026-02-12 | Signal via signal-cli JSON-RPC | No inline buttons → text-based approvals ("1 = Genehmigen, 2 = Ablehnen") |
 | 2026-02-12 | ANTHROPIC_API_KEY support | Alternative to subscription — passed via env to Claude Code subprocess |
 | 2026-02-12 | Onboarding startup check | Checks CLI availability + auth status, shows actionable instructions |
-| 2026-02-12 | Interactive setup wizard | `pnpm setup` — auto-detection, OCR, clipboard, real-time validation; better UX than OpenClaw |
+| 2026-02-12 | Interactive setup wizard | `pnpm setup` — auto-detection, OCR, clipboard, real-time validation |
 | 2026-02-12 | @inquirer/prompts + chalk + ora | Modern ESM CLI toolkit — tree-shakeable, German prompts |
 | 2026-02-12 | tesseract.js for OCR | Pure WASM, lazy-loaded (~60MB first use) — extract tokens from screenshots |
 | 2026-02-12 | Windows compatibility | shell.ts: cmd /c, Signal: named pipes, OCR: PowerShell SnippingTool, prerequisites: cmd start /b |
@@ -420,10 +405,10 @@ Full gap analysis: `docs/OPENCLAW_GAP_ANALYSIS.md`
 | 2026-02-12 | Language selection in setup wizard | First wizard step is bilingual "Language / Sprache:", stored as `LOCALE` in `.env` |
 | 2026-02-12 | Image metadata sanitization | EXIF/XMP/IPTC can carry prompt injection — strip before LLM, scan for patterns, audit findings |
 | 2026-02-12 | sharp for image processing | Prebuilt binaries, EXIF orientation, metadata stripping in one pipeline; configurable via env vars |
-| 2026-02-13 | OpenClaw gap analysis + roadmap | 4-phase roadmap (v1.1→v2.0) based on comprehensive OpenClaw feature comparison |
+| 2026-02-13 | Privacy Layer architecture | Aggressive opt-out anonymization, Qwen3-VL-2B for images, dual storage (SQLite + MD), approval-based learning |
 | 2026-02-13 | Hub-and-Spoke multi-agent routing | 3 strategies (skill/intent/explicit); per-agent session isolation; persistent agent configs |
 | 2026-02-13 | Skill marketplace with SHA-256 verification | Curated repository, hash-verified downloads, 5 built-in templates |
-| 2026-02-13 | TTS via ElevenLabs | eleven_multilingual_v2 model, LRU cache (configurable size), sentence-boundary text splitting for long texts |
+| 2026-02-13 | Removed TTS (ElevenLabs) | Cloud dependency violates local-first philosophy. Local TTS (Piper/Coqui) if needed |
 | 2026-02-13 | Companion apps via WebSocket + push | ws package, 6-digit pairing (5min TTL), APNS (node:http2) + FCM (native fetch), heartbeat ping/pong |
 | 2026-02-13 | Smart home integration (Hue/HA/Sonos) | Hue API v2, HomeAssistant REST, Sonos HTTP; SSDP + nUPnP discovery |
 | 2026-02-13 | Gmail/Calendar via Google OAuth2 | OAuth2 with node:http callback, file-based token cache with auto-refresh, Gmail API + Calendar API |

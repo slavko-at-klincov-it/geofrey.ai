@@ -20,20 +20,21 @@
 │                LOCAL ORCHESTRATOR (Qwen3 8B)                     │
 │                                                                  │
 │  ┌──────────────┐  ┌──────────────┐  ┌────────────────────┐     │
-│  │ Intent       │  │ Risk         │  │ Prompt             │     │
-│  │ Classifier   │  │ Classifier   │  │ Generator          │     │
+│  │ Intent       │  │ Risk         │  │ Privacy            │     │
+│  │ Classifier   │  │ Classifier   │  │ Layer              │     │
 │  │              │  │ (hybrid)     │  │                    │     │
-│  │ question?    │  │ 1. Regex/    │  │ Task templates     │     │
-│  │ task?        │  │    pattern   │  │ for downstream     │     │
-│  │ ambiguous?   │  │ 2. LLM for  │  │ models             │     │
-│  └──────────────┘  │    ambiguous │  └────────────────────┘     │
-│                    └──────┬───────┘                              │
-│                           │                                      │
-│                    ┌──────▼───────┐                              │
-│                    │ Approval     │                              │
-│                    │ Gate         │◄── Promise + Deferred        │
-│                    │              │    BLOCKS until user responds │
-│                    └──────┬───────┘                              │
+│  │ question?    │  │ 1. Regex/    │  │ 1. Regex PII       │     │
+│  │ task?        │  │    pattern   │  │ 2. LLM names       │     │
+│  │ ambiguous?   │  │ 2. LLM for  │  │ 3. VL-2B images    │     │
+│  └──────────────┘  │    ambiguous │  │ 4. Privacy Memory  │     │
+│                    └──────┬───────┘  └─────────┬──────────┘     │
+│                           │                    │                 │
+│                    ┌──────▼────────────────────▼┐                │
+│                    │ Approval     │ Anonymizer  │                │
+│                    │ Gate         │ (reversible │                │
+│                    │ BLOCKS until │  mapping)   │                │
+│                    │ user responds│             │                │
+│                    └──────┬───────┴─────────────┘                │
 │                           │                                      │
 │                    ┌──────▼───────┐                              │
 │                    │ Audit Log    │── append-only, hash-chained  │
@@ -109,7 +110,7 @@
 
 | Component | Technology | Reasoning |
 |-----------|-----------|-----------|
-| **Language** | TypeScript (Node.js ≥22) | Async-native, best subprocess mgmt, same stack as OpenClaw/Claude Code |
+| **Language** | TypeScript (Node.js ≥22) | Async-native, best subprocess mgmt, same ecosystem as Claude Code |
 | **Orchestrator LLM** | Qwen3 8B via Ollama (default) | 0.933 tool-call F1, ~5GB Q4, ~40 tok/s — fits 18GB+ RAM comfortably; configurable via `ORCHESTRATOR_MODEL` |
 | **Code Worker (coming soon)** | [Qwen3-Coder-Next](https://www.marktechpost.com/2026/02/03/qwen-team-releases-qwen3-coder-next-an-open-weight-language-model-designed-specifically-for-coding-agents-and-local-development/) via Ollama | 80B MoE / 3B active params, 70.6% SWE-Bench Verified, ~52GB Q4 — local code worker for simple tasks (64GB+ RAM) |
 | **LLM SDK** | Vercel AI SDK 6 (`ai` package) | `ToolLoopAgent` + `needsApproval` built-in, native Ollama provider, Zod tool schemas |
@@ -783,7 +784,7 @@ geofrey.ai/
 
 | Decision | Choice | Alternative Considered | Why |
 |----------|--------|----------------------|-----|
-| Language | TypeScript | Python | Async-native, better subprocess streams, same stack as OpenClaw |
+| Language | TypeScript | Python | Async-native, better subprocess streams, same ecosystem as Claude Code |
 | Default Orchestrator | Qwen3 8B | Other Ollama models | 0.933 F1 sufficient for orchestration; fits 18GB RAM; configurable via `ORCHESTRATOR_MODEL` |
 | LLM SDK | Vercel AI SDK 6 | OpenAI SDK | `ToolLoopAgent` + `needsApproval` eliminates custom agent loop code; native Ollama provider; Zod tool schemas |
 | Tool Integration | MCP Client | Custom-only registry | 10K+ existing MCP servers; industry standard; our risk classifier wraps all tools |
@@ -816,20 +817,18 @@ On SIGTERM/SIGINT:
 7. Stop platform adapters (grammY polling, WhatsApp webhook, Signal JSON-RPC)
 8. Exit
 
-## OpenClaw Problems We Fix
+## Design Principles
 
-| OpenClaw Problem | Our Solution |
-|-----------------|-------------|
-| $200-600/mo cloud LLM costs | Local Qwen3 8B orchestrator (free, ~5GB) + smart routing reduces API calls |
-| System prompt resent every API call (10K tokens) | Efficient context management, sliding window |
-| Fire-and-forget approval (bug #2402, still not truly blocking) | **Structural blocking** via Promise — no code path around it |
-| `elevated: "full"` bypasses all safety | No bypass mode. Every L2+ action goes through gate |
-| Credentials in plaintext | Sensitive paths (.env, .ssh, .pem) L3-blocked — agent cannot read them |
-| 42,000+ exposed instances | Localhost-only by default |
-| Prompt injection via web/email content | 3-layer injection defense (user input, tool output, model response) |
-| 7.1% of ClawHub skills leak credentials | No public marketplace. Local-only tools + MCP with risk classification |
-| Infinite tool-call loops (issue #7500) | Max 15 iterations (`stepCountIs`) + consecutive error limit (3) |
-| CVE-2026-25253 (one-click RCE) | Optional web dashboard with Bearer auth, localhost-only by default |
+| Principle | Implementation |
+|-----------|---------------|
+| **Nothing leaves unreviewed** | Privacy layer anonymizes all data before cloud APIs. Credentials + biometrie never forwarded. |
+| **Local-first inference** | Qwen3 8B orchestrator runs locally. Qwen3-VL-2B for image classification (on-demand load/process/unload). |
+| **Structural blocking** | Promise-based approval gate — no code path around it, no bypass mode |
+| **Aggressive opt-out** | Unknown data is anonymized by default. User must explicitly whitelist. |
+| **Learn and remember** | Privacy decisions stored in SQLite + MD. Ask once, never again. |
+| **Deterministic where possible** | 90% of risk + PII decisions are regex/pattern-based (zero LLM latency) |
+| **Localhost by default** | No public endpoints. Optional dashboard with Bearer auth. |
+| **Tamper-evident audit** | Hash-chained JSONL with SHA-256. Every tool call logged with cost/tokens/risk level. |
 
 ## OWASP Agentic Top 10 Coverage
 
