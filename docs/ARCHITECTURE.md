@@ -72,9 +72,8 @@
 | Component | Technology | Reasoning |
 |-----------|-----------|-----------|
 | **Language** | TypeScript (Node.js ≥22) | Async-native, best subprocess mgmt, same stack as OpenClaw/Claude Code |
-| **Orchestrator LLM** | Qwen3 8B via Ollama (default) | 0.933 tool-call F1, ~5GB Q4, ~40 tok/s — fits 18GB+ RAM comfortably |
-| **Orchestrator LLM (upgrade)** | Qwen3 14B via Ollama (optional) | 0.971 tool-call F1, ~9GB Q4 — requires 32GB+ RAM |
-| **Code Worker (future)** | Qwen3-Coder-Next via Ollama (optional) | 70.6% SWE-Bench, 80B/3B active MoE, ~52GB Q4 — requires 64GB+ RAM |
+| **Orchestrator LLM** | Qwen3 8B via Ollama (default) | 0.933 tool-call F1, ~5GB Q4, ~40 tok/s — fits 18GB+ RAM comfortably; configurable via `ORCHESTRATOR_MODEL` |
+| **Code Worker (coming soon)** | [Qwen3-Coder-Next](https://www.marktechpost.com/2026/02/03/qwen-team-releases-qwen3-coder-next-an-open-weight-language-model-designed-specifically-for-coding-agents-and-local-development/) via Ollama | 80B MoE / 3B active params, 70.6% SWE-Bench Verified, ~52GB Q4 — local code worker for simple tasks (64GB+ RAM) |
 | **LLM SDK** | Vercel AI SDK 6 (`ai` package) | `ToolLoopAgent` + `needsApproval` built-in, native Ollama provider, Zod tool schemas |
 | **Tool Integration** | MCP Client (`@modelcontextprotocol/sdk`) | Industry standard, 10K+ servers, wrapped by our risk classifier |
 | **Telegram Bot** | grammY | Best TS types, conversations plugin, active ecosystem |
@@ -330,7 +329,7 @@ geofrey.ai/
 | Decision | Choice | Alternative Considered | Why |
 |----------|--------|----------------------|-----|
 | Language | TypeScript | Python | Async-native, better subprocess streams, same stack as OpenClaw |
-| Default Orchestrator | Qwen3 8B | Qwen3 14B | 0.933 F1 sufficient for orchestration; fits 18GB RAM; 2x faster inference |
+| Default Orchestrator | Qwen3 8B | Other Ollama models | 0.933 F1 sufficient for orchestration; fits 18GB RAM; configurable via `ORCHESTRATOR_MODEL` |
 | LLM SDK | Vercel AI SDK 6 | OpenAI SDK | `ToolLoopAgent` + `needsApproval` eliminates custom agent loop code; native Ollama provider; Zod tool schemas |
 | Tool Integration | MCP Client | Custom-only registry | 10K+ existing MCP servers; industry standard; our risk classifier wraps all tools |
 | DB Layer | Drizzle ORM + better-sqlite3 | Raw better-sqlite3, Prisma | Type-safe queries, schema migrations, zero overhead; Prisma too heavy |
@@ -342,15 +341,13 @@ geofrey.ai/
 | Transport | Long Polling | Webhooks | Local-first, no public URL needed, simple |
 | State | SQLite | Redis, in-memory | Persistent across restarts, no extra server |
 
-## Hardware Tiers
+## Hardware Requirements
 
-| Tier | RAM | Orchestrator | Code Worker | Notes |
-|------|-----|-------------|-------------|-------|
-| **Minimum (default)** | 18GB+ Apple Silicon | Qwen3 8B (~5GB Q4) | Claude API | Comfortable headroom for OS + Node.js |
-| **Standard** | 32GB+ | Qwen3 14B (~9GB Q4) | Claude API | Better classification accuracy (0.971 vs 0.933 F1) |
-| **Power** | 96GB+ | Qwen3 14B (~9GB Q4) | Qwen3-Coder-Next (~52GB Q4) | Both models loaded simultaneously; tiered routing |
+- **RAM:** 18GB+ (Apple Silicon or equivalent) — Qwen3 8B needs ~5GB Q4, comfortable headroom for OS + Node.js
+- **Orchestrator:** Qwen3 8B via Ollama (tested default), configurable via `ORCHESTRATOR_MODEL` env var
+- **Code Worker:** Claude API (current) — complex coding tasks delegated to Claude Code CLI
 
-The **Power tier** enables tiered routing — the orchestrator routes simple tasks to the local Qwen3-Coder-Next (free) and only escalates complex tasks to Claude API, saving ~30-40% API costs.
+**Coming soon: Qwen3-Coder-Next as local code worker.** An [80B MoE model with only 3B active parameters](https://www.marktechpost.com/2026/02/03/qwen-team-releases-qwen3-coder-next-an-open-weight-language-model-designed-specifically-for-coding-agents-and-local-development/) (512 experts, 10 active + 1 shared per token), achieving 70.6% on SWE-Bench Verified at near-3B inference cost. This would enable tiered routing — simple coding tasks handled locally (free), complex tasks escalated to Claude API, saving ~30-40% API costs. Requires 64GB+ RAM (~52GB Q4).
 
 ## Graceful Shutdown
 

@@ -373,11 +373,9 @@ ls -lt /var/lib/geofrey/audit/ | head -5
 |-----------|-----|
 | geofrey (Node.js) | ~256-512 MB |
 | Ollama + Qwen3 8B (Q4) | ~5 GB |
-| Ollama + Qwen3 14B (Q4) | ~9 GB |
-| **Total (8B)** | **~6 GB** |
-| **Total (14B)** | **~10 GB** |
+| **Total** | **~6 GB** |
 
-Ensure the system has at least 8 GB RAM for the 8B model, or 16 GB for the 14B model, to leave headroom for the OS and other processes.
+Ensure the system has at least 8 GB RAM to leave headroom for the OS and other processes. The orchestrator model is configurable via `ORCHESTRATOR_MODEL` env var.
 
 ### WhatsApp Webhook
 

@@ -4,7 +4,7 @@
 A better alternative to [OpenClaw](https://github.com/openclaw/openclaw) (formerly Clawdbot/Moltbot) — an open-source personal AI agent with a **local LLM as orchestrator** that acts as a safety layer, prompt optimizer, and user communication bridge.
 
 ## Core Concept
-1. **Local LLM Orchestrator** (Qwen3 8B via Ollama, upgradable to 14B) — reviews and approves actions before execution
+1. **Local LLM Orchestrator** (Qwen3 8B via Ollama, configurable via `ORCHESTRATOR_MODEL`) — reviews and approves actions before execution
 2. **User Confirmation via Messaging** — "Do you really want to delete these photos?" via Telegram
 3. **Hybrid Risk Classification** — deterministic patterns + LLM for ambiguous cases
 4. **MCP Integration** — access 10K+ tool servers, wrapped by our safety layer
@@ -14,8 +14,8 @@ A better alternative to [OpenClaw](https://github.com/openclaw/openclaw) (former
 | Component | Technology |
 |-----------|-----------|
 | Language | **TypeScript** (Node.js ≥22) |
-| Orchestrator LLM | **Qwen3 8B** via Ollama (default) · Qwen3 14B (upgrade for 32GB+) |
-| Code Worker (future) | **Qwen3-Coder-Next** via Ollama (optional, 96GB+ RAM) |
+| Orchestrator LLM | **Qwen3 8B** via Ollama (default, configurable via `ORCHESTRATOR_MODEL`) |
+| Code Worker (coming soon) | **Qwen3-Coder-Next** via Ollama — 80B MoE / 3B active, 70.6% SWE-Bench (64GB+ RAM) |
 | LLM SDK | **Vercel AI SDK 6** (`ai` + `ai-sdk-ollama`) — ToolLoopAgent, needsApproval |
 | Tool Integration | **MCP Client** (`@modelcontextprotocol/sdk`) wrapped by risk classifier |
 | Messaging | **grammY** (Telegram) · **Cloud API** (WhatsApp) · **signal-cli** (Signal) |
@@ -129,7 +129,7 @@ src/
 
 ## Project Status
 - [x] Project initialized
-- [x] Research: local LLM options → **Qwen3 8B default, 14B upgrade**
+- [x] Research: local LLM options → **Qwen3 8B default** (configurable via `ORCHESTRATOR_MODEL`)
 - [x] Research: OpenClaw architecture analysis
 - [x] Research: system prompts knowledge base
 - [x] Architecture design → `docs/ARCHITECTURE.md`
@@ -191,8 +191,7 @@ src/
 |------|----------|-----------|
 | 2026-02-11 | Project created | Better OpenClaw with local AI orchestrator |
 | 2026-02-11 | Qwen3 8B as default orchestrator | 0.933 F1, 5GB Q4, ~40 tok/s — fits 18GB RAM comfortably |
-| 2026-02-11 | Qwen3 14B as upgrade orchestrator | 0.971 F1, 9GB Q4 — for 32GB+ RAM systems |
-| 2026-02-11 | Qwen3-Coder-Next as future code worker | 70.6% SWE-Bench, 80B/3B MoE, 52GB Q4 — for 96GB+ RAM (tiered routing) |
+| 2026-02-11 | Qwen3-Coder-Next as future code worker | 70.6% SWE-Bench, 80B/3B MoE, 52GB Q4 — local code worker for simple tasks (coming soon) |
 | 2026-02-11 | Mandatory blocking approvals | OpenClaw's fire-and-forget approval is a critical flaw (still not truly fixed) |
 | 2026-02-11 | TypeScript over Python | Async-native, better subprocess mgmt, same stack as OpenClaw/Claude Code |
 | 2026-02-11 | grammY for Telegram | Best TS types, conversations plugin, active ecosystem |
@@ -204,7 +203,7 @@ src/
 | 2026-02-11 | Drizzle ORM over raw better-sqlite3 | Type-safe queries, schema migrations, zero runtime overhead |
 | 2026-02-11 | Hybrid risk classification | Deterministic patterns (90%) + LLM fallback (10%) — no single point of failure |
 | 2026-02-11 | 3-layer prompt injection defense | User input, tool output, model response — each isolated as DATA |
-| 2026-02-11 | Power tier needs 96GB+ (not 64GB) | Both models loaded = ~61GB, leaves no headroom on 64GB |
+| 2026-02-13 | Removed 14B tier — single tested default | 0.933 F1 sufficient; 90% deterministic regex; 14B untested with our prompts; marginal gain at 2x RAM |
 | 2026-02-12 | XML over JSON for LLM classifier output | Qwen3 8B more reliable with XML tags; JSON fallback for backward compat |
 | 2026-02-12 | Shlex-style command decomposition | Prevents `ls && curl evil` bypass — each segment classified individually |
 | 2026-02-12 | Claude Code as primary coding agent | Local LLM as communication bridge + prompt optimizer + safety layer; Claude Code does actual coding |

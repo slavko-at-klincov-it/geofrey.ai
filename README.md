@@ -312,13 +312,11 @@ See `CLAUDE.md` for project conventions and key decisions log.
 
 **Hardware Requirements**
 
-| Tier | RAM | Orchestrator | Notes |
-|------|-----|-------------|-------|
-| Minimum | 18GB+ | Qwen3 8B (5GB) | M-series Mac, fits comfortably |
-| Standard | 32GB+ | Qwen3 14B (9GB) | Better classification accuracy |
-| Power | 96GB+ | Qwen3 14B + Qwen3-Coder-Next (61GB) | Both models loaded, tiered routing |
+- **RAM:** 18GB+ (M-series Mac or equivalent) — Qwen3 8B needs ~5GB Q4, leaving comfortable headroom
+- **Orchestrator:** Qwen3 8B via Ollama (default, tested) — configurable via `ORCHESTRATOR_MODEL` env var
+- The `ORCHESTRATOR_MODEL` accepts any Ollama model name, so you can experiment with other models as they become available
 
-The Power tier enables routing simple coding tasks to local Qwen3-Coder-Next (free) and complex tasks to Claude API, reducing API costs by an estimated 30-40%.
+> **Coming soon: Qwen3-Coder-Next** — a local code worker that would handle simple coding tasks entirely on-device, routing only complex tasks to Claude API. Qwen3-Coder-Next is an 80B Mixture-of-Experts model that activates only 3B parameters per token (512 experts, 10 active + 1 shared), achieving 70.6% on SWE-Bench Verified while running at near-3B inference cost. This would reduce API costs by an estimated 30-40%. Requires 64GB+ RAM (~52GB Q4). See [Qwen3-Coder-Next announcement](https://www.marktechpost.com/2026/02/03/qwen-team-releases-qwen3-coder-next-an-open-weight-language-model-designed-specifically-for-coding-agents-and-local-development/).
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
@@ -431,7 +429,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full system design.
 | Component | Technology |
 |-----------|-----------|
 | Language | TypeScript (Node.js 22+) |
-| Orchestrator | Qwen3 8B via Ollama (upgradable to 14B) |
+| Orchestrator | Qwen3 8B via Ollama (configurable via `ORCHESTRATOR_MODEL`) |
 | Coding Agent | Claude Code CLI (stream-json, sessions, risk-scoped tool profiles) |
 | LLM SDK | Vercel AI SDK 6 (`generateText`, `streamText`, `tool` with `needsApproval`) |
 | Tool Integration | MCP Client (10K+ servers, wrapped by risk classifier) |
@@ -440,13 +438,11 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full system design.
 | Audit | Append-only hash-chained JSONL (with Claude Code cost/token tracking) |
 | Validation | Zod |
 
-### Hardware Tiers
+### Local LLM
 
-| Tier | RAM | Model | Cost |
-|------|-----|-------|------|
-| Minimum | 18GB+ (M-series Mac) | Qwen3 8B (5GB) | $0/month |
-| Standard | 32GB+ | Qwen3 14B (9GB) | $0/month |
-| Power | 96GB+ | Qwen3 14B + Qwen3-Coder-Next (61GB) | $0/month |
+The orchestrator runs **Qwen3 8B** (~5GB Q4, ~40 tok/s on Apple Silicon) — our tested default. The model is configurable via `ORCHESTRATOR_MODEL` env var (any Ollama model). Requires 18GB+ RAM.
+
+**Coming soon:** [Qwen3-Coder-Next](https://www.marktechpost.com/2026/02/03/qwen-team-releases-qwen3-coder-next-an-open-weight-language-model-designed-specifically-for-coding-agents-and-local-development/) as local code worker — 80B MoE with only 3B active parameters, 70.6% SWE-Bench Verified, enabling on-device coding for simple tasks (64GB+ RAM, ~52GB Q4).
 
 ---
 
@@ -656,7 +652,7 @@ OpenClaw (ehemals Clawdbot/Moltbot) ist die bekannteste Open-Source AI-Agent-Pla
 - **Keine Execution-Sandbox** — verlässt sich auf Claude Codes eigene Sandboxing-Mechanismen
 - **Single-User** — persönlicher Agent, beschränkt auf Owner-ID/Telefonnummer
 - **Kein Offline-Modus** — Messaging-Plattform erforderlich für Approvals
-- **Orchestrator-Ceiling** — Qwen3 8B bei 0.933 F1 (Upgrade auf 14B mit 0.971 F1 auf 32GB+ Systemen)
+- **Orchestrator-Ceiling** — Qwen3 8B bei 0.933 F1 (ausreichend, da 90% der Klassifikation deterministisch via Regex erfolgt)
 
 ---
 

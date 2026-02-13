@@ -140,11 +140,11 @@ The orchestrator handles intent classification, risk assessment, and task decomp
 
 ### Hardware Requirements
 
-| Tier | RAM | Orchestrator | Monthly Cost |
-|------|-----|-------------|-------------|
-| **Minimum** | 18GB+ (M-series Mac) | Qwen3 8B (5GB) | $0 |
-| **Standard** | 32GB+ | Qwen3 14B (9GB) | $0 |
-| **Power** | 96GB+ | Qwen3 14B + Qwen3-Coder-Next (61GB) | $0 |
+- **RAM:** 18GB+ (M-series Mac or equivalent)
+- **Orchestrator:** Qwen3 8B via Ollama (~5GB Q4, ~40 tok/s on Apple Silicon) — $0/month
+- **Configurable:** `ORCHESTRATOR_MODEL` env var accepts any Ollama model
+
+**Coming soon:** [Qwen3-Coder-Next](https://www.marktechpost.com/2026/02/03/qwen-team-releases-qwen3-coder-next-an-open-weight-language-model-designed-specifically-for-coding-agents-and-local-development/) as local code worker — 80B MoE / 3B active parameters, 70.6% SWE-Bench Verified, enabling on-device coding for simple tasks and reducing API costs by ~30-40% (requires 64GB+ RAM, ~52GB Q4).
 
 ---
 

@@ -1,4 +1,4 @@
-# Orchestrator System Prompts — Qwen3 8B (default) / 14B (upgrade)
+# Orchestrator System Prompts — Qwen3 8B (default)
 
 > Four focused prompts for the local orchestrator, optimized for small models (8B).
 > Synthesized from analysis of Claude Code, GPT-5 Agent Mode, Codex CLI, and Warp 2.0 prompts.

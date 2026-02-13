@@ -26,7 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Local LLM orchestrator using Qwen3 8B via Ollama (upgradable to 14B for 32GB+ systems)
+- Local LLM orchestrator using Qwen3 8B via Ollama (configurable via `ORCHESTRATOR_MODEL`)
 - Vercel AI SDK 6 integration with ToolLoopAgent and streamText for agent loop
 - Hybrid risk classification (L0-L3) combining deterministic pattern matching (~90%) with LLM fallback (~10%)
 - Promise-based approval gate that blocks execution until user confirms (nonce-based IDs)
