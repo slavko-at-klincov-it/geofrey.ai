@@ -1,4 +1,5 @@
 import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
+import { sql } from "drizzle-orm";
 
 export const conversations = sqliteTable("conversations", {
   id: text("id").primaryKey(),
@@ -106,5 +107,15 @@ export const agentSessions = sqliteTable("agent_sessions", {
   chatId: text("chat_id").notNull(),
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
+});
+
+export const privacyRules = sqliteTable("privacy_rules", {
+  id: text("id").primaryKey(),
+  category: text("category").notNull(), // "email" | "name" | "path" | "secret" | "custom"
+  pattern: text("pattern").notNull(), // regex string or literal
+  action: text("action").notNull(), // "anonymize" | "block" | "allow"
+  scope: text("scope").notNull().default("global"), // "global" | "session"
+  label: text("label"), // optional human-readable label
+  createdAt: text("created_at").notNull().default(sql`(datetime('now'))`),
 });
 

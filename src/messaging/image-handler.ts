@@ -4,6 +4,8 @@ import { join } from "node:path";
 import sharp from "sharp";
 import { sanitizeImage, buildSanitizeAuditEntry, type SanitizationReport } from "../security/image-sanitizer.js";
 import { appendAuditEntry } from "../audit/audit-log.js";
+import { classifyImage, shouldBlockImage, shouldOcrOnly, getVisionConfig } from "../privacy/image-classifier.js";
+import { t } from "../i18n/index.js";
 import type { Config } from "../config/schema.js";
 import type { ImageAttachment } from "./platform.js";
 
@@ -53,19 +55,47 @@ export async function processImage(
   const storagePath = join(STORAGE_DIR, `${uuid}.${ext}`);
   await writeFile(storagePath, sanitizedBuffer);
 
+  // Classify image via VL model (if configured)
+  const vlConfigured = getVisionConfig() !== null;
+  let skipOcr = false;
+  let skipDescription = false;
+
+  if (vlConfigured) {
+    const classification = await classifyImage(sanitizedBuffer);
+
+    // Block images with faces — never leave the machine
+    if (shouldBlockImage(classification)) {
+      return {
+        description: t("privacy.imageBlocked"),
+        storagePath,
+        report,
+        ocrText: "",
+      };
+    }
+
+    if (shouldOcrOnly(classification)) {
+      skipDescription = true;
+    }
+
+    // For "describe" routing: do both OCR + description (default behavior)
+    // For "pass_through" routing: existing behavior (no change)
+  }
+
   // OCR via tesseract.js (lazy import, non-fatal)
   let ocrText = "";
-  try {
-    const { createWorker } = await import("tesseract.js");
-    const worker = await createWorker("eng");
+  if (!skipOcr) {
     try {
-      const { data: { text } } = await worker.recognize(sanitizedBuffer);
-      ocrText = text.trim().slice(0, OCR_MAX_CHARS);
-    } finally {
-      await worker.terminate();
+      const { createWorker } = await import("tesseract.js");
+      const worker = await createWorker("eng");
+      try {
+        const { data: { text } } = await worker.recognize(sanitizedBuffer);
+        ocrText = text.trim().slice(0, OCR_MAX_CHARS);
+      } finally {
+        await worker.terminate();
+      }
+    } catch (err) {
+      console.warn("OCR failed (non-fatal):", err);
     }
-  } catch (err) {
-    console.warn("OCR failed (non-fatal):", err);
   }
 
   // Build text description for orchestrator
@@ -75,6 +105,10 @@ export async function processImage(
 
   if (report.suspiciousFindings.length > 0) {
     parts.push(`WARNING: ${report.suspiciousFindings.length} suspicious metadata finding(s) stripped`);
+  }
+
+  if (vlConfigured && skipDescription) {
+    parts.push(t("privacy.imageOcrOnly"));
   }
 
   if (ocrText) {

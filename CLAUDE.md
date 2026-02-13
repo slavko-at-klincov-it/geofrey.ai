@@ -221,6 +221,20 @@ src/
 │       ├── auth.test.ts
 │       ├── gmail.test.ts
 │       └── calendar.test.ts
+├── privacy/
+│   ├── rules-store.ts       # Privacy rules CRUD (Drizzle ORM, SQLite)
+│   ├── profile-pii.ts       # Extract PII terms from user profile
+│   ├── image-classifier.ts  # Qwen3-VL-2B on-demand image classification
+│   ├── email-preprocessor.ts # Email anonymization before Claude Code
+│   ├── output-filter.ts     # Credential redaction in Claude Code output
+│   ├── privacy-approval.ts  # Privacy decision flow + rule creation
+│   ├── rules-store.test.ts
+│   ├── rules-integration.test.ts
+│   ├── profile-pii.test.ts
+│   ├── image-classifier.test.ts
+│   ├── email-preprocessor.test.ts
+│   ├── output-filter.test.ts
+│   └── privacy-approval.test.ts
 ├── profile/
 │   ├── schema.ts            # Zod user profile schema (calendar/notes/tasks/proactive)
 │   ├── store.ts             # JSON persistence (.geofrey/profile.json) + caching
@@ -312,7 +326,7 @@ src/
 - [x] Integration: Claude Code subprocess driver
 - [x] DB: Drizzle schema + migrations
 - [x] Audit log
-- [x] Unit tests (~1000 tests — node:test runner)
+- [x] Unit tests (~1076 tests — node:test runner)
 - [x] Security: obfuscation-resistant L3 patterns (path variants, script network, base64, chmod +x)
 - [x] Security: MCP output sanitization (DATA boundary tags, instruction filtering)
 - [x] Security: MCP server allowlist (`mcp.allowedServers` config)
@@ -369,20 +383,21 @@ src/
 - [x] Extended Onboarding (profile, integrations, proactive wizard steps)
 - [x] Proactive Agent (Morning Brief, Calendar Watch, Email Monitor via scheduler)
 - [x] Memory System Wiring (autoRecall, startup indexing, structured entries, decision conflict guard, re-index triggers)
+- [x] Privacy Layer v2.1 (privacy_rules DB, image classifier, email pre-processing, output filter, approval flow, profile→anonymizer)
 
 ## Roadmap
 
-### Next — Privacy Layer (v2.1)
-- [ ] Privacy Memory: `privacy_rules` SQLite table + MD export
-- [ ] Approval flow: "Soll ich X anonymisieren? Global oder nur hier?"
-- [ ] Image classifier: Qwen3-VL-2B on-demand (load → process → unload)
-- [ ] Image routing: category → OCR-only / describe / block
-- [ ] Email pre-processing: anonymize before Claude Code
-- [ ] Hard block enforcement: credentials + biometrie bypass prevention
-- [ ] Rule lookup in anonymizer: check privacy_rules DB before LLM pass
-- [ ] Benchmark: Risk Classifier LLM path — `pnpm benchmark:classifier qwen3:8b`
-- [ ] Profile → Anonymizer: Name, VIP-Emails als custom PII-Patterns beim Startup registrieren
-- [ ] Proaktive Tasks: expliziter `SIMPLE_TASK`-Hint in Templates, damit Orchestrator nie Claude Code dafür nutzt
+### Completed — Privacy Layer (v2.1)
+- [x] Privacy Memory: `privacy_rules` SQLite table + MD export + CRUD tool
+- [x] Approval flow: "Soll ich X anonymisieren? Global oder nur hier?"
+- [x] Image classifier: Qwen3-VL-2B on-demand (load → process → unload)
+- [x] Image routing: category → OCR-only / describe / block (faces → block)
+- [x] Email pre-processing: anonymize headers/body before Claude Code
+- [x] Hard block enforcement: output filter redacts leaked credentials
+- [x] Rule lookup in anonymizer: check privacy_rules DB before LLM pass (allow/anonymize/block)
+- [x] Profile → Anonymizer: Name, VIP-Emails als custom PII-Patterns beim Startup
+- [x] Proaktive Tasks: expliziter `SIMPLE_TASK`-Hint in Templates
+- [ ] Benchmark: Risk Classifier LLM path — `pnpm benchmark:classifier qwen3:8b` (deferred)
 
 ### Auto-Tooling — Self-Extending Agent (v2.2)
 
@@ -492,3 +507,7 @@ Wenn geofrey eine Aufgabe nicht mit bestehenden Tools erfüllen kann, erkennt er
 | 2026-02-14 | User Profile in JSON, not DB | User can read/edit `.geofrey/profile.json`, version-control it; `null` = existing users unaffected |
 | 2026-02-14 | Proactive Jobs via existing Scheduler | `__proactive_` prefix for routing; no new system, reuses cron/every jobs |
 | 2026-02-14 | System Prompt Injection for Profile | Profile always available to LLM via `<user_profile>` XML block; no extra tool call needed |
+| 2026-02-14 | Privacy rules in SQLite, not config | Rules are dynamic (created via approval flow), need CRUD; config is static |
+| 2026-02-14 | VL model on-demand (load → unload) | Qwen3-VL-2B uses 2GB RAM; load per-image, unload after to keep footprint low |
+| 2026-02-14 | Output filter as defence-in-depth | Even after anonymization, scan Claude Code output for leaked credentials; belt-and-suspenders |
+| 2026-02-14 | Profile PII terms at startup | Name + VIP-emails injected into anonymizer customTerms once at boot; no per-request overhead |

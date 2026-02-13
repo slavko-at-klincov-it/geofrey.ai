@@ -462,7 +462,15 @@ registerTool({
     lastInvokeResult = result;
 
     // De-anonymize final result text
-    const resultText = deanonymize(result.text, table);
+    const rawText = deanonymize(result.text, table);
+
+    // Defence-in-depth: filter any leaked credentials from output
+    const { filterOutput } = await import("../privacy/output-filter.js");
+    const filtered = filterOutput(rawText);
+    if (filtered.redactedCount > 0) {
+      console.warn(`Output filter: redacted ${filtered.redactedCount} credential(s)`);
+    }
+    const resultText = filtered.text;
 
     if (result.exitCode === 0) {
       return resultText;

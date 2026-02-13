@@ -30,6 +30,7 @@ import { destroyAllSessions } from "./sandbox/session-pool.js";
 import { isDockerAvailable } from "./sandbox/container.js";
 import { createHub } from "./agents/hub.js";
 import { loadProfile } from "./profile/store.js";
+import { getProfilePiiTerms } from "./privacy/profile-pii.js";
 import { isProactiveTask, buildProactivePrompt } from "./proactive/handler.js";
 import { setupProactiveJobs } from "./proactive/setup.js";
 
@@ -53,6 +54,7 @@ import "./tools/companion.js";
 import "./tools/smart-home.js";
 import "./tools/gmail.js";
 import "./tools/calendar.js";
+import "./tools/privacy.js";
 
 function resolveOwnerChatId(config: ReturnType<typeof loadConfig>): string | null {
   switch (config.platform) {
@@ -133,6 +135,7 @@ async function main() {
   // Initialize anonymizer
   setAnonymizerConfig({
     ...config.anonymizer,
+    dbUrl: config.database.url,
     ollama: config.anonymizer.llmPass ? {
       ollamaBaseUrl: config.ollama.baseUrl,
       ollamaModel: config.ollama.model,
@@ -203,6 +206,22 @@ async function main() {
   // Health check Ollama (non-blocking)
   await healthCheckOllama(config.ollama.baseUrl);
 
+  // Initialize Vision model config for image classification
+  if (process.env.VISION_MODEL) {
+    const { setVisionConfig } = await import("./privacy/image-classifier.js");
+    setVisionConfig({
+      ollamaBaseUrl: config.ollama.baseUrl,
+      model: process.env.VISION_MODEL,
+    });
+    console.log(`Vision: ${process.env.VISION_MODEL} configured`);
+  }
+
+  // Initialize privacy tool DB URL
+  if (config.database.url) {
+    const { setPrivacyDbUrl } = await import("./tools/privacy.js");
+    setPrivacyDbUrl(config.database.url);
+  }
+
   // Apply MCP server allowlist (F10)
   setAllowedServers(config.mcp.allowedServers);
 
@@ -262,7 +281,23 @@ async function main() {
 
   // Load user profile
   const profile = await loadProfile();
-  if (profile) console.log(`Profile: ${profile.name} (${profile.timezone})`);
+  if (profile) {
+    console.log(`Profile: ${profile.name} (${profile.timezone})`);
+    // Merge profile PII terms into anonymizer config
+    const profileTerms = getProfilePiiTerms();
+    if (profileTerms.length > 0) {
+      setAnonymizerConfig({
+        ...config.anonymizer,
+        customTerms: [...config.anonymizer.customTerms, ...profileTerms],
+        dbUrl: config.database.url,
+        ollama: config.anonymizer.llmPass ? {
+          ollamaBaseUrl: config.ollama.baseUrl,
+          ollamaModel: config.ollama.model,
+        } : undefined,
+      });
+      console.log(`Anonymizer: ${profileTerms.length} PII terms from profile`);
+    }
+  }
 
   // Initialize Google OAuth
   if (config.google.enabled && config.google.clientId) {

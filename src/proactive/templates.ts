@@ -58,7 +58,7 @@ export function buildMorningBriefPrompt(data: MorningBriefData, userName: string
     return t("proactive.morning.empty", { name: userName });
   }
 
-  return `Bitte fasse diesen Morning Brief zusammen und schicke ihn dem User:\n\n${content}`;
+  return `Bitte fasse diesen Morning Brief zusammen und schicke ihn dem User:\n\n${content}\n\n<task_hint>SIMPLE_TASK — handle this directly, do NOT use claude_code tool.</task_hint>`;
 }
 
 export function buildCalendarReminderPrompt(events: CalendarEvent[]): string | null {
@@ -68,7 +68,7 @@ export function buildCalendarReminderPrompt(events: CalendarEvent[]): string | n
     const minutesUntil = Math.round((start.getTime() - Date.now()) / 60_000);
     return t("proactive.calendar.reminder", { minutes: String(minutesUntil), event: ev.summary });
   });
-  return `Bitte erinnere den User an folgende Termine:\n\n${lines.join("\n")}`;
+  return `Bitte erinnere den User an folgende Termine:\n\n${lines.join("\n")}\n\n<task_hint>SIMPLE_TASK — handle this directly, do NOT use claude_code tool.</task_hint>`;
 }
 
 export function buildEmailAlertPrompt(emails: GmailMessage[]): string | null {
@@ -76,5 +76,5 @@ export function buildEmailAlertPrompt(emails: GmailMessage[]): string | null {
   const lines = emails.map((m) =>
     t("proactive.email.alert", { sender: m.from, subject: m.subject }),
   );
-  return `Bitte informiere den User über folgende wichtige Mails:\n\n${lines.join("\n")}`;
+  return `Bitte informiere den User über folgende wichtige Mails:\n\n${lines.join("\n")}\n\n<task_hint>SIMPLE_TASK — handle this directly, do NOT use claude_code tool.</task_hint>`;
 }

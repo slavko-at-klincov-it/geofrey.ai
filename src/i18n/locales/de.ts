@@ -518,6 +518,20 @@ export const de: Record<TranslationKey, string> = {
   "onboarding.proactive.email.vip.hint": "z.B. chef@firma.de, support@wichtig.de",
   "onboarding.proactive.email.keywords.hint": "z.B. dringend, invoice, deploy",
 
+  // privacy / image-classifier
+  "privacy.imageBlocked": "Bild enthält Gesichter — aus Datenschutzgründen blockiert.",
+  "privacy.imageOcrOnly": "Bild wird nur lokal per OCR verarbeitet (kein Cloud-Upload).",
+  "privacy.imageClassifying": "Bild wird klassifiziert...",
+
+  // privacy / approval flow
+  "privacy.askAnonymize": "Ich habe {category} erkannt: \u201E{pattern}\u201C. Soll ich das anonymisieren?",
+  "privacy.askScope": "Global (immer) oder nur in dieser Sitzung?",
+  "privacy.scopeGlobal": "Global (immer)",
+  "privacy.scopeSession": "Nur diese Sitzung",
+  "privacy.ruleCreated": "Datenschutzregel erstellt: {pattern} \u2192 {action}",
+  "privacy.noRules": "Keine Datenschutzregeln definiert.",
+  "privacy.rulesExported": "Datenschutzregeln exportiert.",
+
   // proactive runtime
   "proactive.morning.title": "Guten Morgen, {name}!",
   "proactive.morning.calendar.section": "Deine Termine heute",

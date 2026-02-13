@@ -498,6 +498,20 @@ export type TranslationKey =
   | "onboarding.proactive.email.vip.hint"
   | "onboarding.proactive.email.keywords.hint"
 
+  // privacy / image-classifier
+  | "privacy.imageBlocked"
+  | "privacy.imageOcrOnly"
+  | "privacy.imageClassifying"
+
+  // privacy / approval flow
+  | "privacy.askAnonymize"
+  | "privacy.askScope"
+  | "privacy.scopeGlobal"
+  | "privacy.scopeSession"
+  | "privacy.ruleCreated"
+  | "privacy.noRules"
+  | "privacy.rulesExported"
+
   // proactive runtime
   | "proactive.morning.title"
   | "proactive.morning.calendar.section"

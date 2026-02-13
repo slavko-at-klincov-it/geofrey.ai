@@ -8,12 +8,14 @@ import { detectPatterns, detectCustomTerms, type PatternMatch } from "./patterns
 import { buildMappingTable, applyAnonymization, type MappingTable } from "./mapping.js";
 import { deanonymize, createDeanonymizeStream } from "./deanonymizer.js";
 import { extractNamesWithLlm, type LlmExtractorConfig } from "./llm-extractor.js";
+import { listRules } from "../privacy/rules-store.js";
 
 export interface AnonymizerConfig {
   enabled: boolean;
   llmPass: boolean;
   customTerms: string[];
   skipCategories: string[];
+  dbUrl?: string;
   ollama?: LlmExtractorConfig;
 }
 
@@ -37,6 +39,31 @@ export async function anonymize(
   if (!config.enabled) {
     const emptyTable = buildMappingTable([]);
     return { text, table: emptyTable, matchCount: 0 };
+  }
+
+  // Load privacy rules if DB configured
+  if (config.dbUrl) {
+    try {
+      const rules = listRules(config.dbUrl);
+      const extraTerms: string[] = [];
+      for (const rule of rules) {
+        if (rule.action === "anonymize") {
+          extraTerms.push(rule.pattern);
+        }
+        if (rule.action === "block") {
+          const regex = new RegExp(rule.pattern, "gi");
+          if (regex.test(text)) {
+            // Treat blocked content as anonymize — mark for removal
+            extraTerms.push(rule.pattern);
+          }
+        }
+      }
+      if (extraTerms.length > 0) {
+        config = { ...config, customTerms: [...config.customTerms, ...extraTerms] };
+      }
+    } catch {
+      // Non-critical: rule lookup failure shouldn't break anonymization
+    }
   }
 
   const skipCategories = new Set(config.skipCategories);
@@ -64,8 +91,25 @@ export async function anonymize(
     }
   }
 
-  // Step 4: Build mapping table and apply
-  const deduped = deduplicateMatches(allMatches);
+  // Step 4: Filter out "allow" rules, then build mapping table and apply
+  let filtered = allMatches;
+  if (config.dbUrl) {
+    try {
+      const rules = listRules(config.dbUrl);
+      const allowPatterns = rules
+        .filter((r) => r.action === "allow")
+        .map((r) => r.pattern.toLowerCase());
+      if (allowPatterns.length > 0) {
+        filtered = allMatches.filter(
+          (m) => !allowPatterns.includes(m.value.toLowerCase()),
+        );
+      }
+    } catch {
+      // Non-critical: allow rule lookup failure shouldn't break anonymization
+    }
+  }
+
+  const deduped = deduplicateMatches(filtered);
   const table = buildMappingTable(deduped, text);
   const anonymized = applyAnonymization(text, table);
 
