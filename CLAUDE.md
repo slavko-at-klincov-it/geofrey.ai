@@ -266,8 +266,8 @@ src/
 - [x] Deployment guide (Docker, systemd, PM2)
 - [x] npm CLI entry point (`geofrey` / `geofrey setup`)
 - [x] CHANGELOG.md
-- [x] v1.0.0 release
-- [x] v1.0.1 release — image metadata sanitizer (EXIF/XMP/IPTC stripping + injection scanning)
+- [x] ~~v1.0.0 release~~ (deleted due to bugs)
+- [x] ~~v1.0.1 release~~ (deleted due to bugs)
 - [x] Image upload support (Telegram/WhatsApp/Signal → sanitize → OCR → text description to orchestrator)
 - [x] OpenClaw gap analysis → `docs/OPENCLAW_GAP_ANALYSIS.md`
 - [x] Web-Dashboard + WebChat (SSE streaming, REST API, Bearer auth, dark theme UI)

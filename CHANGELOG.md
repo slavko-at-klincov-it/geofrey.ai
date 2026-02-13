@@ -188,7 +188,7 @@ Phase 1 — Essentials release. All 5 roadmap features implemented.
 - 3 new Drizzle migrations with full snapshots
 - 430 total tests (up from 225), 0 failures
 
-## [1.0.1] - 2026-02-12
+## 1.0.1 - 2026-02-12 (release deleted)
 
 ### Added
 
@@ -205,7 +205,7 @@ Phase 1 — Essentials release. All 5 roadmap features implemented.
 
 - Image metadata side channel defense — prevents prompt injection via EXIF/XMP/IPTC fields
 
-## [1.0.0] - 2026-02-12
+## 1.0.0 - 2026-02-12 (release deleted)
 
 ### Added
 

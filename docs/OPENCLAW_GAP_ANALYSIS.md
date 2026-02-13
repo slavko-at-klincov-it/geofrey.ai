@@ -180,7 +180,7 @@
 | Pulumi (AWS/Hetzner) | ✅ | — | ❌ |
 | DigitalOcean 1-Click | ✅ | — | ❌ |
 | Nix Package Manager | ✅ | — | ❌ |
-| Release Channels (stable/beta/dev) | ✅ | — (nur v1.0.x) | ❌ |
+| Release Channels (stable/beta/dev) | ✅ | — (keine Releases) | ❌ |
 | `doctor` Diagnostik-Tool | ✅ Config-Validation, Auto-Repair | — | ❌ |
 
 **Priorität:** `doctor`-Diagnostik und launchd sind nice-to-have. Deployment ist bereits solide.
