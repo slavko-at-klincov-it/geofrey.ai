@@ -36,11 +36,6 @@
 │                    └──────┬───────┘                              │
 │                           │                                      │
 │                    ┌──────▼───────┐                              │
-│                    │ Execution    │                              │
-│                    │ Guard        │── final revocation check     │
-│                    └──────┬───────┘                              │
-│                           │                                      │
-│                    ┌──────▼───────┐                              │
 │                    │ Audit Log    │── append-only, hash-chained  │
 │                    └──────────────┘                              │
 └──────────────────────┬───────────────────────────────────────────┘
@@ -102,8 +97,10 @@ Risk classification uses a **two-layer approach**:
 ### Escalation Rules
 
 - Unknown/ambiguous actions → **L2** (fail-safe)
-- Command injection detected (backticks, `$()`, `&&`, `||`, `;`) → **L3**
-- Sensitive paths (`.env`, `.ssh`, credentials, `*.pem`) → escalate **+1 level**
+- **Command decomposition** — shlex-style split on `&&`, `||`, `;`, `|`, `\n` (quote-aware) — each segment classified individually, highest risk wins
+- Command injection detected (backticks, `$()`) → **L3**
+- Bare shell interpreters (`sh`, `bash`, `zsh`, `cmd.exe`, `powershell.exe`, `pwsh.exe`) → **L3**
+- Sensitive paths (`.env`, `.ssh`, credentials, `*.pem`, `*.key`, `*.secret`) → escalate **+1 level**
 - Config files (`.github/workflows/*`, `package.json`, `tsconfig.json`, `Dockerfile`, CI configs) → escalate to **L2 minimum**
 - Hard blocklist overrides everything → **L3**
 - `git push` (non-force) → **L2**; `git push --force` → **L3**
@@ -118,7 +115,7 @@ Agent calls tool → Deterministic Classifier → known? ──yes──→ appl
                                               │
                                               ▼
                                     LLM Classifier (Qwen3 8B)
-                                    Returns: { level: "L2", reason: "..." }
+                                    Returns: { level: "L2", reason: "...", deterministic: bool }
                                               │
                                               ▼
                                L2 detected → Create Promise<boolean>
@@ -155,7 +152,6 @@ Agent calls tool → Deterministic Classifier → known? ──yes──→ appl
 - Timeout = denial (default 5 min)
 - Network loss = pause timers, resend on reconnect (grammY retry with exponential backoff, max 3 retries → offline mode)
 - The agent is structurally suspended — no code path from "pending" to "execute" without explicit approval
-- Execution Guard does a final revocation check before running
 - **Nonce-based approval tokens** — stale Telegram callbacks are rejected with "This approval has expired"
 - **Serialized L2+ actions** — only one pending approval at a time to prevent user confusion
 - After timeout-denial: agent receives `USER_DENIED_TIMEOUT` and must NOT retry the same action without new user input
@@ -165,12 +161,10 @@ Agent calls tool → Deterministic Classifier → known? ──yes──→ appl
 
 | Failure Mode | Protection |
 |---|---|
-| Infinite loops | Max 15 iterations per agent loop + 60s global timeout |
-| Same action retry | Loop detection: same tool + same params 3x = abort |
-| Excessive retries | `maxConsecutiveErrors: 3` → escalate to user |
-| Context overflow | Truncate tool outputs to configurable max, summarize large results |
-| Goal drift | Re-inject original user goal at each step |
-| Resource exhaustion | Token budget per task (configurable) |
+| Infinite loops | `stopWhen: stepCountIs(maxAgentSteps)` — default 15 iterations per agent loop |
+| Excessive retries | `maxConsecutiveErrors: 3` → warning to user, counter reset |
+| Context overflow | History limited to last 50 messages (`MAX_HISTORY_MESSAGES`) |
+| Resource exhaustion | Token budget per Claude Code invocation (configurable via `CLAUDE_CODE_MAX_BUDGET_USD`) |
 
 ## Prompt Injection Defense (3-Layer)
 
@@ -247,7 +241,7 @@ geofrey.ai/
 ├── Dockerfile                   # Multi-stage build (builder + runtime)
 ├── docker-compose.yml           # geofrey + Ollama services
 ├── bin/
-│   └── geofrey.mjs             # CLI entry point (geofrey / geofrey setup)
+│   └── geofrey.mjs             # CLI entry point (geofrey / geofrey setup / geofrey index)
 ├── docs/
 │   ├── ARCHITECTURE.md          # This file
 │   ├── DEPLOYMENT.md            # Docker, systemd, PM2, production tips
@@ -259,7 +253,7 @@ geofrey.ai/
 ├── src/
 │   ├── index.ts                 # Entry point + graceful shutdown handler
 │   ├── orchestrator/
-│   │   ├── agent-loop.ts        # Vercel AI SDK generateText/streamText wrapper
+│   │   ├── agent-loop.ts        # Vercel AI SDK streamText wrapper + approval/audit hooks
 │   │   ├── conversation.ts      # Multi-turn conversation manager
 │   │   └── prompt-generator.ts  # Task templates for downstream models
 │   ├── approval/
@@ -286,18 +280,37 @@ geofrey.ai/
 │   │   ├── claude-code.ts       # Claude Code CLI subprocess driver
 │   │   ├── shell.ts             # Shell command executor
 │   │   ├── filesystem.ts        # File read/write/delete (directory confinement)
-│   │   └── git.ts               # Git operations
+│   │   ├── git.ts               # Git operations
+│   │   ├── search.ts            # Recursive content search (regex, max 20 results)
+│   │   └── project-map.ts       # Project structure queries (.geofrey/project-map.json)
 │   ├── audit/
 │   │   └── audit-log.ts         # Append-only hash-chained JSONL log
 │   ├── db/
 │   │   ├── client.ts            # better-sqlite3 + Drizzle ORM + migrate()
 │   │   └── schema.ts            # Drizzle table definitions
+│   ├── indexer/
+│   │   ├── cli.ts               # CLI entry point (geofrey index / pnpm index)
+│   │   ├── index.ts             # Incremental project indexer (AST parsing, mtime cache)
+│   │   ├── parser.ts            # TypeScript Compiler API → exports/imports extraction
+│   │   └── summary.ts           # File categorization + summary generation
 │   ├── onboarding/
 │   │   ├── check.ts             # Claude Code startup check
 │   │   ├── setup.ts             # CLI entry point (pnpm setup)
 │   │   ├── wizard.ts            # Interactive setup wizard orchestrator
-│   │   ├── steps/               # Wizard steps (prerequisites, platform, credentials)
-│   │   └── utils/               # UI, prompts, validators, clipboard, OCR
+│   │   ├── steps/
+│   │   │   ├── prerequisites.ts # Node/Ollama/Claude Code checks
+│   │   │   ├── platform.ts      # Platform selection
+│   │   │   ├── telegram.ts      # Bot token + auto-ID detection
+│   │   │   ├── whatsapp.ts      # WhatsApp Business setup
+│   │   │   ├── signal.ts        # Signal setup
+│   │   │   ├── claude-auth.ts   # Claude Code authentication
+│   │   │   └── summary.ts       # Config review + .env generation
+│   │   └── utils/
+│   │       ├── ui.ts            # chalk/ora formatting
+│   │       ├── prompt.ts        # @inquirer/prompts wrappers
+│   │       ├── validate.ts      # Token/credential validators (API calls)
+│   │       ├── clipboard.ts     # clipboardy token extraction
+│   │       └── ocr.ts           # tesseract.js screenshot → token
 │   ├── e2e/
 │   │   └── agent-flow.test.ts   # 32 E2E integration tests
 │   └── config/
@@ -362,7 +375,7 @@ On SIGTERM/SIGINT:
 | 42,000+ exposed instances | Localhost-only by default |
 | Prompt injection via web/email content | 3-layer injection defense (user input, tool output, model response) |
 | 7.1% of ClawHub skills leak credentials | No public marketplace. Local-only tools + MCP with risk classification |
-| Infinite tool-call loops (issue #7500) | Max 15 iterations + 60s timeout + loop detection + consecutive error limit |
+| Infinite tool-call loops (issue #7500) | Max 15 iterations (`stepCountIs`) + consecutive error limit (3) |
 | CVE-2026-25253 (one-click RCE) | No web interface, no public endpoints |
 
 ## OWASP Agentic Top 10 Coverage

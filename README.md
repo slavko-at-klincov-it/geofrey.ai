@@ -129,6 +129,7 @@ ORCHESTRATOR_MODEL=qwen3:8b
 # Limits
 MAX_AGENT_STEPS=15
 APPROVAL_TIMEOUT_MS=300000
+MAX_CONSECUTIVE_ERRORS=3
 ```
 
 See `.env.example` for all available options including WhatsApp, Signal, MCP servers, and Claude Code advanced settings.
@@ -168,9 +169,10 @@ See `docs/ARCHITECTURE.md` for full technical details.
 ### Escalation Rules
 
 - Unknown/ambiguous actions default to L2 (fail-safe)
-- Sensitive paths (`.env`, `.ssh`, credentials) escalate +1 level
+- Sensitive paths (`.env`, `.ssh`, `.pem`, `.key`, `credentials`, `secret`) escalate +1 level
 - Config files (`.github/workflows/*`, `package.json`, CI configs) escalate to L2 minimum
-- Command injection patterns (`&&`, `||`, `;`, `|`) decomposed and each segment classified individually
+- Bare shell interpreters (`sh`, `bash`, `cmd.exe`, `powershell.exe`) → L3
+- Command injection patterns (`&&`, `||`, `;`, `|`, `\n`) decomposed via shlex-style split — each segment classified individually
 
 ## Supported Platforms
 
@@ -183,7 +185,7 @@ See `docs/ARCHITECTURE.md` for full technical details.
 ### WhatsApp
 
 - **Interface**: Interactive buttons (max 3 per message)
-- **Features**: Webhook-based, official Cloud API
+- **Features**: Webhook-based, official Cloud API, HMAC-SHA256 signature validation
 - **Setup**: Business phone number ID, permanent access token, webhook verification token
 - **Note**: Enable "Advanced Chat Privacy" in WhatsApp settings for the bot chat (client-side setting)
 
@@ -333,6 +335,7 @@ See `CLAUDE.md` for project conventions and key decisions log.
 | `SIGNAL_OWNER_PHONE` | Signal | — | Owner phone (e.g. `+491234567890`) |
 | `SIGNAL_BOT_PHONE` | Signal | — | Bot's Signal number |
 | `ORCHESTRATOR_MODEL` | No | `qwen3:8b` | Ollama model name |
+| `ORCHESTRATOR_NUM_CTX` | No | `16384` | Context window size (increase to 32768 on 32GB+ systems) |
 | `OLLAMA_BASE_URL` | No | `http://localhost:11434` | Ollama API URL |
 | `DATABASE_URL` | No | `./data/app.db` | SQLite database path |
 | `AUDIT_LOG_DIR` | No | `./data/audit` | Audit log directory |
@@ -362,6 +365,8 @@ geofrey.ai checks authentication on startup and shows actionable instructions if
 | `CLAUDE_CODE_TIMEOUT_MS` | `600000` | Timeout per invocation (10 min) |
 | `CLAUDE_CODE_MAX_BUDGET_USD` | — | Optional spend cap per invocation |
 | `CLAUDE_CODE_DEFAULT_DIRS` | — | Comma-separated additional working directories |
+| `CLAUDE_CODE_OUTPUT_FORMAT` | `stream-json` | Output format (`json`, `stream-json`, `text`) |
+| `CLAUDE_CODE_SESSION_TTL_MS` | `3600000` | Session TTL (1 hour, auto-expires inactive sessions) |
 | `CLAUDE_CODE_MCP_CONFIG` | — | Path to MCP config for Claude Code |
 
 **Tool profiles** are automatically scoped by risk level:
@@ -380,29 +385,30 @@ geofrey.ai checks authentication on startup and shows actionable instructions if
 src/
 ├── index.ts                  # Entry point, health checks, graceful shutdown
 ├── orchestrator/
-│   ├── agent-loop.ts         # Vercel AI SDK 6 generateText/streamText + approval flow
+│   ├── agent-loop.ts         # Vercel AI SDK 6 streamText + approval flow
 │   ├── conversation.ts       # Multi-turn memory (in-memory + SQLite)
 │   └── prompt-generator.ts   # Task templates for downstream models
 ├── approval/
 │   ├── risk-classifier.ts    # Hybrid: deterministic regex (90%) + LLM (10%)
-│   ├── approval-gate.ts      # Promise-based blocking gate with nonce IDs
-│   ├── action-registry.ts    # Action definitions + default risk levels
-│   └── execution-guard.ts    # Final revocation check before execution
+│   └── approval-gate.ts      # Promise-based blocking gate with nonce IDs
 ├── messaging/
-│   ├── platform.ts           # MessagingPlatform interface + types
+│   ├── platform.ts           # MessagingPlatform + ImageAttachment interfaces
 │   ├── create-platform.ts    # Async factory: config → adapter
 │   ├── streamer.ts           # Platform-agnostic token streaming
+│   ├── image-handler.ts      # Image pipeline (sanitize → OCR → store → describe)
 │   └── adapters/
 │       ├── telegram.ts       # grammY bot + approval UI (inline buttons)
-│       ├── whatsapp.ts       # WhatsApp Business API (Cloud API, webhook)
+│       ├── whatsapp.ts       # WhatsApp Business API (Cloud API, webhook + HMAC-SHA256)
 │       └── signal.ts         # signal-cli JSON-RPC (text-based approvals)
 ├── tools/
 │   ├── tool-registry.ts      # Native + MCP tool registry → AI SDK bridge
 │   ├── mcp-client.ts         # MCP server discovery + tool wrapping
 │   ├── claude-code.ts        # Claude Code CLI subprocess driver
 │   ├── shell.ts              # Shell command executor
-│   ├── filesystem.ts         # File read/write/delete/list
-│   └── git.ts                # Git status/log/diff/commit
+│   ├── filesystem.ts         # File read/write/delete/list (directory confinement)
+│   ├── git.ts                # Git status/log/diff/commit
+│   ├── search.ts             # Recursive content search (regex, max 20 results)
+│   └── project-map.ts        # Project structure queries (.geofrey/project-map.json)
 ├── security/
 │   └── image-sanitizer.ts    # EXIF/XMP/IPTC stripping + injection scanning
 ├── audit/
@@ -410,6 +416,11 @@ src/
 ├── db/
 │   ├── client.ts             # SQLite + Drizzle ORM setup
 │   └── schema.ts             # Table definitions
+├── indexer/
+│   ├── cli.ts                # CLI entry point (geofrey index / pnpm index)
+│   ├── index.ts              # Incremental project indexer (AST parsing)
+│   ├── parser.ts             # TypeScript Compiler API → exports/imports
+│   └── summary.ts            # File categorization + summary generation
 ├── onboarding/
 │   ├── check.ts              # Claude Code startup check + onboarding messages
 │   ├── setup.ts              # Interactive setup wizard entry point (pnpm setup)
@@ -432,7 +443,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full system design.
 | Language | TypeScript (Node.js 22+) |
 | Orchestrator | Qwen3 8B via Ollama (configurable via `ORCHESTRATOR_MODEL`) |
 | Coding Agent | Claude Code CLI (stream-json, sessions, risk-scoped tool profiles) |
-| LLM SDK | Vercel AI SDK 6 (`generateText`, `streamText`, `tool` with `needsApproval`) |
+| LLM SDK | Vercel AI SDK 6 (`streamText`, `stepCountIs`, `needsApproval`) |
 | Tool Integration | MCP Client (10K+ servers, wrapped by risk classifier) |
 | Messaging | Telegram (grammY), WhatsApp (Cloud API), Signal (signal-cli) |
 | Database | SQLite + Drizzle ORM |
@@ -476,6 +487,7 @@ pnpm build        # TypeScript compilation
 pnpm lint         # Type check (tsc --noEmit)
 pnpm test         # 298 tests across 65 suites
 pnpm setup        # Interactive setup wizard
+pnpm index        # Generate project map (.geofrey/project-map.json)
 pnpm start        # Run compiled output
 pnpm db:generate  # Generate Drizzle migrations
 ```
