@@ -3,6 +3,8 @@ import { resolve } from "node:path";
 import { z } from "zod";
 import { registerTool } from "./tool-registry.js";
 import type { Config } from "../config/schema.js";
+import { anonymize, wrapStreamCallbacks, buildAnonymizerSystemPrompt, type AnonymizerConfig } from "../anonymizer/anonymizer.js";
+import { deanonymize } from "../anonymizer/deanonymizer.js";
 
 // --- Types ---
 
@@ -46,6 +48,7 @@ interface ClaudeSession {
 // --- Module state ---
 
 let claudeConfig: Config["claude"] | null = null;
+let anonymizerConfig: AnonymizerConfig | null = null;
 const sessions = new Map<string, ClaudeSession>();
 
 // Last invoke result for audit enrichment (read by agent-loop onStepFinish)
@@ -76,6 +79,10 @@ const CONCISE_SUFFIX =
 
 export function initClaudeCode(config: Config["claude"]): void {
   claudeConfig = config;
+}
+
+export function setAnonymizerConfig(config: AnonymizerConfig): void {
+  anonymizerConfig = config;
 }
 
 // --- Args builder ---
@@ -417,15 +424,35 @@ registerTool({
       }
       safeCwd = resolved;
     }
+
+    // Anonymize prompt if enabled
+    const anonConfig = anonymizerConfig ?? { enabled: false, llmPass: false, customTerms: [], skipCategories: [] };
+    const { text: anonPrompt, table } = await anonymize(prompt, anonConfig);
+
+    // Wrap stream callbacks for live de-anonymization
+    const callbacks = activeStreamCallbacks ?? {};
+    const wrappedCallbacks = wrapStreamCallbacks(callbacks, table);
+
+    // Build system prompt appendix for anonymized placeholders
+    const anonSystemPrompt = buildAnonymizerSystemPrompt(table);
+
     const effectiveTools = allowedTools ?? claudeConfig?.toolProfiles?.standard;
     const result = await invokeClaudeCode({
-      prompt, cwd: safeCwd, allowedTools: effectiveTools, taskKey,
-      ...activeStreamCallbacks,
+      prompt: anonPrompt,
+      cwd: safeCwd,
+      allowedTools: effectiveTools,
+      taskKey,
+      systemPrompt: anonSystemPrompt,
+      ...wrappedCallbacks,
     });
     lastInvokeResult = result;
+
+    // De-anonymize final result text
+    const resultText = deanonymize(result.text, table);
+
     if (result.exitCode === 0) {
-      return result.text;
+      return resultText;
     }
-    return `Claude Code error (${result.exitCode}): ${result.text}`;
+    return `Claude Code error (${result.exitCode}): ${resultText}`;
   },
 });

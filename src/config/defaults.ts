@@ -161,12 +161,6 @@ export function loadConfig(): Config {
       billing: {
         maxDailyBudgetUsd: process.env.MAX_DAILY_BUDGET_USD,
       },
-      tts: {
-        apiKey: process.env.ELEVENLABS_API_KEY,
-        voiceId: process.env.ELEVENLABS_VOICE_ID,
-        model: process.env.ELEVENLABS_MODEL,
-        cacheSize: process.env.ELEVENLABS_CACHE_SIZE,
-      },
       sandbox: {
         enabled: process.env.SANDBOX_ENABLED !== undefined
           ? process.env.SANDBOX_ENABLED === "true"
@@ -210,41 +204,19 @@ export function loadConfig(): Config {
           ? process.env.AGENTS_SESSION_ISOLATION === "true"
           : undefined,
       },
-      companion: {
-        enabled: process.env.COMPANION_ENABLED !== undefined
-          ? process.env.COMPANION_ENABLED === "true"
+      anonymizer: {
+        enabled: process.env.ANONYMIZER_ENABLED !== undefined
+          ? process.env.ANONYMIZER_ENABLED === "true"
           : undefined,
-        wsPort: process.env.COMPANION_WS_PORT,
-        pairingTtlMs: process.env.COMPANION_PAIRING_TTL_MS,
-        heartbeatIntervalMs: process.env.COMPANION_HEARTBEAT_MS,
-        apns: {
-          keyId: process.env.APNS_KEY_ID,
-          teamId: process.env.APNS_TEAM_ID,
-          keyPath: process.env.APNS_KEY_PATH,
-          bundleId: process.env.APNS_BUNDLE_ID,
-        },
-        fcm: {
-          projectId: process.env.FCM_PROJECT_ID,
-          serviceAccountPath: process.env.FCM_SERVICE_ACCOUNT_PATH,
-        },
-      },
-      smartHome: {
-        hue: {
-          bridgeIp: process.env.HUE_BRIDGE_IP,
-          apiKey: process.env.HUE_API_KEY,
-        },
-        homeAssistant: {
-          url: process.env.HOMEASSISTANT_URL,
-          token: process.env.HOMEASSISTANT_TOKEN,
-        },
-        sonos: {
-          household: process.env.SONOS_HOUSEHOLD,
-        },
-      },
-      google: {
-        clientId: process.env.GOOGLE_CLIENT_ID,
-        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-        redirectPort: process.env.GOOGLE_REDIRECT_PORT,
+        llmPass: process.env.ANONYMIZER_LLM_PASS !== undefined
+          ? process.env.ANONYMIZER_LLM_PASS === "true"
+          : undefined,
+        customTerms: process.env.ANONYMIZER_CUSTOM_TERMS
+          ? process.env.ANONYMIZER_CUSTOM_TERMS.split(",").map((s) => s.trim())
+          : undefined,
+        skipCategories: process.env.ANONYMIZER_SKIP_CATEGORIES
+          ? process.env.ANONYMIZER_SKIP_CATEGORIES.split(",").map((s) => s.trim())
+          : undefined,
       },
       mcp: {
         allowedServers: process.env.MCP_ALLOWED_SERVERS

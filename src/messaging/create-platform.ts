@@ -36,10 +36,6 @@ export async function createPlatform(
       const { createDiscordPlatform } = await import("./adapters/discord.js");
       return createDiscordPlatform(config.discord, callbacks);
     }
-    case "companion": {
-      const { createCompanionPlatform } = await import("./adapters/companion.js");
-      return createCompanionPlatform({ port: config.companion.wsPort }, callbacks);
-    }
     default:
       throw new Error(`Unknown platform: ${platformName}`);
   }

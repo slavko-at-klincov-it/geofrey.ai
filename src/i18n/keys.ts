@@ -339,11 +339,6 @@ export type TranslationKey =
   | "process.listHeader"
   | "process.noLogs"
 
-  // tts
-  | "tts.notConfigured"
-  | "tts.synthesized"
-  | "tts.failed"
-
   // sandbox
   | "sandbox.created"
   | "sandbox.destroyed"
@@ -362,42 +357,6 @@ export type TranslationKey =
   | "agents.deleted"
   | "agents.listEmpty"
   | "agents.listHeader"
-
-  // companion
-  | "companion.serverStarted"
-  | "companion.paired"
-  | "companion.unpaired"
-  | "companion.deviceNotFound"
-  | "companion.listEmpty"
-  | "companion.listHeader"
-  | "companion.pushSent"
-  | "companion.pushFailed"
-
-  // smart home
-  | "smartHome.discovered"
-  | "smartHome.noDevices"
-  | "smartHome.controlled"
-  | "smartHome.sceneActivated"
-  | "smartHome.automationTriggered"
-  | "smartHome.notConfigured"
-  | "smartHome.actionFailed"
-
-  // google / gmail / calendar
-  | "google.authStarted"
-  | "google.authComplete"
-  | "google.authFailed"
-  | "google.notAuthenticated"
-  | "gmail.listed"
-  | "gmail.read"
-  | "gmail.sent"
-  | "gmail.labeled"
-  | "gmail.deleted"
-  | "gmail.noMessages"
-  | "calendar.listed"
-  | "calendar.created"
-  | "calendar.updated"
-  | "calendar.deleted"
-  | "calendar.noEvents"
 
   // marketplace
   | "marketplace.listed"

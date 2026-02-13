@@ -359,11 +359,6 @@ export const en: Record<TranslationKey, string> = {
   "process.listHeader": "{count} active processes:",
   "process.noLogs": "No logs for process {pid}",
 
-  // tts
-  "tts.notConfigured": "TTS not configured — set ELEVENLABS_API_KEY in .env",
-  "tts.synthesized": "Audio synthesized: {chars} characters, {bytes} bytes, {chunks} chunk(s)",
-  "tts.failed": "TTS failed: {error}",
-
   // sandbox
   "sandbox.created": "Sandbox created: {id}",
   "sandbox.destroyed": "Sandbox destroyed: {id}",
@@ -382,42 +377,6 @@ export const en: Record<TranslationKey, string> = {
   "agents.deleted": "Agent deleted: {id}",
   "agents.listEmpty": "No agents configured",
   "agents.listHeader": "{count} agents:",
-
-  // companion
-  "companion.serverStarted": "Companion server started on port {port}",
-  "companion.paired": "Device paired: {name}",
-  "companion.unpaired": "Device unpaired: {id}",
-  "companion.deviceNotFound": "Device not found: {id}",
-  "companion.listEmpty": "No devices connected",
-  "companion.listHeader": "{count} devices:",
-  "companion.pushSent": "Push notification sent to {name}",
-  "companion.pushFailed": "Push notification failed: {msg}",
-
-  // smart home
-  "smartHome.discovered": "{count} devices discovered",
-  "smartHome.noDevices": "No smart home devices found",
-  "smartHome.controlled": "Device controlled: {name}",
-  "smartHome.sceneActivated": "Scene activated: {name}",
-  "smartHome.automationTriggered": "Automation triggered: {name}",
-  "smartHome.notConfigured": "Smart home not configured — set Hue/HomeAssistant/Sonos in .env",
-  "smartHome.actionFailed": "Smart home action failed: {msg}",
-
-  // google / gmail / calendar
-  "google.authStarted": "Google auth started — open browser: {url}",
-  "google.authComplete": "Google auth successful",
-  "google.authFailed": "Google auth failed: {msg}",
-  "google.notAuthenticated": "Not authenticated with Google — run 'gmail_auth' or 'calendar_auth' first",
-  "gmail.listed": "{count} emails found",
-  "gmail.read": "Email read: {subject}",
-  "gmail.sent": "Email sent to {to}",
-  "gmail.labeled": "Label changed: {id}",
-  "gmail.deleted": "Email deleted: {id}",
-  "gmail.noMessages": "No emails found",
-  "calendar.listed": "{count} events found",
-  "calendar.created": "Event created: {title}",
-  "calendar.updated": "Event updated: {title}",
-  "calendar.deleted": "Event deleted: {id}",
-  "calendar.noEvents": "No events found",
 
   // marketplace
   "marketplace.listed": "{count} skills in marketplace",

@@ -88,23 +88,3 @@ export const agentSessions = sqliteTable("agent_sessions", {
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
 });
 
-export const companionDevices = sqliteTable("companion_devices", {
-  id: text("id").primaryKey(),
-  name: text("name").notNull(),
-  platform: text("platform", { enum: ["ios", "android", "macos"] }).notNull(),
-  pushToken: text("push_token"),
-  pushProvider: text("push_provider", { enum: ["apns", "fcm"] }),
-  lastSeenAt: integer("last_seen_at", { mode: "timestamp" }),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
-});
-
-export const googleTokens = sqliteTable("google_tokens", {
-  id: text("id").primaryKey(),
-  chatId: text("chat_id").notNull().unique(),
-  accessToken: text("access_token").notNull(),
-  refreshToken: text("refresh_token").notNull(),
-  expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
-  scopes: text("scopes").notNull(), // comma-separated
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
-});

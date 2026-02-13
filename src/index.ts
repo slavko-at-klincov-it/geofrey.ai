@@ -8,7 +8,7 @@ import { disconnectAll, connectMcpServer, setAllowedServers } from "./tools/mcp-
 import { initLastHash } from "./audit/audit-log.js";
 import { getDb, closeDb } from "./db/client.js";
 import { setDbUrl } from "./orchestrator/conversation.js";
-import { initClaudeCode } from "./tools/claude-code.js";
+import { initClaudeCode, setAnonymizerConfig } from "./tools/claude-code.js";
 import { checkClaudeCodeReady } from "./onboarding/check.js";
 import { runAgentLoopStreaming } from "./orchestrator/agent-loop.js";
 import type { PlatformCallbacks } from "./messaging/platform.js";
@@ -23,14 +23,12 @@ import { convertToWav, isConversionNeeded } from "./voice/converter.js";
 import { transcribe } from "./voice/transcriber.js";
 import { setCompactionConfig } from "./orchestrator/compaction/compactor.js";
 import { discoverSkills } from "./skills/registry.js";
-import { setTtsConfig } from "./voice/synthesizer.js";
 import { initWebhookTool } from "./tools/webhook.js";
 import { startWebhookServer } from "./webhooks/server.js";
 import { killAllProcesses } from "./tools/process.js";
 import { destroyAllSessions, getOrCreateContainer } from "./sandbox/session-pool.js";
 import { isDockerAvailable } from "./sandbox/container.js";
 import { createHub } from "./agents/hub.js";
-import { createCompanionWSServer, type CompanionWSServer } from "./companion/ws-server.js";
 
 // Import tools to register them
 import "./tools/filesystem.js";
@@ -46,12 +44,7 @@ import "./tools/memory.js";
 import "./tools/browser.js";
 import "./tools/skill.js";
 import "./tools/process.js";
-import "./tools/tts.js";
 import "./tools/agents.js";
-import "./tools/companion.js";
-import "./tools/smart-home.js";
-import "./tools/gmail.js";
-import "./tools/calendar.js";
 
 let inFlightCount = 0;
 
@@ -117,6 +110,15 @@ async function main() {
   // Initialize Claude Code driver
   initClaudeCode(config.claude);
 
+  // Initialize anonymizer
+  setAnonymizerConfig({
+    ...config.anonymizer,
+    ollama: config.anonymizer.llmPass ? {
+      ollamaBaseUrl: config.ollama.baseUrl,
+      ollamaModel: config.ollama.model,
+    } : undefined,
+  });
+
   // Initialize web search config
   setSearchConfig(config.search);
 
@@ -149,17 +151,6 @@ async function main() {
     }
   } catch {
     // Non-critical: skills are optional
-  }
-
-  // Initialize TTS config (if API key is set)
-  if (config.tts.apiKey) {
-    setTtsConfig({
-      apiKey: config.tts.apiKey,
-      voiceId: config.tts.voiceId,
-      model: config.tts.model,
-      cacheSize: config.tts.cacheSize,
-    });
-    console.log("TTS: ElevenLabs configured");
   }
 
   // Initialize sandbox (check Docker availability)
@@ -275,34 +266,6 @@ async function main() {
 
   const platform = await createPlatform(config, callbacks);
 
-  // Initialize companion WebSocket server (after platform is ready)
-  // Skip if platform is already "companion" (adapter creates its own WS server)
-  let companionServer: CompanionWSServer | null = null;
-  if (config.companion.enabled && config.platform !== "companion") {
-    companionServer = createCompanionWSServer({
-      port: config.companion.wsPort,
-      callbacks: {
-        async onMessage(chatId, text) {
-          await routeMessage(chatId, text);
-        },
-        async onImageMessage(chatId, data, mime) {
-          await callbacks.onImageMessage(chatId, { buffer: data, mimeType: mime });
-        },
-        async onVoiceMessage(chatId, data, mime) {
-          await callbacks.onVoiceMessage(chatId, { buffer: data, mimeType: mime });
-        },
-        async onApprovalResponse(nonce, approved) {
-          resolveApproval(nonce, approved);
-        },
-        async onLocation(_chatId, _lat, _lon) {
-          // Location handling — future use
-        },
-      },
-    });
-    await companionServer.start();
-    console.log(`Companion: WebSocket server on port ${config.companion.wsPort}`);
-  }
-
   // Initialize agent hub executor (hub was created early, now wire the executor)
   if (agentHub) {
     await agentHub.init(async (_agentId, chatId, message) => {
@@ -346,7 +309,6 @@ async function main() {
     await killAllProcesses();
     await destroyAllSessions();
     await closeAllBrowsers();
-    if (companionServer) companionServer.stop();
     await disconnectAll();
     closeDb();
     console.log("Shutdown complete.");
