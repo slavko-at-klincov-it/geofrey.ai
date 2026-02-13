@@ -30,8 +30,7 @@ Phase 4 — Ecosystem release. All 5 roadmap features implemented. Full OpenClaw
 - Pairing system (`src/companion/pairing.ts`) — 6-digit codes with 5-minute TTL
 - Device registry (`src/companion/device-registry.ts`) — in-memory device CRUD
 - Push notifications (`src/companion/push.ts`) — APNS via node:http2, FCM via native fetch
-- Companion adapter (`src/messaging/adapters/companion.ts`) — WebSocket bridge to messaging platform
-- Companion tool (`src/tools/companion.ts`) — pair, unpair, list, push_token actions
+- Companion tool (`src/tools/companion.ts`) — pair, unpair, list, push_notification actions
 
 #### Smart Home Integration
 - Philips Hue client (`src/integrations/hue.ts`) — Hue API v2 (lights, rooms, scenes)
@@ -51,7 +50,7 @@ Phase 4 — Ecosystem release. All 5 roadmap features implemented. Full OpenClaw
 - New config sections: `agents`, `companion`, `smartHome`, `google` in Zod schema
 - New env vars: `AGENTS_ENABLED/ROUTING_STRATEGY/MAX_CONCURRENT`, `COMPANION_ENABLED/WS_PORT`, `APNS_KEY_ID/TEAM_ID/KEY_PATH/BUNDLE_ID`, `FCM_PROJECT_ID/SERVICE_ACCOUNT_PATH`, `HUE_BRIDGE_IP/API_KEY`, `HOMEASSISTANT_URL/TOKEN`, `SONOS_HOUSEHOLD`, `GOOGLE_CLIENT_ID/CLIENT_SECRET/REDIRECT_PORT`
 - New i18n keys across agents, companion, smart-home, gmail, calendar categories (German + English)
-- 1137 total tests (up from 731), 0 failures
+- ~990 total tests (up from 731), 0 failures
 
 ## 1.3.0 - 2026-02-13 (unreleased)
 

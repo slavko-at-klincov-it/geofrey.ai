@@ -300,6 +300,60 @@ export function classifyDeterministic(
     return { level: RiskLevel.L1, reason: "Generates skill file", deterministic: true };
   }
 
+  // TTS
+  if (toolName === "tts_speak") {
+    return { level: RiskLevel.L1, reason: "Speech synthesis", deterministic: true };
+  }
+
+  // Companion
+  if (toolName === "companion") {
+    if (action === "list") {
+      return { level: RiskLevel.L0, reason: t("approval.readOnly"), deterministic: true };
+    }
+    if (action === "pair" || action === "push_notification") {
+      return { level: RiskLevel.L1, reason: "Companion device interaction", deterministic: true };
+    }
+    if (action === "unpair") {
+      return { level: RiskLevel.L2, reason: "Removes paired device", deterministic: true };
+    }
+  }
+
+  // Smart Home
+  if (toolName === "smart_home") {
+    if (action === "discover" || action === "list") {
+      return { level: RiskLevel.L0, reason: t("approval.readOnly"), deterministic: true };
+    }
+    if (action === "control" || action === "scene") {
+      return { level: RiskLevel.L2, reason: "Controls physical device", deterministic: true };
+    }
+  }
+
+  // Gmail
+  if (toolName === "gmail") {
+    if (action === "list" || action === "read") {
+      return { level: RiskLevel.L0, reason: t("approval.readOnly"), deterministic: true };
+    }
+    if (action === "auth" || action === "label") {
+      return { level: RiskLevel.L1, reason: "Gmail auth/label", deterministic: true };
+    }
+    if (action === "send" || action === "delete") {
+      return { level: RiskLevel.L2, reason: "Sends or deletes email", deterministic: true };
+    }
+  }
+
+  // Calendar
+  if (toolName === "calendar") {
+    if (action === "list" || action === "get" || action === "calendars") {
+      return { level: RiskLevel.L0, reason: t("approval.readOnly"), deterministic: true };
+    }
+    if (action === "auth") {
+      return { level: RiskLevel.L1, reason: "Calendar auth", deterministic: true };
+    }
+    if (action === "create" || action === "update" || action === "delete") {
+      return { level: RiskLevel.L2, reason: "Modifies calendar event", deterministic: true };
+    }
+  }
+
   if (L0_TOOLS.has(toolName)) {
     return { level: RiskLevel.L0, reason: t("approval.readOnly"), deterministic: true };
   }

@@ -50,7 +50,7 @@
 | DM Pairing Codes | ✅ Unbekannte Sender blockiert | Owner-only Filter | ⚠️ |
 | Channel Allowlisting | ✅ Per Agent | — | ❌ |
 
-**Priorität:** Slack + Discord sind die wichtigsten fehlenden Plattformen. WebChat kommt mit dem Web-Dashboard.
+**Status:** Alle Kern-Plattformen implementiert. Nur Nischen-Plattformen (Google Chat, Teams, Matrix, iMessage) fehlen noch.
 
 ---
 
@@ -68,16 +68,16 @@
 | Web Search | ✅ Keyword-Suche | ✅ SearXNG + Brave Search | ✅ |
 | Web Fetch | ✅ Seiten lesen/downloaden | ✅ HTML→Markdown converter | ✅ |
 | Image Understanding | ✅ | ✅ image-handler.ts (OCR + Beschreibung) | ✅ |
-| Process Management | ✅ List, Check, Kill | — | ✅ |
+| Process Management | ✅ List, Check, Kill | ✅ process/manager.ts (spawn/list/check/kill/logs) | ✅ |
 | Cron/Scheduler | ✅ At/Every/Cron-Expressions, persistent | ✅ 5-field cron, SQLite-backed, exponential retry | ✅ |
-| Webhooks | ✅ HTTP-Endpoint-Triggers | — (nur WhatsApp-Webhook) | ✅ |
+| Webhooks | ✅ HTTP-Endpoint-Triggers | ✅ HTTP server, HMAC auth, rate limiting, GitHub/Stripe/generic templates | ✅ |
 | Gmail Integration | ✅ Pub/Sub, Echtzeit | ✅ Google OAuth2 + Gmail API | ✅ |
 | Notifications | ✅ Push an paired Devices | ✅ APNS + FCM push | ✅ |
 | Upload | ✅ Web-Upload | — | ❌ |
 | Camera/Location/Screen | ✅ Via paired Devices | — | ❌ |
 | Discord/Slack Actions | ✅ Native Plattform-Automation | — | ❌ |
 
-**Priorität:** Browser-Automation, Web Search/Fetch und Cron/Scheduler sind die wichtigsten fehlenden Tools.
+**Status:** Alle Kern-Tools implementiert. Nur Upload, Camera/Location/Screen und native Discord/Slack Actions fehlen noch.
 
 ---
 
@@ -94,7 +94,7 @@
 | Musik (Spotify, Sonos) | ✅ | ✅ Sonos HTTP API (playback, volume, groups) | ⚠️ |
 | Media Generation (fal.ai, Replicate) | ✅ | — | ❌ |
 
-**Priorität:** Ein Skill-System (Format + Registry) ist fundamental für Erweiterbarkeit. Marketplace kann später kommen.
+**Status:** Skill-System komplett (Format, Registry, Marketplace, Permissions, Auto-Generation, Templates). Nur Productivity-Tools und Media-Generation fehlen.
 
 ---
 
@@ -103,14 +103,14 @@
 | Feature | OpenClaw | Geofrey | Status |
 |---------|----------|---------|--------|
 | Speech-to-Text (Whisper) | ✅ | ✅ OpenAI Whisper API + local whisper.cpp | ✅ |
-| Text-to-Speech (ElevenLabs) | ✅ Custom Voice Cloning, 32+ Sprachen | — | ✅ |
+| Text-to-Speech (ElevenLabs) | ✅ Custom Voice Cloning, 32+ Sprachen | ✅ ElevenLabs multilingual_v2, LRU cache, text splitting | ✅ |
 | Voice Wake ("Hey Claw") | ✅ macOS, iOS, Android | — | ❌ |
 | Talk Mode (kontinuierlich) | ✅ | — | ❌ |
 | Push-to-Talk | ✅ macOS Overlay | — | ❌ |
 | Telefon-Integration | ✅ ElevenLabs Agents | — | ❌ |
 | Voice Messages (WhatsApp etc.) | ✅ Transkription | ✅ Alle Plattformen (Telegram/WhatsApp/Signal) | ✅ |
 
-**Priorität:** STT (Whisper) für Voice Messages ist der wichtigste erste Schritt.
+**Status:** STT + TTS + Voice Messages komplett. Nur Voice Wake, Talk Mode, Push-to-Talk und Telefon-Integration fehlen.
 
 ---
 
@@ -128,7 +128,7 @@
 | Session Pruning | ✅ In-Memory Trimming alter Tool-Ergebnisse | ✅ pruneToolResults() + pruneOldMessages() | ✅ |
 | Context Window Management | ✅ Per-Model Tracking, Auto-Overflow | ✅ Token counting, auto-compact at 75% | ✅ |
 
-**Priorität:** Persistent Memory + Semantic Search sind essentiell für einen persönlichen Assistenten.
+**Status:** Vollständige Feature-Parität mit OpenClaw bei Memory & Wissensmanagement.
 
 ---
 
@@ -143,7 +143,7 @@
 | Per-Agent Tool Access | ✅ | ✅ Per-agent tool scoping | ✅ |
 | A2A Protocol (experimental) | ⚠️ Community | — | ❌ |
 
-**Priorität:** Erstmal nicht kritisch — Single-Agent-Qualität zuerst.
+**Status:** Vollständige Feature-Parität mit OpenClaw bei Multi-Agent Routing. Nur A2A Protocol fehlt.
 
 ---
 
@@ -157,12 +157,12 @@
 | Google (Gemini 3 Pro) | ✅ | — | ❌ |
 | DeepSeek | ✅ | — | ❌ |
 | LM Studio | ✅ | — | ❌ |
-| OpenRouter (100+ Modelle) | ✅ | — | ✅ |
-| Model Failover | ✅ Auth Profile Rotation | — | ❌ |
-| Per-Task Model Routing | ✅ | — (fest: Qwen3 Orchestrator + Claude Code) | ❌ |
+| OpenRouter (100+ Modelle) | ✅ | ✅ Native fetch, SSE streaming, usage tracking | ✅ |
+| Model Failover | ✅ Auth Profile Rotation | ✅ Failover chains (max 3 attempts) in model-registry.ts | ✅ |
+| Per-Task Model Routing | ✅ | ✅ Task-specific model routing + built-in aliases | ✅ |
 | Extended Thinking (Levels) | ✅ off/minimal/low/medium/high/xhigh | — | ❌ |
 
-**Priorität:** OpenRouter-Support würde alle Modelle auf einmal erschließen.
+**Status:** OpenRouter implementiert mit Failover und Task-Routing. Nur Extended Thinking und direkte OpenAI/Google/DeepSeek/LM Studio Provider fehlen.
 
 ---
 
@@ -201,7 +201,7 @@
 | MCP Response Validation (Zod) | — (nicht dokumentiert) | ✅ | ✅ |
 | Image Metadata Sanitization | — (nicht dokumentiert) | ✅ EXIF/XMP/IPTC + Injection Scan | ✅ |
 | Filesystem Confinement | — (nicht dokumentiert) | ✅ confine() | ✅ |
-| Docker Sandbox (per Session) | ✅ Isolierte Container | — | ✅ |
+| Docker Sandbox (per Session) | ✅ Isolierte Container | ✅ Container lifecycle, session pool, volume mounting | ✅ |
 | Safe Binaries Allowlist | ✅ | — (über L0-Patterns) | ⚠️ |
 | Tool Policies (Allow/Deny per Agent) | ✅ | — (global Risk Levels) | ❌ |
 | Skill Permission Manifest | ✅ Risk Scoring (5 Levels) | ✅ 4-axis permissions (filesystem/network/env/exec) | ✅ |
@@ -209,7 +209,7 @@
 | DM Pairing Codes | ✅ | — (Owner-only) | ⚠️ |
 | Gateway Auth (Password/OAuth) | ✅ | — (kein Gateway) | ❌ |
 
-**Priorität:** Docker Sandbox pro Session wäre ein starkes Sicherheits-Feature. Geofrey ist bei Prompt Injection und MCP-Sicherheit bereits stärker.
+**Status:** Docker Sandbox implementiert. Geofrey ist bei Sicherheit insgesamt stärker als OpenClaw (Prompt Injection, MCP Security, Image Sanitization, Filesystem Confinement).
 
 ---
 
@@ -223,7 +223,7 @@
 | Token-Metriken | ✅ | ✅ Input/output tokens per request | ✅ |
 | Monitoring Dashboard | ✅ ClawWatcher (3rd Party) | — | ❌ |
 
-**Priorität:** Kosten-Tracking und Budget-Limits sollten eingebaut werden.
+**Status:** Kosten-Tracking und Budget-Limits komplett. Nur Monitoring Dashboard und `/usage` Befehle fehlen.
 
 ---
 

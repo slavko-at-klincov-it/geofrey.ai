@@ -413,4 +413,48 @@ export const de: Record<TranslationKey, string> = {
   "marketplace.hashMismatch": "Hash-Prüfung fehlgeschlagen für {name} — Datei manipuliert?",
   "marketplace.fetchFailed": "Marketplace nicht erreichbar: {msg}",
   "marketplace.templateCreated": "Skill aus Template erstellt: {name}",
+
+  // tts
+  "tts.speaking": "Sprachausgabe wird generiert...",
+  "tts.spoken": "Audio generiert ({length} Bytes)",
+  "tts.notConfigured": "TTS nicht konfiguriert — setze TTS_ENABLED=true und ELEVENLABS_API_KEY",
+  "tts.voicesList": "{count} Stimmen verfügbar:",
+  "tts.synthesizeFailed": "Sprachsynthese fehlgeschlagen: {msg}",
+
+  // companion
+  "companion.paired": "Gerät gekoppelt: {name}",
+  "companion.unpaired": "Gerät entkoppelt: {id}",
+  "companion.listEmpty": "Keine gekoppelten Geräte",
+  "companion.listHeader": "{count} gekoppelte Geräte:",
+  "companion.pairingCode": "Kopplungscode: {code} (gültig {ttl}s)",
+  "companion.notFound": "Gerät nicht gefunden: {id}",
+  "companion.pushSent": "Push-Benachrichtigung gesendet an {name}",
+  "companion.notConfigured": "Companion nicht konfiguriert — setze COMPANION_ENABLED=true",
+
+  // smart home
+  "smartHome.discovered": "{count} Geräte entdeckt:",
+  "smartHome.listEmpty": "Keine Smart-Home-Geräte gefunden",
+  "smartHome.listHeader": "{count} Geräte:",
+  "smartHome.controlled": "Gerät gesteuert: {device}",
+  "smartHome.sceneFired": "Szene aktiviert: {scene}",
+  "smartHome.notConfigured": "Smart Home nicht konfiguriert — setze SMART_HOME_ENABLED=true",
+  "smartHome.providerRequired": "Provider erforderlich (hue, homeassistant, sonos)",
+
+  // gmail
+  "gmail.authUrl": "Google-Anmeldung: {url}",
+  "gmail.authenticated": "Google-Konto verbunden",
+  "gmail.listEmpty": "Keine E-Mails gefunden",
+  "gmail.listHeader": "{count} E-Mails:",
+  "gmail.sent": "E-Mail gesendet an {to}",
+  "gmail.labeled": "Label aktualisiert: {id}",
+  "gmail.deleted": "E-Mail gelöscht: {id}",
+  "gmail.notConfigured": "Gmail nicht konfiguriert — setze GOOGLE_ENABLED=true und GOOGLE_CLIENT_ID",
+
+  // calendar
+  "calendar.listEmpty": "Keine Termine gefunden",
+  "calendar.listHeader": "{count} Termine:",
+  "calendar.created": "Termin erstellt: {summary}",
+  "calendar.updated": "Termin aktualisiert: {id}",
+  "calendar.deleted": "Termin gelöscht: {id}",
+  "calendar.notConfigured": "Kalender nicht konfiguriert — setze GOOGLE_ENABLED=true und GOOGLE_CLIENT_ID",
 } satisfies Record<TranslationKey, string>;

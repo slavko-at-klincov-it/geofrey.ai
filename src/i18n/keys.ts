@@ -392,4 +392,48 @@ export type TranslationKey =
   | "marketplace.installed"
   | "marketplace.hashMismatch"
   | "marketplace.fetchFailed"
-  | "marketplace.templateCreated";
+  | "marketplace.templateCreated"
+
+  // tts
+  | "tts.speaking"
+  | "tts.spoken"
+  | "tts.notConfigured"
+  | "tts.voicesList"
+  | "tts.synthesizeFailed"
+
+  // companion
+  | "companion.paired"
+  | "companion.unpaired"
+  | "companion.listEmpty"
+  | "companion.listHeader"
+  | "companion.pairingCode"
+  | "companion.notFound"
+  | "companion.pushSent"
+  | "companion.notConfigured"
+
+  // smart home
+  | "smartHome.discovered"
+  | "smartHome.listEmpty"
+  | "smartHome.listHeader"
+  | "smartHome.controlled"
+  | "smartHome.sceneFired"
+  | "smartHome.notConfigured"
+  | "smartHome.providerRequired"
+
+  // gmail
+  | "gmail.authUrl"
+  | "gmail.authenticated"
+  | "gmail.listEmpty"
+  | "gmail.listHeader"
+  | "gmail.sent"
+  | "gmail.labeled"
+  | "gmail.deleted"
+  | "gmail.notConfigured"
+
+  // calendar
+  | "calendar.listEmpty"
+  | "calendar.listHeader"
+  | "calendar.created"
+  | "calendar.updated"
+  | "calendar.deleted"
+  | "calendar.notConfigured";

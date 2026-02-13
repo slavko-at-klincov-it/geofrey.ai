@@ -82,6 +82,15 @@ export const memoryChunks = sqliteTable("memory_chunks", {
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
 });
 
+export const googleTokens = sqliteTable("google_tokens", {
+  id: text("id").primaryKey(),
+  accessToken: text("access_token").notNull(),
+  refreshToken: text("refresh_token"),
+  expiresAt: integer("expires_at", { mode: "timestamp" }),
+  scopes: text("scopes").notNull(),
+  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+});
+
 export const agentSessions = sqliteTable("agent_sessions", {
   id: text("id").primaryKey(),
   agentId: text("agent_id").notNull(),

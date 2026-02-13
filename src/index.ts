@@ -45,6 +45,11 @@ import "./tools/browser.js";
 import "./tools/skill.js";
 import "./tools/process.js";
 import "./tools/agents.js";
+import "./tools/tts.js";
+import "./tools/companion.js";
+import "./tools/smart-home.js";
+import "./tools/gmail.js";
+import "./tools/calendar.js";
 
 let inFlightCount = 0;
 
@@ -191,6 +196,59 @@ async function main() {
     }
   }
 
+  // Initialize TTS
+  if (config.tts.enabled && config.tts.apiKey) {
+    const { setTtsConfig } = await import("./voice/synthesizer.js");
+    setTtsConfig({
+      provider: "elevenlabs",
+      apiKey: config.tts.apiKey,
+      voiceId: config.tts.voiceId,
+      cacheLruSize: config.tts.cacheLruSize,
+    });
+    console.log("TTS: ElevenLabs initialized");
+  }
+
+  // Initialize Companion WebSocket server
+  let companionStop: (() => Promise<void>) | null = null;
+  if (config.companion.enabled) {
+    const { startCompanionServer } = await import("./companion/ws-server.js");
+    const server = await startCompanionServer({
+      wsPort: config.companion.wsPort,
+      pairingTtlMs: config.companion.pairingTtlMs,
+    });
+    companionStop = async () => { await server.stop(); };
+    console.log(`Companion: WebSocket server on :${config.companion.wsPort}`);
+  }
+
+  // Initialize Smart Home integrations
+  if (config.smartHome.enabled) {
+    if (config.smartHome.hueApiKey && config.smartHome.hueBridgeIp) {
+      const { setHueConfig } = await import("./integrations/hue.js");
+      setHueConfig({ bridgeIp: config.smartHome.hueBridgeIp, apiKey: config.smartHome.hueApiKey });
+    }
+    if (config.smartHome.haToken && config.smartHome.haUrl) {
+      const { setHaConfig } = await import("./integrations/homeassistant.js");
+      setHaConfig({ url: config.smartHome.haUrl, token: config.smartHome.haToken });
+    }
+    if (config.smartHome.sonosHttpApiUrl) {
+      const { setSonosConfig } = await import("./integrations/sonos.js");
+      setSonosConfig({ httpApiUrl: config.smartHome.sonosHttpApiUrl });
+    }
+    console.log("Smart Home: Integration enabled");
+  }
+
+  // Initialize Google OAuth
+  if (config.google.enabled && config.google.clientId) {
+    const { setGoogleConfig } = await import("./integrations/google/auth.js");
+    setGoogleConfig({
+      clientId: config.google.clientId,
+      clientSecret: config.google.clientSecret!,
+      redirectUrl: config.google.redirectUrl,
+      tokenCachePath: config.google.tokenCachePath,
+    });
+    console.log("Google: OAuth2 configured");
+  }
+
   // Initialize agent hub early (before platform, so routeMessage can reference it)
   const agentHub = config.agents.enabled
     ? createHub({ routingStrategy: config.agents.routingStrategy })
@@ -305,6 +363,7 @@ async function main() {
     console.log(`\n${signal} received, shutting down...`);
     await stopScheduler();
     if (webhookStop) await webhookStop();
+    if (companionStop) await companionStop();
     await platform.stop();
     rejectAllPending("SHUTDOWN");
     await waitForInflight(10_000);

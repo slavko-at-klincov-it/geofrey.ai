@@ -69,6 +69,12 @@
 │  │ Process      │  │ Docker       │  │ OpenRouter         │     │
 │  │ Manager      │  │ Sandbox      │  │ (100+ models)      │     │
 │  └──────────────┘  └──────────────┘  └────────────────────┘     │
+│                                                                  │
+│  ┌──────────────┐  ┌──────────────┐  ┌────────────────────┐     │
+│  │ Smart Home   │  │ Gmail /      │  │ Companion          │     │
+│  │ (Hue/HA/     │  │ Calendar     │  │ (WebSocket +       │     │
+│  │  Sonos)      │  │ (Google API) │  │  Push)             │     │
+│  └──────────────┘  └──────────────┘  └────────────────────┘     │
 └──────────────────────────────────────────────────────────────────┘
                        │
                        ▼
@@ -86,11 +92,16 @@
 │  │  Ollama summarization, pre-compaction memory flush)      │    │
 │  └──────────────────────────────────────────────────────────┘    │
 │                                                                  │
-│  ┌──────────────┐  ┌──────────────┐                              │
-│  │ Webhook      │  │ Process      │                              │
-│  │ Server       │  │ Manager      │                              │
-│  │ (HTTP POST)  │  │ (spawn/kill) │                              │
-│  └──────────────┘  └──────────────┘                              │
+│  ┌──────────────┐  ┌──────────────┐  ┌────────────────────┐     │
+│  │ Webhook      │  │ Process      │  │ Companion WS       │     │
+│  │ Server       │  │ Manager      │  │ Server             │     │
+│  │ (HTTP POST)  │  │ (spawn/kill) │  │ (ws + push)        │     │
+│  └──────────────┘  └──────────────┘  └────────────────────┘     │
+│                                                                  │
+│  ┌──────────────────────────────────────────────────────────┐    │
+│  │ Agent Hub (Hub-and-Spoke, 3 routing strategies,          │    │
+│  │  per-agent session isolation, skill/intent/explicit)      │    │
+│  └──────────────────────────────────────────────────────────┘    │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
@@ -123,7 +134,7 @@ Risk classification uses a **two-layer approach**:
 
 | Level | Name | Behavior | Examples |
 |-------|------|----------|----------|
-| **L0** | AUTO_APPROVE | Execute immediately, no notification | `read_file`, `list_dir`, `search`, `git status`, `git log`, `git diff`, `pwd`, `ls`, `cat`, `wc`, `web_search`, `web_fetch`, `memory_read`, `memory_search`, `tts_speak`, `process_manager:list/check/logs`, `webhook:list/test` |
+| **L0** | AUTO_APPROVE | Execute immediately, no notification | `read_file`, `list_dir`, `search`, `git status/log/diff`, `web_search`, `web_fetch`, `memory_read/search`, `process_manager:list/check/logs`, `webhook:list/test`, `companion:list`, `smart_home:discover/list`, `gmail:list/read`, `calendar:list/get/calendars` |
 | **L1** | NOTIFY | Execute, then inform user | `write_file` (non-config, in project), `git add`, `git stash`, `git branch`, `npm test`, `npm run lint` |
 | **L2** | REQUIRE_APPROVAL | **Block until user approves via Telegram/WhatsApp/Signal** | `delete_file`, `git commit`, `git merge`, `git rebase`, `npm install`, `shell_exec`, `mkdir`, `mv`, `cp` |
 | **L3** | BLOCK | Refuse always, log attempt | `git push --force`, `git reset --hard`, `rm -rf`, `sudo`, `curl`, `wget`, `nc`, `ssh`, `eval` |
@@ -469,6 +480,136 @@ Agent loop → shouldCompact(messages, maxCtx, 75%) → compactHistory(chatId)
 - **`/compact` command:** Manual compaction trigger via chat message
 - **Integration:** Auto-check before each `streamText()` call in agent-loop.ts
 
+## Docker Sandbox (v1.3)
+
+Per-session Docker containers for isolated tool execution.
+
+- **Container lifecycle:** `create()` → `exec()` → `destroy()` via Docker CLI
+- **Session pool:** `getOrCreateContainer()` maps chat sessions to containers
+- **Volume mounting:** safe path validation + host-to-container path translation
+- **Configurable:** image, memory limit, network, PID limit, read-only, TTL
+- **Integration:** `shell.ts` routes commands through Docker when `sandbox.enabled=true`
+
+## Multi-Model Support via OpenRouter (v1.3)
+
+100+ models via OpenRouter with failover chains and task-specific routing.
+
+- **Provider interface:** `ModelProvider` abstraction with `generate()`, `stream()`, `getModelInfo()`
+- **OpenRouter provider:** native fetch, SSE streaming, usage token tracking
+- **Model registry:** failover chains (max 3 attempts), task-specific model routing
+- **Built-in aliases:** `gpt-4o`, `claude-sonnet`, `gemini-pro`, `llama`, `mixtral`, `deepseek-coder`, `qwen`
+
+## Webhook Triggers (v1.3)
+
+HTTP webhook server for external event-driven automation.
+
+- **Router:** route registry, HMAC-SHA256 authentication, per-webhook rate limiting
+- **Handler:** event templates (GitHub push/PR/issues, Stripe payment, generic JSON)
+- **Server:** `node:http` with JSON + form-urlencoded body parsing
+- **Tool:** create, list, delete, test actions
+
+## Process Management (v1.3)
+
+Background process lifecycle management.
+
+- **Manager:** spawn via `execa`, circular log buffer (1000 lines), SIGTERM→SIGKILL escalation (5s grace)
+- **Tool:** spawn, list, check, kill, logs actions
+- **Shutdown:** `killAllProcesses()` in graceful shutdown handler
+
+## TTS via ElevenLabs (v1.3)
+
+Speech synthesis with ElevenLabs API.
+
+- **Synthesizer:** `eleven_multilingual_v2` model, LRU audio cache (configurable size)
+- **Text splitting:** sentence-boundary splitting for texts >4000 chars, concatenated audio output
+- **Tool:** `tts_speak` (speak + list_voices actions)
+- **Risk level:** L1 (NOTIFY)
+
+## Multi-Agent Routing (v2.0)
+
+Hub-and-Spoke architecture with 3 routing strategies.
+
+```
+User message  ──→  Agent Hub  ──→  Route to specialist agent
+                      │
+                      ├── skill-based    (match agent skills to message)
+                      ├── intent-based   (classify intent → agent)
+                      └── explicit       (@mention → agent)
+                      │
+                      ▼
+               Per-agent session isolation
+               (namespaced chatId, agent-specific system prompt + model + tools)
+```
+
+- **Hub:** `src/agents/hub.ts` — routes messages to specialist agents
+- **Config:** `src/agents/agent-config.ts` — AgentConfig type + Zod schema, specialist templates
+- **Sessions:** `src/agents/session-manager.ts` — per-agent chat namespacing, DB persistence
+- **Communication:** `src/agents/communication.ts` — inter-agent message passing
+
+## Skill Marketplace (v2.0)
+
+Curated skill repository with integrity verification.
+
+- **Marketplace:** fetch, search, install from curated repository
+- **Verification:** SHA-256 hash checking for downloaded skills
+- **Templates:** 5 built-in skill templates for quick start
+- **Integration:** seamless install into existing skill registry
+
+## Companion Apps Backend (v2.0)
+
+WebSocket server for macOS/iOS/Android companion apps.
+
+```
+Companion App  ──ws──→  WebSocket Server (:3003)
+                              │
+                         ┌────┼─────────────┐
+                         │    │              │
+                    Pairing  Auth      Push Notifications
+                    (6-digit  (device    (APNS via node:http2,
+                     codes,   registry)   FCM via native fetch)
+                     5min TTL)
+```
+
+- **Server:** `ws` package with heartbeat ping/pong (30s interval)
+- **Pairing:** 6-digit codes with 5-minute TTL, one-time use
+- **Push:** APNS for iOS/macOS, FCM for Android — platform-based routing
+
+## Smart Home Integration (v2.0)
+
+Multi-provider smart home control with device discovery.
+
+- **Philips Hue:** API v2 — lights, scenes, rooms (HTTPS with local bridge)
+- **HomeAssistant:** REST API — entities, services, automations (Bearer token)
+- **Sonos:** HTTP API — playback, volume, groups (via sonos-http-api)
+- **Discovery:** SSDP via `node:dgram` + meethue.com nUPnP fallback
+- **Tool:** discover, list, control, scene actions with provider routing
+
+## Gmail/Calendar Automation (v2.0)
+
+Google API integration with OAuth2 authentication.
+
+```
+User ──→ `gmail auth` ──→ OAuth2 URL ──→ Browser ──→ Callback Server (:3004)
+                                                            │
+                                                    exchangeCode()
+                                                            │
+                                                    Token cache (file-based)
+                                                            │
+                                              getValidToken() auto-refresh
+                                                      │
+                                          ┌───────────┼──────────┐
+                                          │                      │
+                                    Gmail API              Calendar API
+                                    (list, read,          (list, create,
+                                     send, label,          update, delete
+                                     delete)               events)
+```
+
+- **Auth:** OAuth2 with `node:http` callback server, file-based token cache, auto-refresh
+- **Gmail:** list, read, send (RFC 2822), label, delete (trash)
+- **Calendar:** list events, create (all-day detection), update, delete, list calendars
+- **Risk levels:** list/read = L0, auth/label = L1, send/delete/create/update = L2
+
 ## Project Structure
 
 ```
@@ -484,7 +625,9 @@ geofrey.ai/
 │   ├── ARCHITECTURE.md          # This file
 │   ├── DEPLOYMENT.md            # Docker, systemd, PM2, production tips
 │   ├── ORCHESTRATOR_PROMPT.md   # System prompt for Qwen3 orchestrator
-│   └── WHITEPAPER.md            # Security analysis, cost comparison
+│   ├── WHITEPAPER.md            # Security analysis, cost comparison
+│   ├── OPENCLAW_GAP_ANALYSIS.md # Feature comparison vs OpenClaw
+│   └── KNOWN_ISSUES.md         # Known issues and resolved items
 ├── .github/
 │   └── workflows/
 │       └── ci.yml               # GitHub Actions CI (lint + test)
@@ -505,8 +648,8 @@ geofrey.ai/
 │   │   ├── index.ts             # t(), setLocale(), getLocale()
 │   │   ├── keys.ts              # TranslationKey union type
 │   │   └── locales/
-│   │       ├── de.ts            # German translations (~350 keys)
-│   │       └── en.ts            # English translations (~350 keys)
+│   │       ├── de.ts            # German translations (~430 keys)
+│   │       └── en.ts            # English translations (~430 keys)
 │   ├── messaging/
 │   │   ├── platform.ts          # MessagingPlatform + ImageAttachment + VoiceAttachment interfaces
 │   │   ├── create-platform.ts   # Async factory: config → adapter
@@ -523,7 +666,7 @@ geofrey.ai/
 │   │   ├── tool-registry.ts     # Tool schema + handler registry (native + MCP)
 │   │   ├── mcp-client.ts        # MCP server discovery + tool wrapping
 │   │   ├── claude-code.ts       # Claude Code CLI subprocess driver
-│   │   ├── shell.ts             # Shell command executor
+│   │   ├── shell.ts             # Shell command executor (+ Docker sandbox routing)
 │   │   ├── filesystem.ts        # File read/write/delete (directory confinement)
 │   │   ├── git.ts               # Git operations
 │   │   ├── search.ts            # Recursive content search (regex, max 20 results)
@@ -533,7 +676,15 @@ geofrey.ai/
 │   │   ├── memory.ts            # memory_read, memory_write, memory_search tools
 │   │   ├── cron.ts              # Cron job management (create/list/delete)
 │   │   ├── browser.ts           # Browser automation (9 CDP actions)
-│   │   └── skill.ts             # Skill management (list/install/enable/disable/generate)
+│   │   ├── skill.ts             # Skill management (list/install/enable/disable/generate)
+│   │   ├── webhook.ts           # Webhook management (create/list/delete/test)
+│   │   ├── process.ts           # Process management (spawn/list/check/kill/logs)
+│   │   ├── agents.ts            # Agent management (list/send/history)
+│   │   ├── tts.ts               # TTS tool (speak, list_voices)
+│   │   ├── companion.ts         # Companion tool (pair/unpair/list/push)
+│   │   ├── smart-home.ts        # Smart home tool (discover/list/control/scene)
+│   │   ├── gmail.ts             # Gmail tool (auth/list/read/send/label/delete)
+│   │   └── calendar.ts          # Calendar tool (auth/list/get/create/update/delete)
 │   ├── audit/
 │   │   └── audit-log.ts         # Append-only hash-chained JSONL log
 │   ├── memory/
@@ -554,15 +705,52 @@ geofrey.ai/
 │   ├── skills/
 │   │   ├── format.ts            # SKILL.md YAML frontmatter parser + serializer (Zod schema)
 │   │   ├── registry.ts          # Skill discovery, loading, enable/disable, generate
-│   │   └── injector.ts          # buildSkillContext() for system prompt injection
+│   │   ├── injector.ts          # buildSkillContext() for system prompt injection
+│   │   ├── marketplace.ts       # Curated repository fetch, search, install
+│   │   ├── verification.ts      # SHA-256 hash verification for downloaded skills
+│   │   └── templates.ts         # 5 built-in skill templates
 │   ├── voice/
 │   │   ├── transcriber.ts       # OpenAI Whisper API + local whisper.cpp (whisper-cli)
-│   │   └── converter.ts         # ffmpeg audio → WAV 16kHz mono conversion
+│   │   ├── converter.ts         # ffmpeg audio → WAV 16kHz mono conversion
+│   │   └── synthesizer.ts       # ElevenLabs TTS (LRU cache, text splitting)
+│   ├── sandbox/
+│   │   ├── container.ts         # Docker container lifecycle (create/exec/destroy)
+│   │   ├── session-pool.ts      # Per-session container pool management
+│   │   └── volume-mount.ts      # Safe volume mounting + path validation
+│   ├── models/
+│   │   ├── provider.ts          # ModelProvider interface + types
+│   │   ├── openrouter.ts        # OpenRouter provider (native fetch, SSE streaming)
+│   │   └── model-registry.ts    # Model registry with failover chains
+│   ├── webhooks/
+│   │   ├── router.ts            # Route registry + HMAC auth + rate limiting
+│   │   ├── handler.ts           # Event templates (GitHub/Stripe/generic)
+│   │   └── server.ts            # HTTP webhook server
+│   ├── process/
+│   │   └── manager.ts           # Background process spawn/kill/logs
+│   ├── agents/
+│   │   ├── agent-config.ts      # AgentConfig type + Zod schema, specialist templates
+│   │   ├── hub.ts               # Hub-and-Spoke router (skill/intent/explicit routing)
+│   │   ├── session-manager.ts   # Per-agent chat namespacing
+│   │   └── communication.ts     # Inter-agent message passing
+│   ├── companion/
+│   │   ├── device-registry.ts   # In-memory device store (CRUD)
+│   │   ├── pairing.ts           # 6-digit pairing codes (5min TTL)
+│   │   ├── push.ts              # APNS (node:http2) + FCM push notifications
+│   │   └── ws-server.ts         # WebSocket server (ws) with heartbeat
+│   ├── integrations/
+│   │   ├── hue.ts               # Philips Hue API v2 client
+│   │   ├── homeassistant.ts     # HomeAssistant REST API client
+│   │   ├── sonos.ts             # Sonos HTTP API client
+│   │   ├── discovery.ts         # SSDP/nUPnP device discovery
+│   │   └── google/
+│   │       ├── auth.ts          # Google OAuth2 (token cache, auto-refresh)
+│   │       ├── gmail.ts         # Gmail API (list, read, send, label, delete)
+│   │       └── calendar.ts      # Google Calendar API (CRUD events)
 │   ├── dashboard/
 │   │   └── public/              # Single-page chat UI (HTML + CSS + JS)
 │   ├── db/
 │   │   ├── client.ts            # better-sqlite3 + Drizzle ORM + migrate()
-│   │   └── schema.ts            # Drizzle table definitions (+ cronJobs, usageLog, memoryChunks)
+│   │   └── schema.ts            # Drizzle table definitions (cronJobs, usageLog, memoryChunks, webhooks, agentSessions, googleTokens)
 │   ├── indexer/
 │   │   ├── cli.ts               # CLI entry point (geofrey index / pnpm index)
 │   │   ├── index.ts             # Incremental project indexer (AST parsing, mtime cache)

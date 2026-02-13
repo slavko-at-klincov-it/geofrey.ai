@@ -510,6 +510,96 @@ apt install ffmpeg          # Debian/Ubuntu
 brew install ffmpeg          # macOS
 ```
 
+### Phase 3 Environment Variables (v1.3)
+
+#### Docker Sandbox
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `SANDBOX_ENABLED` | No | `false` | Enable Docker sandbox for isolated tool execution |
+| `SANDBOX_IMAGE` | No | `node:22-slim` | Docker image for sandbox containers |
+| `SANDBOX_MEMORY_LIMIT` | No | `512m` | Memory limit per container |
+| `SANDBOX_NETWORK` | No | `false` | Enable network access in sandbox |
+| `SANDBOX_PIDS_LIMIT` | No | `64` | Max PIDs per container |
+| `SANDBOX_READ_ONLY` | No | `false` | Read-only filesystem in container |
+| `SANDBOX_TTL_MS` | No | `1800000` | Container TTL (30 min default) |
+
+Requires Docker CLI available on the host. Containers are created per-session and destroyed on shutdown.
+
+#### Multi-Model Support (OpenRouter)
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `OPENROUTER_API_KEY` | OpenRouter | — | OpenRouter API key for 100+ model access |
+| `OPENROUTER_DEFAULT_MODEL` | No | — | Default model for OpenRouter requests |
+| `OPENROUTER_FAILOVER_CHAIN` | No | — | Comma-separated failover chain (e.g. `gpt-4o,claude-sonnet,llama`) |
+| `OPENROUTER_TASK_MODELS` | No | — | JSON map of task→model routing (e.g. `{"coding":"deepseek-coder"}`) |
+
+#### Webhook Triggers
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `WEBHOOK_ENABLED` | No | `false` | Enable HTTP webhook server |
+| `WEBHOOK_PORT` | No | `3002` | Webhook server port |
+| `WEBHOOK_HOST` | No | `localhost` | Webhook server host |
+| `WEBHOOK_RATE_LIMIT` | No | `60` | Max requests per minute per webhook |
+
+#### TTS (ElevenLabs)
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `TTS_ENABLED` | No | `false` | Enable text-to-speech |
+| `ELEVENLABS_API_KEY` | TTS | — | ElevenLabs API key |
+| `ELEVENLABS_VOICE_ID` | No | `21m00Tcm4TlvDq8ikWAM` | ElevenLabs voice ID |
+| `TTS_CACHE_LRU_SIZE` | No | `100` | LRU cache size for synthesized audio |
+
+### Phase 4 Environment Variables (v2.0)
+
+#### Multi-Agent Routing
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `AGENTS_ENABLED` | No | `false` | Enable multi-agent hub |
+| `AGENTS_ROUTING_STRATEGY` | No | `skill-based` | Routing: `skill-based`, `intent-based`, or `explicit` |
+| `AGENTS_MAX_CONCURRENT` | No | `5` | Max concurrent agent sessions |
+| `AGENTS_SESSION_ISOLATION` | No | `true` | Isolate agent sessions |
+
+#### Companion Apps
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `COMPANION_ENABLED` | No | `false` | Enable companion WebSocket server |
+| `COMPANION_WS_PORT` | No | `3003` | WebSocket port for companion apps |
+| `COMPANION_PAIRING_TTL_MS` | No | `300000` | Pairing code TTL (5 min) |
+| `APNS_KEY_PATH` | iOS push | — | Path to APNS .p8 key file |
+| `APNS_KEY_ID` | iOS push | — | APNS key ID |
+| `APNS_TEAM_ID` | iOS push | — | Apple Team ID |
+| `APNS_BUNDLE_ID` | iOS push | — | iOS app bundle ID |
+| `FCM_SERVER_KEY` | Android push | — | Firebase Cloud Messaging server key |
+
+#### Smart Home
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `SMART_HOME_ENABLED` | No | `false` | Enable smart home integrations |
+| `HUE_BRIDGE_IP` | Hue | — | Philips Hue bridge IP address |
+| `HUE_API_KEY` | Hue | — | Hue API key (generate via bridge button) |
+| `HOMEASSISTANT_URL` | HA | — | HomeAssistant URL (e.g. `http://homeassistant.local:8123`) |
+| `HOMEASSISTANT_TOKEN` | HA | — | HomeAssistant long-lived access token |
+| `SONOS_HTTP_API_URL` | Sonos | — | sonos-http-api URL (e.g. `http://localhost:5005`) |
+
+#### Google (Gmail + Calendar)
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `GOOGLE_ENABLED` | No | `false` | Enable Google integrations |
+| `GOOGLE_CLIENT_ID` | Google | — | Google OAuth2 client ID |
+| `GOOGLE_CLIENT_SECRET` | Google | — | Google OAuth2 client secret |
+| `GOOGLE_REDIRECT_URL` | No | `http://localhost:3004/oauth/callback` | OAuth2 redirect URL |
+| `GOOGLE_TOKEN_CACHE_PATH` | No | `./data/google-tokens.json` | Token cache file path |
+
+Create a Google Cloud project, enable Gmail API + Calendar API, create OAuth2 credentials (Desktop app type), and set the client ID/secret above. The first `gmail auth` or `calendar auth` command will open a browser for authorization.
+
 ### Security Checklist
 
 - [ ] `.env` file has `chmod 600` and is owned by the service user

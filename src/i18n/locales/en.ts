@@ -413,4 +413,48 @@ export const en: Record<TranslationKey, string> = {
   "marketplace.hashMismatch": "Hash verification failed for {name} — file tampered?",
   "marketplace.fetchFailed": "Marketplace unreachable: {msg}",
   "marketplace.templateCreated": "Skill created from template: {name}",
+
+  // tts
+  "tts.speaking": "Generating speech...",
+  "tts.spoken": "Audio generated ({length} bytes)",
+  "tts.notConfigured": "TTS not configured — set TTS_ENABLED=true and ELEVENLABS_API_KEY",
+  "tts.voicesList": "{count} voices available:",
+  "tts.synthesizeFailed": "Speech synthesis failed: {msg}",
+
+  // companion
+  "companion.paired": "Device paired: {name}",
+  "companion.unpaired": "Device unpaired: {id}",
+  "companion.listEmpty": "No paired devices",
+  "companion.listHeader": "{count} paired devices:",
+  "companion.pairingCode": "Pairing code: {code} (valid {ttl}s)",
+  "companion.notFound": "Device not found: {id}",
+  "companion.pushSent": "Push notification sent to {name}",
+  "companion.notConfigured": "Companion not configured — set COMPANION_ENABLED=true",
+
+  // smart home
+  "smartHome.discovered": "{count} devices discovered:",
+  "smartHome.listEmpty": "No smart home devices found",
+  "smartHome.listHeader": "{count} devices:",
+  "smartHome.controlled": "Device controlled: {device}",
+  "smartHome.sceneFired": "Scene activated: {scene}",
+  "smartHome.notConfigured": "Smart home not configured — set SMART_HOME_ENABLED=true",
+  "smartHome.providerRequired": "Provider required (hue, homeassistant, sonos)",
+
+  // gmail
+  "gmail.authUrl": "Google sign-in: {url}",
+  "gmail.authenticated": "Google account connected",
+  "gmail.listEmpty": "No emails found",
+  "gmail.listHeader": "{count} emails:",
+  "gmail.sent": "Email sent to {to}",
+  "gmail.labeled": "Labels updated: {id}",
+  "gmail.deleted": "Email deleted: {id}",
+  "gmail.notConfigured": "Gmail not configured — set GOOGLE_ENABLED=true and GOOGLE_CLIENT_ID",
+
+  // calendar
+  "calendar.listEmpty": "No events found",
+  "calendar.listHeader": "{count} events:",
+  "calendar.created": "Event created: {summary}",
+  "calendar.updated": "Event updated: {id}",
+  "calendar.deleted": "Event deleted: {id}",
+  "calendar.notConfigured": "Calendar not configured — set GOOGLE_ENABLED=true and GOOGLE_CLIENT_ID",
 } satisfies Record<TranslationKey, string>;

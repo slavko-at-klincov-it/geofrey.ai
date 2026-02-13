@@ -23,6 +23,17 @@ const pathToEnvVar: Record<string, string> = {
   "voice.sttProvider": "VOICE_STT_PROVIDER",
   "voice.openaiApiKey": "OPENAI_API_KEY",
   "voice.whisperModelPath": "WHISPER_MODEL_PATH",
+  "tts.apiKey": "ELEVENLABS_API_KEY",
+  "tts.voiceId": "ELEVENLABS_VOICE_ID",
+  "companion.wsPort": "COMPANION_WS_PORT",
+  "smartHome.hueBridgeIp": "HUE_BRIDGE_IP",
+  "smartHome.hueApiKey": "HUE_API_KEY",
+  "smartHome.haUrl": "HOMEASSISTANT_URL",
+  "smartHome.haToken": "HOMEASSISTANT_TOKEN",
+  "smartHome.sonosHttpApiUrl": "SONOS_HTTP_API_URL",
+  "google.clientId": "GOOGLE_CLIENT_ID",
+  "google.clientSecret": "GOOGLE_CLIENT_SECRET",
+  "google.redirectUrl": "GOOGLE_REDIRECT_URL",
 };
 
 function formatZodError(error: ZodError): string {
@@ -203,6 +214,45 @@ export function loadConfig(): Config {
         sessionIsolation: process.env.AGENTS_SESSION_ISOLATION !== undefined
           ? process.env.AGENTS_SESSION_ISOLATION === "true"
           : undefined,
+      },
+      tts: {
+        enabled: process.env.TTS_ENABLED !== undefined
+          ? process.env.TTS_ENABLED === "true"
+          : undefined,
+        apiKey: process.env.ELEVENLABS_API_KEY,
+        voiceId: process.env.ELEVENLABS_VOICE_ID,
+        cacheLruSize: process.env.TTS_CACHE_LRU_SIZE,
+      },
+      companion: {
+        enabled: process.env.COMPANION_ENABLED !== undefined
+          ? process.env.COMPANION_ENABLED === "true"
+          : undefined,
+        wsPort: process.env.COMPANION_WS_PORT,
+        pairingTtlMs: process.env.COMPANION_PAIRING_TTL_MS,
+        apnsKeyPath: process.env.APNS_KEY_PATH,
+        apnsKeyId: process.env.APNS_KEY_ID,
+        apnsTeamId: process.env.APNS_TEAM_ID,
+        apnsBundleId: process.env.APNS_BUNDLE_ID,
+        fcmServerKey: process.env.FCM_SERVER_KEY,
+      },
+      smartHome: {
+        enabled: process.env.SMART_HOME_ENABLED !== undefined
+          ? process.env.SMART_HOME_ENABLED === "true"
+          : undefined,
+        hueBridgeIp: process.env.HUE_BRIDGE_IP,
+        hueApiKey: process.env.HUE_API_KEY,
+        haUrl: process.env.HOMEASSISTANT_URL,
+        haToken: process.env.HOMEASSISTANT_TOKEN,
+        sonosHttpApiUrl: process.env.SONOS_HTTP_API_URL,
+      },
+      google: {
+        enabled: process.env.GOOGLE_ENABLED !== undefined
+          ? process.env.GOOGLE_ENABLED === "true"
+          : undefined,
+        clientId: process.env.GOOGLE_CLIENT_ID,
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+        redirectUrl: process.env.GOOGLE_REDIRECT_URL,
+        tokenCachePath: process.env.GOOGLE_TOKEN_CACHE_PATH,
       },
       anonymizer: {
         enabled: process.env.ANONYMIZER_ENABLED !== undefined
