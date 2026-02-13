@@ -384,6 +384,52 @@ src/
 - [ ] Profile → Anonymizer: Name, VIP-Emails als custom PII-Patterns beim Startup registrieren
 - [ ] Proaktive Tasks: expliziter `SIMPLE_TASK`-Hint in Templates, damit Orchestrator nie Claude Code dafür nutzt
 
+### Auto-Tooling — Self-Extending Agent (v2.2)
+
+Wenn geofrey eine Aufgabe nicht mit bestehenden Tools erfüllen kann, erkennt er die Lücke und bietet an, ein eigenständiges Programm dafür zu bauen — vollautomatisch via Claude Code in einem Docker-Container.
+
+**Flow:**
+1. Orchestrator erkennt Capability-Gap → fragt User: "Soll ich ein Programm dafür entwickeln?"
+2. User bestätigt → Qwen3 sammelt Kontext (Was? Welche APIs? Welche Constraints?)
+3. Anonymizer entfernt PII aus dem Kontext
+4. Docker-Container → neuer Projektordner unter `.geofrey/projects/{slug}/`
+5. CLAUDE.md wird generiert (Hybrid: geofrey + Claude Code, siehe unten)
+6. `claude --dangerously-skip-permissions` im Container mit perfektem Prompt
+7. Fertiges Programm → Cron-Job / Background-Process registrieren
+8. User sieht nur: "Dein Programm läuft jetzt alle 30 Minuten."
+
+**CLAUDE.md-Generierung (Hybrid-Ansatz):**
+1. **geofrey generiert User-Preferences-Sektion direkt** — liest strukturierte Memory-Sektionen (wants, doesnt-want, preferences, decisions), baut daraus deterministische Abschnitte. Kein Token-Overhead, reproduzierbar.
+2. **Claude Code ergänzt Projekt-spezifische Sektion** — Conventions, Architecture, Tech-Stack-Patterns. Claude Code kennt den Code-Kontext und kann projektspezifische Rules ableiten.
+3. **Kombiniert:** geofrey schreibt die initiale CLAUDE.md (User-Wünsche + "Was wir nicht wollen"), dann erweitert Claude Code sie nach dem ersten Scaffolding um technische Conventions.
+
+**Autonome Ausführung — Kontrollierte Properties:**
+- [ ] `claude --dangerously-skip-permissions` nur innerhalb Docker-Container (nie auf Host)
+- [ ] `--max-turns N` begrenzt Agent-Loops (verhindert Endlosschleifen)
+- [ ] `--output-format stream-json` für Live-Fortschritt an geofrey zurück
+- [ ] Projekt-Isolation: jedes Auto-Tool bekommt eigenen Container + Volume
+- [ ] Timeout: maximale Laufzeit pro Build (z.B. 30 Min), danach SIGTERM
+- [ ] Exit-Code-Prüfung: Claude Code Exit 0 = Erfolg, sonst User informieren
+- [ ] Test-Pflicht im Prompt: "Schreibe Tests und stelle sicher dass `npm test` grün ist bevor du fertig bist"
+- [ ] Post-Build: geofrey prüft ob erwartete Artefakte existieren (z.B. `index.ts`, `package.json`)
+
+**Prompt-Engineering Wissensbasis:**
+- Referenz: [`everything-claude-code`](https://github.com/affaan-m/everything-claude-code) — 37+ Skills, 13 Agents, Plan-Mode, TDD, Continuous Learning
+- Referenz: [Claude Code System Prompt (leaked)](https://github.com/asgeirtj/system_prompts_leaks/blob/main/Anthropic/claude-code.md) — interne Tools, Permission-Model, Plan-Mode, Task-Delegation
+- Referenz: `system_prompts_leaks-main/` (lokal im Repo) — 109 System-Prompts als Pattern-Bibliothek
+- Der Prompt an Claude Code muss enthalten: klare Aufgabenbeschreibung, Tech-Stack, Constraints, erwartete Artefakte, Testanforderungen, "Was wir nicht wollen" aus Memory
+
+**Roadmap-Items:**
+- [ ] Gap-Detection im Orchestrator: erkennt wenn kein Tool passt → bietet Auto-Tooling an
+- [ ] Kontext-Sammler: Qwen3 extrahiert strukturierte Requirements aus User-Dialog
+- [ ] CLAUDE.md-Generator: Memory → User-Preferences-Sektion (deterministic)
+- [ ] Prompt-Builder: baut perfekten Claude-Code-Prompt aus Requirements + Wissensbasis
+- [ ] Docker-Launcher: Container erstellen, Volume mounten, Claude Code starten
+- [ ] Live-Fortschritt: stream-json Output → Telegram/WhatsApp Status-Updates
+- [ ] Post-Build-Validator: Artefakte prüfen, Tests grün, Exit-Code OK
+- [ ] Registrierung: fertiges Programm als Cron-Job oder Background-Process einrichten
+- [ ] CLAUDE.md-Enrichment: Claude Code ergänzt technische Conventions nach Scaffolding
+
 ### Completed (v1.0–v2.0)
 - [x] All core features implemented (see Project Status above)
 - [x] 20+ native tools, 6 messaging platforms, 950+ tests
