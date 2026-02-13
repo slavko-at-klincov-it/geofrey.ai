@@ -49,6 +49,13 @@ export type TranslationKey =
   | "messaging.processingError"
   | "messaging.signalInstruction"
 
+  // messaging - image
+  | "messaging.imageProcessing"
+  | "messaging.imageDownloadFailed"
+  | "messaging.imageUnsupported"
+  | "messaging.imageTooLarge"
+  | "messaging.imageOcrFailed"
+
   // check (onboarding)
   | "check.disabled"
   | "check.notFound"

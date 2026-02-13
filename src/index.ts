@@ -12,6 +12,8 @@ import { initClaudeCode } from "./tools/claude-code.js";
 import { checkClaudeCodeReady } from "./onboarding/check.js";
 import { runAgentLoopStreaming } from "./orchestrator/agent-loop.js";
 import type { PlatformCallbacks } from "./messaging/platform.js";
+import { processImage } from "./messaging/image-handler.js";
+import { ImageSanitizeError } from "./security/image-sanitizer.js";
 
 // Import tools to register them
 import "./tools/filesystem.js";
@@ -73,6 +75,7 @@ async function main() {
 
   // Ensure data directories exist
   await mkdir("data/audit", { recursive: true });
+  await mkdir("data/images", { recursive: true });
 
   // Restore audit hash chain from last entry (F13)
   await initLastHash(config.audit.logDir);
@@ -114,6 +117,39 @@ async function main() {
   const callbacks: PlatformCallbacks = {
     async onMessage(chatId, text) {
       await runAgentLoopStreaming(config, chatId, text, platform);
+    },
+    async onImageMessage(chatId, image) {
+      if (!config.imageSanitizer.enabled) {
+        await platform.sendMessage(chatId, t("messaging.imageUnsupported"));
+        return;
+      }
+      try {
+        await platform.sendMessage(chatId, t("messaging.imageProcessing"));
+        const processed = await processImage(image, chatId, config);
+        if (!processed.ocrText && image.caption === undefined) {
+          // Warn about OCR failure only if there was no caption fallback
+        }
+        await runAgentLoopStreaming(config, chatId, processed.description, platform);
+      } catch (err) {
+        if (err instanceof ImageSanitizeError) {
+          switch (err.code) {
+            case "SIZE_EXCEEDED": {
+              const maxMB = `${Math.round(config.imageSanitizer.maxInputSizeBytes / 1_048_576)}MB`;
+              await platform.sendMessage(chatId, t("messaging.imageTooLarge", { maxSize: maxMB }));
+              break;
+            }
+            case "UNSUPPORTED_FORMAT":
+              await platform.sendMessage(chatId, t("messaging.imageUnsupported"));
+              break;
+            default:
+              await platform.sendMessage(chatId, t("messaging.imageDownloadFailed"));
+              break;
+          }
+        } else {
+          console.error("Image processing error:", err);
+          await platform.sendMessage(chatId, t("messaging.imageDownloadFailed"));
+        }
+      }
     },
     async onApprovalResponse(nonce, approved) {
       resolveApproval(nonce, approved);

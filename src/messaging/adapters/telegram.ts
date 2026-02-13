@@ -72,6 +72,52 @@ export function createTelegramPlatform(
     }
   });
 
+  // Handle photo messages
+  bot.on("message:photo", async (ctx) => {
+    const chatId = String(ctx.chat.id);
+    try {
+      // Get largest photo (last in array)
+      const photos = ctx.message.photo;
+      const largest = photos[photos.length - 1];
+      const file = await ctx.api.getFile(largest.file_id);
+      const url = `https://api.telegram.org/file/bot${config.botToken}/${file.file_path}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`Download failed: ${res.status}`);
+      const buffer = Buffer.from(await res.arrayBuffer());
+      await callbacks.onImageMessage(chatId, {
+        buffer,
+        mimeType: "image/jpeg",
+        caption: ctx.message.caption,
+      });
+    } catch (err) {
+      console.error("Image download error:", err);
+      await ctx.reply(t("messaging.imageDownloadFailed"));
+    }
+  });
+
+  // Handle document messages (images sent as files)
+  bot.on("message:document", async (ctx) => {
+    const doc = ctx.message.document;
+    if (!doc.mime_type?.startsWith("image/")) return;
+    const chatId = String(ctx.chat.id);
+    try {
+      const file = await ctx.api.getFile(doc.file_id);
+      const url = `https://api.telegram.org/file/bot${config.botToken}/${file.file_path}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`Download failed: ${res.status}`);
+      const buffer = Buffer.from(await res.arrayBuffer());
+      await callbacks.onImageMessage(chatId, {
+        buffer,
+        mimeType: doc.mime_type,
+        fileName: doc.file_name,
+        caption: ctx.message.caption,
+      });
+    } catch (err) {
+      console.error("Image document download error:", err);
+      await ctx.reply(t("messaging.imageDownloadFailed"));
+    }
+  });
+
   return {
     name: "telegram",
     maxMessageLength: 4096,

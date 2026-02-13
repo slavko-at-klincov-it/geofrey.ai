@@ -51,6 +51,13 @@ export const de: Record<TranslationKey, string> = {
   "messaging.processingError": "Fehler bei der Verarbeitung. Bitte versuche es erneut.",
   "messaging.signalInstruction": "Antworten Sie mit: 1 = Genehmigen, 2 = Ablehnen",
 
+  // messaging - image
+  "messaging.imageProcessing": "Bild wird verarbeitet...",
+  "messaging.imageDownloadFailed": "Bild konnte nicht heruntergeladen werden. Bitte erneut versuchen.",
+  "messaging.imageUnsupported": "Nicht unterstütztes Bildformat. Unterstützt: JPEG, PNG, WebP, TIFF, GIF.",
+  "messaging.imageTooLarge": "Bild zu groß (max. {maxSize}).",
+  "messaging.imageOcrFailed": "Texterkennung fehlgeschlagen — Bild wird ohne OCR-Text weitergeleitet.",
+
   // check
   "check.disabled": "Claude Code: Deaktiviert (CLAUDE_CODE_ENABLED=false)",
   "check.notFound": "Claude Code: FEHLER — 'claude' nicht gefunden",

@@ -109,6 +109,34 @@ export function createWhatsAppPlatform(
                 continue;
               }
 
+              // Image message
+              if (msg.type === "image" && msg.image?.id) {
+                try {
+                  // Step 1: Get media URL
+                  const mediaRes = await fetch(`${API_BASE}/${msg.image.id}`, {
+                    headers: { "Authorization": `Bearer ${config.accessToken}` },
+                  });
+                  if (!mediaRes.ok) throw new Error(`Media lookup failed: ${mediaRes.status}`);
+                  const mediaData = await mediaRes.json() as { url: string };
+
+                  // Step 2: Download binary
+                  const downloadRes = await fetch(mediaData.url, {
+                    headers: { "Authorization": `Bearer ${config.accessToken}` },
+                  });
+                  if (!downloadRes.ok) throw new Error(`Download failed: ${downloadRes.status}`);
+                  const buffer = Buffer.from(await downloadRes.arrayBuffer());
+
+                  await callbacks.onImageMessage(senderPhone, {
+                    buffer,
+                    mimeType: msg.image.mime_type ?? "image/jpeg",
+                    caption: msg.image.caption,
+                  });
+                } catch (err) {
+                  console.error("WhatsApp image download error:", err);
+                }
+                continue;
+              }
+
               // Text message
               if (msg.type === "text" && msg.text?.body) {
                 await callbacks.onMessage(senderPhone, msg.text.body);
@@ -209,6 +237,7 @@ interface WhatsAppWebhookPayload {
           from: string;
           type: string;
           text?: { body: string };
+          image?: { id: string; mime_type?: string; caption?: string };
           interactive?: {
             type: string;
             button_reply: { id: string; title: string };

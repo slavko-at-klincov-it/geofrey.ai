@@ -1,4 +1,7 @@
 import { createConnection, type Socket } from "node:net";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
+import { homedir } from "node:os";
 import type { Classification } from "../../approval/risk-classifier.js";
 import type { MessagingPlatform, PlatformCallbacks, ChatId, MessageRef } from "../platform.js";
 import { t } from "../../i18n/index.js";
@@ -50,32 +53,62 @@ export function createSignalPlatform(
       dataMessage?: {
         message?: string;
         timestamp?: number;
+        attachments?: Array<{ contentType: string; filename?: string; id: string }>;
       };
     };
   }): Promise<void> {
     const source = data.envelope?.source;
-    const text = data.envelope?.dataMessage?.message;
-    if (!source || !text || !isOwner(source)) return;
+    const dataMsg = data.envelope?.dataMessage;
+    const text = dataMsg?.message;
+    if (!source || !isOwner(source)) return;
+    if (!text && !dataMsg?.attachments?.length) return;
 
     // Check for pending text-based approval response
-    const pendingNonce = pendingTextApprovals.get(source);
-    if (pendingNonce) {
-      const trimmed = text.trim();
-      if (trimmed === "1") {
+    if (text) {
+      const pendingNonce = pendingTextApprovals.get(source);
+      if (pendingNonce) {
+        const trimmed = text.trim();
+        if (trimmed === "1") {
+          pendingTextApprovals.delete(source);
+          await callbacks.onApprovalResponse(pendingNonce, true);
+          return;
+        }
+        if (trimmed === "2") {
+          pendingTextApprovals.delete(source);
+          await callbacks.onApprovalResponse(pendingNonce, false);
+          return;
+        }
+        // Not a valid approval response — clear pending and pass through
         pendingTextApprovals.delete(source);
-        await callbacks.onApprovalResponse(pendingNonce, true);
-        return;
       }
-      if (trimmed === "2") {
-        pendingTextApprovals.delete(source);
-        await callbacks.onApprovalResponse(pendingNonce, false);
-        return;
-      }
-      // Not a valid approval response — clear pending and pass through as message
-      pendingTextApprovals.delete(source);
     }
 
-    await callbacks.onMessage(source, text);
+    // Check for image attachments
+    const imageAttachment = dataMsg?.attachments?.find(
+      (a) => a.contentType.startsWith("image/"),
+    );
+
+    if (imageAttachment) {
+      try {
+        // signal-cli stores attachments in ~/.local/share/signal-cli/attachments/
+        const attachDir = join(homedir(), ".local", "share", "signal-cli", "attachments");
+        const filePath = join(attachDir, imageAttachment.id);
+        const buffer = await readFile(filePath);
+        await callbacks.onImageMessage(source, {
+          buffer,
+          mimeType: imageAttachment.contentType,
+          fileName: imageAttachment.filename,
+          caption: text ?? undefined, // text becomes caption when image is present
+        });
+      } catch (err) {
+        console.error("Signal attachment read error:", err);
+      }
+      return; // Don't also send text as separate message when image is present
+    }
+
+    if (text) {
+      await callbacks.onMessage(source, text);
+    }
   }
 
   function handleSocketData(chunk: string): void {

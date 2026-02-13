@@ -3,6 +3,13 @@ import type { Classification } from "../approval/risk-classifier.js";
 export type ChatId = string;
 export type MessageRef = string;
 
+export interface ImageAttachment {
+  buffer: Buffer;
+  mimeType: string;
+  fileName?: string;
+  caption?: string;
+}
+
 export interface MessagingPlatform {
   readonly name: "telegram" | "whatsapp" | "signal";
   readonly maxMessageLength: number;
@@ -23,5 +30,6 @@ export interface MessagingPlatform {
 
 export interface PlatformCallbacks {
   onMessage(chatId: ChatId, text: string): Promise<void>;
+  onImageMessage(chatId: ChatId, image: ImageAttachment): Promise<void>;
   onApprovalResponse(nonce: string, approved: boolean): Promise<void>;
 }

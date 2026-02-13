@@ -51,6 +51,13 @@ export const en: Record<TranslationKey, string> = {
   "messaging.processingError": "Processing error. Please try again.",
   "messaging.signalInstruction": "Reply with: 1 = Approve, 2 = Deny",
 
+  // messaging - image
+  "messaging.imageProcessing": "Processing image...",
+  "messaging.imageDownloadFailed": "Failed to download image. Please try again.",
+  "messaging.imageUnsupported": "Unsupported image format. Supported: JPEG, PNG, WebP, TIFF, GIF.",
+  "messaging.imageTooLarge": "Image too large (max {maxSize}).",
+  "messaging.imageOcrFailed": "OCR failed — image forwarded without text extraction.",
+
   // check
   "check.disabled": "Claude Code: Disabled (CLAUDE_CODE_ENABLED=false)",
   "check.notFound": "Claude Code: ERROR — 'claude' not found",
