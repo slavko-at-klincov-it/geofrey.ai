@@ -19,7 +19,7 @@ geofrey.ai runs a local LLM (Qwen3 8B via Ollama) as an intelligent orchestrator
 | Security vulnerabilities | CVE-2026-25253 (RCE), CVE-2026-25157 | No public attack surface |
 | Command injection defense | Basic | 4-layer (decomposition + regex + LLM + gate) |
 | Image metadata defense | None | EXIF/XMP/IPTC stripping + injection scanning |
-| Test coverage | Some | 430 tests across 80+ suites |
+| Test coverage | Some | 575 tests across 100+ suites |
 
 ## Features
 
@@ -42,7 +42,12 @@ geofrey.ai runs a local LLM (Qwen3 8B via Ollama) as an intelligent orchestrator
 - **Web search + fetch** — SearXNG (self-hosted) or Brave Search API, HTML→Markdown URL fetching
 - **Cron/Scheduler** — persistent job scheduler with 5-field cron expressions, exponential retry backoff
 - **Cost tracking** — per-request token/cost logging, daily aggregates, budget threshold alerts (50/75/90%)
-- **Graceful shutdown** — cleans up child processes, flushes audit log, rejects pending approvals
+- **Browser automation** — Chrome DevTools Protocol integration with accessibility tree snapshots, navigate/click/fill/screenshot/evaluate
+- **Skill system** — SKILL.md YAML frontmatter format, global + local directories, permissions manifest, auto-generation
+- **Slack + Discord** — @slack/bolt (Socket Mode, Block Kit buttons) + discord.js (Gateway Intents, Button components)
+- **Voice messages / STT** — OpenAI Whisper API + local whisper.cpp, ffmpeg audio conversion, all platforms
+- **Session compaction** — auto-compaction at 75% context usage, Ollama summarization, pre-compaction memory flush
+- **Graceful shutdown** — cleans up child processes, browsers, flushes audit log, rejects pending approvals
 
 ## Quick Start
 
@@ -73,7 +78,7 @@ pnpm setup
 The setup wizard will guide you through:
 1. Language selection (German / English)
 2. Prerequisites check (Node, Ollama, Claude Code)
-3. Platform selection (Telegram / WhatsApp / Signal)
+3. Platform selection (Telegram / WhatsApp / Signal / Slack / Discord)
 4. Credential configuration (bot tokens, phone numbers, API keys)
 5. Claude Code authentication (subscription or API key)
 6. Review and .env generation
@@ -116,7 +121,7 @@ cp .env.example .env
 # Locale (de | en)
 LOCALE=de
 
-# Platform (telegram | whatsapp | signal)
+# Platform (telegram | whatsapp | signal | webchat | slack | discord)
 PLATFORM=telegram
 
 # Telegram
@@ -170,7 +175,7 @@ User (Telegram/WhatsApp/Signal) → Local Orchestrator (Qwen3 8B) → Risk Class
 - **Risk Classifier** — Hybrid deterministic (regex) + LLM for ambiguous cases
 - **Approval Gate** — Promise-based blocking mechanism, no code path to execute without user approval
 - **Claude Code Driver** — Subprocess manager with streaming, session tracking, tool scoping
-- **Messaging Adapters** — Platform-specific implementations (grammY for Telegram, Cloud API for WhatsApp, signal-cli for Signal, SSE for WebChat)
+- **Messaging Adapters** — Platform-specific implementations (grammY for Telegram, Cloud API for WhatsApp, signal-cli for Signal, SSE for WebChat, @slack/bolt for Slack, discord.js for Discord)
 - **Audit Log** — Append-only JSONL with SHA-256 hash chain for tamper detection
 
 See `docs/ARCHITECTURE.md` for full technical details.
@@ -220,13 +225,25 @@ See `docs/ARCHITECTURE.md` for full technical details.
 - **Setup**: Set `PLATFORM=webchat` + `DASHBOARD_ENABLED=true`, optional `DASHBOARD_TOKEN` for auth
 - **Port**: Default 3001 (configurable via `DASHBOARD_PORT`)
 
+### Slack
+
+- **Interface**: Block Kit buttons for approvals
+- **Features**: Socket Mode (no public webhook), mrkdwn formatting, channel-scoped
+- **Setup**: `SLACK_BOT_TOKEN`, `SLACK_APP_TOKEN`, `SLACK_CHANNEL_ID`
+
+### Discord
+
+- **Interface**: Button components for approvals
+- **Features**: Gateway Intents, message editing for streaming updates
+- **Setup**: `DISCORD_BOT_TOKEN`, `DISCORD_CHANNEL_ID`
+
 ## Development
 
 ```bash
 # Run in development mode with auto-reload
 pnpm dev
 
-# Run tests (node:test runner, 430 tests across 80+ suites)
+# Run tests (node:test runner, 575 tests across 100+ suites)
 pnpm test
 
 # Type check
@@ -245,15 +262,18 @@ pnpm db:migrate   # Apply migrations
 ```
 src/
 ├── index.ts                 # Entry point + graceful shutdown
-├── orchestrator/            # Qwen3 agent loop, conversation, prompt generator
+├── orchestrator/            # Qwen3 agent loop, conversation, prompt generator, compaction
 ├── approval/                # Risk classifier, approval gate
-├── messaging/               # Platform adapters, image handler (Telegram, WhatsApp, Signal, WebChat)
-├── tools/                   # Tool executors (Claude Code, shell, filesystem, git, MCP, web, memory, cron)
+├── messaging/               # Platform adapters, image handler (Telegram, WhatsApp, Signal, WebChat, Slack, Discord)
+├── tools/                   # Tool executors (Claude Code, shell, filesystem, git, MCP, web, memory, cron, browser, skill)
 ├── security/                # Image metadata sanitizer, injection scanning
 ├── audit/                   # Hash-chained JSONL audit log
 ├── memory/                  # Persistent memory (MEMORY.md, embeddings, recall)
 ├── automation/              # Cron parser + job scheduler
 ├── billing/                 # Cost tracking, pricing, budget alerts
+├── browser/                 # Chrome DevTools Protocol (launcher, snapshot, actions)
+├── skills/                  # SKILL.md format, registry, injector
+├── voice/                   # STT transcriber (Whisper) + ffmpeg audio converter
 ├── dashboard/               # Web dashboard static files (HTML + CSS + JS)
 ├── db/                      # SQLite + Drizzle ORM
 ├── i18n/                    # German + English translations
@@ -352,7 +372,7 @@ See `CLAUDE.md` for project conventions and key decisions log.
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `PLATFORM` | No | `telegram` | Messaging platform: `telegram`, `whatsapp`, or `signal` |
+| `PLATFORM` | No | `telegram` | Messaging platform: `telegram`, `whatsapp`, `signal`, `webchat`, `slack`, or `discord` |
 | `TELEGRAM_BOT_TOKEN` | Telegram | — | Bot token from @BotFather |
 | `TELEGRAM_OWNER_ID` | Telegram | — | Your Telegram user ID |
 | `WHATSAPP_PHONE_NUMBER_ID` | WhatsApp | — | Business phone number ID |
@@ -380,6 +400,14 @@ See `CLAUDE.md` for project conventions and key decisions log.
 | `SEARXNG_URL` | No | `http://localhost:8080` | SearXNG instance URL |
 | `BRAVE_API_KEY` | Brave | — | Brave Search API key (required if provider is `brave`) |
 | `MAX_DAILY_BUDGET_USD` | No | — | Daily spend cap in USD (alerts at 50/75/90%) |
+| `SLACK_BOT_TOKEN` | Slack | — | Slack bot OAuth token (`xoxb-...`) |
+| `SLACK_APP_TOKEN` | Slack | — | Slack app-level token (`xapp-...`) for Socket Mode |
+| `SLACK_CHANNEL_ID` | Slack | — | Slack channel ID to operate in |
+| `DISCORD_BOT_TOKEN` | Discord | — | Discord bot token |
+| `DISCORD_CHANNEL_ID` | Discord | — | Discord text channel ID |
+| `STT_PROVIDER` | No | `openai` | Speech-to-text provider: `openai` or `local` |
+| `OPENAI_API_KEY` | STT (openai) | — | OpenAI API key for Whisper STT |
+| `WHISPER_MODEL_PATH` | STT (local) | — | Path to whisper.cpp model file (e.g. `ggml-base.bin`) |
 
 #### Claude Code CLI
 
@@ -421,14 +449,15 @@ geofrey.ai checks authentication on startup and shows actionable instructions if
 src/
 ├── index.ts                  # Entry point, health checks, graceful shutdown
 ├── orchestrator/
-│   ├── agent-loop.ts         # Vercel AI SDK 6 streamText + approval flow
-│   ├── conversation.ts       # Multi-turn memory (in-memory + SQLite)
-│   └── prompt-generator.ts   # Task templates for downstream models
+│   ├── agent-loop.ts         # Vercel AI SDK 6 streamText + approval flow + /compact command
+│   ├── conversation.ts       # Multi-turn memory (in-memory + SQLite) + compactMessages
+│   ├── prompt-generator.ts   # Task templates for downstream models
+│   └── compaction/           # Session compaction (token counter, compactor, pruner)
 ├── approval/
 │   ├── risk-classifier.ts    # Hybrid: deterministic regex (90%) + LLM (10%)
 │   └── approval-gate.ts      # Promise-based blocking gate with nonce IDs
 ├── messaging/
-│   ├── platform.ts           # MessagingPlatform + ImageAttachment interfaces
+│   ├── platform.ts           # MessagingPlatform + ImageAttachment + VoiceAttachment interfaces
 │   ├── create-platform.ts    # Async factory: config → adapter
 │   ├── streamer.ts           # Platform-agnostic token streaming
 │   ├── image-handler.ts      # Image pipeline (sanitize → OCR → store → describe)
@@ -436,7 +465,9 @@ src/
 │       ├── telegram.ts       # grammY bot + approval UI (inline buttons)
 │       ├── whatsapp.ts       # WhatsApp Business API (Cloud API, webhook + HMAC-SHA256)
 │       ├── signal.ts         # signal-cli JSON-RPC (text-based approvals)
-│       └── webchat.ts        # WebChat adapter (SSE streaming, REST API, Bearer auth)
+│       ├── webchat.ts        # WebChat adapter (SSE streaming, REST API, Bearer auth)
+│       ├── slack.ts          # Slack adapter (@slack/bolt Socket Mode)
+│       └── discord.ts        # Discord adapter (discord.js Gateway Intents)
 ├── tools/
 │   ├── tool-registry.ts      # Native + MCP tool registry → AI SDK bridge
 │   ├── mcp-client.ts         # MCP server discovery + tool wrapping
@@ -449,7 +480,9 @@ src/
 │   ├── web-search.ts         # SearXNG + Brave Search providers
 │   ├── web-fetch.ts          # URL fetch + HTML→Markdown converter
 │   ├── memory.ts             # memory_read, memory_write, memory_search tools
-│   └── cron.ts               # Cron job management (create/list/delete)
+│   ├── cron.ts               # Cron job management (create/list/delete)
+│   ├── browser.ts            # Browser automation (9 CDP actions)
+│   └── skill.ts              # Skill management (list/install/enable/disable/generate)
 ├── memory/
 │   ├── store.ts              # MEMORY.md read/write/append + daily notes
 │   ├── embeddings.ts         # Ollama embeddings + cosine similarity search
@@ -461,6 +494,9 @@ src/
 │   ├── pricing.ts            # Model pricing table + cost calculator
 │   ├── usage-logger.ts       # Per-request usage logging + daily aggregates
 │   └── budget-monitor.ts     # Budget threshold alerts (50/75/90%)
+├── browser/                  # Chrome DevTools Protocol (launcher, snapshot, actions)
+├── skills/                   # SKILL.md format, registry, injector
+├── voice/                    # STT transcriber (Whisper) + ffmpeg converter
 ├── dashboard/
 │   └── public/               # Web chat UI (HTML + CSS + JS)
 ├── security/
@@ -499,7 +535,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full system design.
 | Coding Agent | Claude Code CLI (stream-json, sessions, risk-scoped tool profiles) |
 | LLM SDK | Vercel AI SDK 6 (`streamText`, `stepCountIs`, `needsApproval`) |
 | Tool Integration | MCP Client (10K+ servers, wrapped by risk classifier) |
-| Messaging | Telegram (grammY), WhatsApp (Cloud API), Signal (signal-cli), WebChat (SSE) |
+| Messaging | Telegram (grammY), WhatsApp (Cloud API), Signal (signal-cli), WebChat (SSE), Slack (@slack/bolt), Discord (discord.js) |
 | Web Search | SearXNG (self-hosted, default) or Brave Search API |
 | Database | SQLite + Drizzle ORM |
 | Audit | Append-only hash-chained JSONL (with Claude Code cost/token tracking) |
@@ -541,7 +577,7 @@ All MCP tool calls are automatically routed through the risk classifier. The MCP
 pnpm dev          # Run with hot reload (tsx watch)
 pnpm build        # TypeScript compilation
 pnpm lint         # Type check (tsc --noEmit)
-pnpm test         # 430 tests across 80+ suites
+pnpm test         # 575 tests across 100+ suites
 pnpm setup        # Interactive setup wizard
 pnpm index        # Generate project map (.geofrey/project-map.json)
 pnpm start        # Run compiled output
@@ -552,7 +588,7 @@ pnpm db:generate  # Generate Drizzle migrations
 
 ## Project Status
 
-**430 tests passing** across 80+ suites (398 unit + 32 E2E integration).
+**575 tests passing** across 100+ suites (543 unit + 32 E2E integration).
 
 - [x] Local LLM orchestrator (Qwen3 8B)
 - [x] Hybrid risk classification (deterministic + LLM, XML output)
@@ -581,6 +617,11 @@ pnpm db:generate  # Generate Drizzle migrations
 - [x] Web search + web fetch (SearXNG + Brave Search, HTML→Markdown converter)
 - [x] Cron/Scheduler (5-field cron parser, persistent jobs, exponential retry backoff)
 - [x] Cost tracking (per-request usage logging, daily aggregates, budget threshold alerts)
+- [x] Browser automation (Chrome DevTools Protocol, accessibility tree snapshots)
+- [x] Skill system (SKILL.md YAML frontmatter, registry, permissions manifest, auto-generation)
+- [x] Slack + Discord adapters (Socket Mode / Gateway Intents)
+- [x] Voice messages / STT (OpenAI Whisper API + local whisper.cpp, ffmpeg conversion)
+- [x] Session compaction (auto-compaction at 75% context, Ollama summarization, memory flush)
 
 ---
 

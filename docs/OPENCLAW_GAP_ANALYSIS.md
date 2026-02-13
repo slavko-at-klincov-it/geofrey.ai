@@ -15,8 +15,8 @@
 
 | Feature | OpenClaw | Geofrey | Status |
 |---------|----------|---------|--------|
-| Web-Dashboard (Control UI) | Session-Management, Agent-Config, Health-Monitoring, Debug-Tools, Log-Viewer | — | ❌ |
-| WebChat (Browser-Chat) | Markdown-Rendering, Auto-Scroll, Typing-Indicators, Debug-Tools | — | ❌ |
+| Web-Dashboard (Control UI) | Session-Management, Agent-Config, Health-Monitoring, Debug-Tools, Log-Viewer | ✅ SSE streaming, audit log viewer, Bearer auth | ✅ |
+| WebChat (Browser-Chat) | Markdown-Rendering, Auto-Scroll, Typing-Indicators, Debug-Tools | ✅ Markdown rendering, dark theme, approval buttons | ✅ |
 | Live Canvas (A2UI) | Agent-gesteuerter visueller Workspace, push/reset/eval/snapshot | — | ❌ |
 | macOS Companion App | Menubar, Voice Wake ("Hey Claw"), Push-to-Talk, Remote Gateway | — | ❌ |
 | iOS Companion App | Live Canvas, Voice Wake, Camera, Screen Recording, Bonjour, Location | — | ❌ |
@@ -34,8 +34,8 @@
 | Telegram | ✅ grammY | ✅ grammY | ✅ |
 | WhatsApp | ✅ Baileys (unofficial) | ✅ Cloud API (official) | ✅ |
 | Signal | ✅ signal-cli | ✅ signal-cli | ✅ |
-| Slack | ✅ Bolt SDK | — | ❌ |
-| Discord | ✅ discord.js | — | ❌ |
+| Slack | ✅ Bolt SDK | ✅ @slack/bolt (Socket Mode, Block Kit) | ✅ |
+| Discord | ✅ discord.js | ✅ discord.js (Gateway Intents, Buttons) | ✅ |
 | Google Chat | ✅ Google Chat API | — | ❌ |
 | Microsoft Teams | ✅ Teams API | — | ❌ |
 | Matrix | ✅ Matrix Protocol | — | ❌ |
@@ -43,7 +43,7 @@
 | iMessage (legacy) | ✅ Direct | — | ❌ |
 | Zalo | ✅ Zalo API | — | ❌ |
 | Zalo Personal | ✅ Zalo Personal API | — | ❌ |
-| WebChat (built-in) | ✅ Gateway-integriert | — | ❌ |
+| WebChat (built-in) | ✅ Gateway-integriert | ✅ SSE + REST, Bearer auth, dark theme | ✅ |
 | Typing Indicators | ✅ Konfigurierbares Intervall | Nur Telegram (rudimentär) | ⚠️ |
 | Presence Indicators | ✅ Online-Status | — | ❌ |
 | Gruppen-Isolation | ✅ Activation Modes (mention/always) | — (Owner-only) | ❌ |
@@ -64,12 +64,12 @@
 | Content Search | ✅ | ✅ search.ts | ✅ |
 | Claude Code | — (eigenes Modell) | ✅ claude-code.ts | ✅ |
 | MCP Client | ⚠️ Community-Lösungen | ✅ Nativ | ✅ |
-| Browser-Automation (CDP) | ✅ Chrome DevTools Protocol, Snapshots | — | ❌ |
-| Web Search | ✅ Keyword-Suche | — | ❌ |
-| Web Fetch | ✅ Seiten lesen/downloaden | — | ❌ |
+| Browser-Automation (CDP) | ✅ Chrome DevTools Protocol, Snapshots | ✅ CDP via chrome-remote-interface, accessibility tree, 9 actions | ✅ |
+| Web Search | ✅ Keyword-Suche | ✅ SearXNG + Brave Search | ✅ |
+| Web Fetch | ✅ Seiten lesen/downloaden | ✅ HTML→Markdown converter | ✅ |
 | Image Understanding | ✅ | ✅ image-handler.ts (OCR + Beschreibung) | ✅ |
 | Process Management | ✅ List, Check, Kill | — | ❌ |
-| Cron/Scheduler | ✅ At/Every/Cron-Expressions, persistent | — | ❌ |
+| Cron/Scheduler | ✅ At/Every/Cron-Expressions, persistent | ✅ 5-field cron, SQLite-backed, exponential retry | ✅ |
 | Webhooks | ✅ HTTP-Endpoint-Triggers | — (nur WhatsApp-Webhook) | ❌ |
 | Gmail Integration | ✅ Pub/Sub, Echtzeit | — | ❌ |
 | Notifications | ✅ Push an paired Devices | — | ❌ |
@@ -85,10 +85,10 @@
 
 | Feature | OpenClaw | Geofrey | Status |
 |---------|----------|---------|--------|
-| Skill-Marketplace (ClawHub) | ✅ 700+ Community-Skills, clawhub.ai | — | ❌ |
-| Skill-Format (SKILL.md) | ✅ YAML-Frontmatter + Plain English | — | ❌ |
-| Skill-Auto-Generation | ✅ Agent erstellt Skills autonom | — | ❌ |
-| Skill-Permissions-Manifest | ✅ filesystem, network, env, exec Scoping | — | ❌ |
+| Skill-Marketplace (ClawHub) | ✅ 700+ Community-Skills, clawhub.ai | — (bewusst kein Marketplace) | ❌ |
+| Skill-Format (SKILL.md) | ✅ YAML-Frontmatter + Plain English | ✅ YAML frontmatter (Zod), global + local dirs | ✅ |
+| Skill-Auto-Generation | ✅ Agent erstellt Skills autonom | ✅ generate action via skill tool | ✅ |
+| Skill-Permissions-Manifest | ✅ filesystem, network, env, exec Scoping | ✅ 4-axis permissions (filesystem/network/env/exec) | ✅ |
 | Smart Home (Hue, Elgato, HomeAssistant) | ✅ | — | ❌ |
 | Productivity (Notes, Reminders, Notion) | ✅ | — | ❌ |
 | Musik (Spotify, Sonos) | ✅ | — | ❌ |
@@ -102,13 +102,13 @@
 
 | Feature | OpenClaw | Geofrey | Status |
 |---------|----------|---------|--------|
-| Speech-to-Text (Whisper) | ✅ | — | ❌ |
+| Speech-to-Text (Whisper) | ✅ | ✅ OpenAI Whisper API + local whisper.cpp | ✅ |
 | Text-to-Speech (ElevenLabs) | ✅ Custom Voice Cloning, 32+ Sprachen | — | ❌ |
 | Voice Wake ("Hey Claw") | ✅ macOS, iOS, Android | — | ❌ |
 | Talk Mode (kontinuierlich) | ✅ | — | ❌ |
 | Push-to-Talk | ✅ macOS Overlay | — | ❌ |
 | Telefon-Integration | ✅ ElevenLabs Agents | — | ❌ |
-| Voice Messages (WhatsApp etc.) | ✅ Transkription | — | ❌ |
+| Voice Messages (WhatsApp etc.) | ✅ Transkription | ✅ Alle Plattformen (Telegram/WhatsApp/Signal) | ✅ |
 
 **Priorität:** STT (Whisper) für Voice Messages ist der wichtigste erste Schritt.
 
@@ -119,14 +119,14 @@
 | Feature | OpenClaw | Geofrey | Status |
 |---------|----------|---------|--------|
 | Conversation Persistence | ✅ Sessions | ✅ SQLite + Drizzle | ✅ |
-| Persistent Memory (MEMORY.md) | ✅ Entscheidungen, Präferenzen, Fakten | — | ❌ |
-| Daily Notes (memory/YYYY-MM-DD.md) | ✅ Laufender Kontext | — | ❌ |
-| Semantic Memory Search | ✅ Vektor-Index, ~400 Token Chunks | — | ❌ |
-| Auto-Recall | ✅ Automatisch relevante Erinnerungen laden | — | ❌ |
-| Session Compaction | ✅ Ältere Konversation zusammenfassen | — (nur MAX_HISTORY_MESSAGES=50) | ❌ |
-| Pre-Compaction Memory Flush | ✅ Vor Kompaktierung wichtiges speichern | — | ❌ |
-| Session Pruning | ✅ In-Memory Trimming alter Tool-Ergebnisse | — | ❌ |
-| Context Window Management | ✅ Per-Model Tracking, Auto-Overflow | — | ❌ |
+| Persistent Memory (MEMORY.md) | ✅ Entscheidungen, Präferenzen, Fakten | ✅ MEMORY.md + Ollama embeddings | ✅ |
+| Daily Notes (memory/YYYY-MM-DD.md) | ✅ Laufender Kontext | ✅ Daily notes support | ✅ |
+| Semantic Memory Search | ✅ Vektor-Index, ~400 Token Chunks | ✅ Cosine similarity, ~400 token chunks | ✅ |
+| Auto-Recall | ✅ Automatisch relevante Erinnerungen laden | ✅ Threshold 0.7, top-K results | ✅ |
+| Session Compaction | ✅ Ältere Konversation zusammenfassen | ✅ Ollama summarization, /compact command | ✅ |
+| Pre-Compaction Memory Flush | ✅ Vor Kompaktierung wichtiges speichern | ✅ flushToMemory() extracts key facts | ✅ |
+| Session Pruning | ✅ In-Memory Trimming alter Tool-Ergebnisse | ✅ pruneToolResults() + pruneOldMessages() | ✅ |
+| Context Window Management | ✅ Per-Model Tracking, Auto-Overflow | ✅ Token counting, auto-compact at 75% | ✅ |
 
 **Priorität:** Persistent Memory + Semantic Search sind essentiell für einen persönlichen Assistenten.
 
@@ -204,7 +204,7 @@
 | Docker Sandbox (per Session) | ✅ Isolierte Container | — | ❌ |
 | Safe Binaries Allowlist | ✅ | — (über L0-Patterns) | ⚠️ |
 | Tool Policies (Allow/Deny per Agent) | ✅ | — (global Risk Levels) | ❌ |
-| Skill Permission Manifest | ✅ Risk Scoring (5 Levels) | — | ❌ |
+| Skill Permission Manifest | ✅ Risk Scoring (5 Levels) | ✅ 4-axis permissions (filesystem/network/env/exec) | ✅ |
 | VirusTotal Skill Scanning | ✅ | — | ❌ |
 | DM Pairing Codes | ✅ | — (Owner-only) | ⚠️ |
 | Gateway Auth (Password/OAuth) | ✅ | — (kein Gateway) | ❌ |
@@ -217,10 +217,10 @@
 
 | Feature | OpenClaw | Geofrey | Status |
 |---------|----------|---------|--------|
-| Per-Response Kosten-Tracking | ✅ | ⚠️ Nur Claude Code Budget | ⚠️ |
+| Per-Response Kosten-Tracking | ✅ | ✅ Per-request logging + daily aggregates | ✅ |
 | `/usage` Befehle (off/tokens/full) | ✅ | — | ❌ |
-| Budget-Limits & Alerts | ✅ ClawWatcher (50/75/90%) | — | ❌ |
-| Token-Metriken | ✅ | — | ❌ |
+| Budget-Limits & Alerts | ✅ ClawWatcher (50/75/90%) | ✅ MAX_DAILY_BUDGET_USD (50/75/90% alerts) | ✅ |
+| Token-Metriken | ✅ | ✅ Input/output tokens per request | ✅ |
 | Monitoring Dashboard | ✅ ClawWatcher (3rd Party) | — | ❌ |
 
 **Priorität:** Kosten-Tracking und Budget-Limits sollten eingebaut werden.

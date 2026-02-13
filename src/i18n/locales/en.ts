@@ -296,4 +296,57 @@ export const en: Record<TranslationKey, string> = {
   "onboarding.savePrompt": "Save configuration to .env?",
   "onboarding.backupCreated": "Backup created: {path}",
   "onboarding.envSaved": ".env has been created",
+
+  // slack
+  "onboarding.slackTitle": "Set up Slack",
+  "onboarding.slackPrereqs": "\n  Prerequisites:\n  1. Slack App created (api.slack.com/apps)\n  2. Socket Mode enabled\n  3. Bot Token Scopes: chat:write, channels:history, channels:read\n  → Docs: https://api.slack.com/start\n",
+  "onboarding.slackBotToken": "Bot Token (xoxb-...):",
+  "onboarding.slackAppToken": "App-Level Token (xapp-...):",
+  "onboarding.slackChannelId": "Channel ID:",
+  "onboarding.slackAborted": "Slack setup aborted.",
+  "onboarding.platformSlack": "Slack",
+
+  // discord
+  "onboarding.discordTitle": "Set up Discord",
+  "onboarding.discordPrereqs": "\n  Prerequisites:\n  1. Discord Application created (discord.com/developers)\n  2. Bot created and token copied\n  3. Bot invited to server with: Send Messages, Read Message History\n  → Docs: https://discord.com/developers/docs\n",
+  "onboarding.discordBotToken": "Bot Token:",
+  "onboarding.discordChannelId": "Channel ID:",
+  "onboarding.discordAborted": "Discord setup aborted.",
+  "onboarding.platformDiscord": "Discord",
+
+  // voice
+  "voice.transcribing": "Transcribing voice message...",
+  "voice.transcribed": "[Voice message]: {text}",
+  "voice.downloadFailed": "Failed to download voice message.",
+  "voice.transcriptionFailed": "Transcription failed: {msg}",
+  "voice.ffmpegMissing": "ffmpeg not found — required for voice messages",
+  "voice.noProvider": "No STT provider configured (STT_PROVIDER + OPENAI_API_KEY or WHISPER_MODEL_PATH)",
+
+  // skills
+  "skills.listed": "{count} skills found",
+  "skills.installed": "Skill installed: {name}",
+  "skills.enabled": "Skill enabled: {name}",
+  "skills.disabled": "Skill disabled: {name}",
+  "skills.generated": "Skill created: {name} ({path})",
+  "skills.notFound": "Skill not found: {id}",
+  "skills.noSkills": "No skills found",
+  "skills.invalidFormat": "Invalid SKILL.md format: {msg}",
+  "skills.permissionDenied": "Skill permission denied: {permission}",
+
+  // browser
+  "browser.launched": "Browser launched on port {port}",
+  "browser.connected": "Browser connected on port {port}",
+  "browser.closed": "Browser closed",
+  "browser.closedAll": "All browsers closed",
+  "browser.navigated": "Navigated to {url}",
+  "browser.notRunning": "No browser active — launch one first",
+  "browser.launchFailed": "Browser launch failed: {msg}",
+  "browser.actionFailed": "Browser action failed: {msg}",
+
+  // compaction
+  "compaction.started": "Compacting conversation...",
+  "compaction.done": "Compacted: {original} → {compacted} messages",
+  "compaction.failed": "Compaction failed: {msg}",
+  "compaction.notNeeded": "Compaction not needed (context window below 75%)",
+  "compaction.memoryFlushed": "Key facts saved to long-term memory",
 } satisfies Record<TranslationKey, string>;

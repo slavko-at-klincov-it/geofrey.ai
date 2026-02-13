@@ -95,6 +95,46 @@ export function createTelegramPlatform(
     }
   });
 
+  // Handle voice messages
+  bot.on("message:voice", async (ctx) => {
+    const chatId = String(ctx.chat.id);
+    try {
+      const file = await ctx.api.getFile(ctx.message.voice.file_id);
+      const url = `https://api.telegram.org/file/bot${config.botToken}/${file.file_path}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`Download failed: ${res.status}`);
+      const buffer = Buffer.from(await res.arrayBuffer());
+      await callbacks.onVoiceMessage(chatId, {
+        buffer,
+        mimeType: ctx.message.voice.mime_type ?? "audio/ogg",
+        durationSeconds: ctx.message.voice.duration,
+      });
+    } catch (err) {
+      console.error("Voice download error:", err);
+      await ctx.reply(t("voice.downloadFailed"));
+    }
+  });
+
+  // Handle audio messages (audio files, not voice notes)
+  bot.on("message:audio", async (ctx) => {
+    const chatId = String(ctx.chat.id);
+    try {
+      const file = await ctx.api.getFile(ctx.message.audio.file_id);
+      const url = `https://api.telegram.org/file/bot${config.botToken}/${file.file_path}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`Download failed: ${res.status}`);
+      const buffer = Buffer.from(await res.arrayBuffer());
+      await callbacks.onVoiceMessage(chatId, {
+        buffer,
+        mimeType: ctx.message.audio.mime_type ?? "audio/mpeg",
+        durationSeconds: ctx.message.audio.duration,
+      });
+    } catch (err) {
+      console.error("Audio download error:", err);
+      await ctx.reply(t("voice.downloadFailed"));
+    }
+  });
+
   // Handle document messages (images sent as files)
   bot.on("message:document", async (ctx) => {
     const doc = ctx.message.document;

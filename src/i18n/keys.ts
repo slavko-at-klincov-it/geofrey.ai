@@ -261,6 +261,23 @@ export type TranslationKey =
   | "dashboard.connected"
   | "dashboard.disconnected"
 
+  // slack
+  | "onboarding.slackTitle"
+  | "onboarding.slackPrereqs"
+  | "onboarding.slackBotToken"
+  | "onboarding.slackAppToken"
+  | "onboarding.slackChannelId"
+  | "onboarding.slackAborted"
+  | "onboarding.platformSlack"
+
+  // discord
+  | "onboarding.discordTitle"
+  | "onboarding.discordPrereqs"
+  | "onboarding.discordBotToken"
+  | "onboarding.discordChannelId"
+  | "onboarding.discordAborted"
+  | "onboarding.platformDiscord"
+
   // summary
   | "onboarding.summaryTitle"
   | "onboarding.summaryPlatform"
@@ -275,4 +292,40 @@ export type TranslationKey =
   | "onboarding.summaryClaudeDisabled"
   | "onboarding.savePrompt"
   | "onboarding.backupCreated"
-  | "onboarding.envSaved";
+  | "onboarding.envSaved"
+
+  // voice
+  | "voice.transcribing"
+  | "voice.transcribed"
+  | "voice.downloadFailed"
+  | "voice.transcriptionFailed"
+  | "voice.ffmpegMissing"
+  | "voice.noProvider"
+
+  // skills
+  | "skills.listed"
+  | "skills.installed"
+  | "skills.enabled"
+  | "skills.disabled"
+  | "skills.generated"
+  | "skills.notFound"
+  | "skills.noSkills"
+  | "skills.invalidFormat"
+  | "skills.permissionDenied"
+
+  // browser
+  | "browser.launched"
+  | "browser.connected"
+  | "browser.closed"
+  | "browser.closedAll"
+  | "browser.navigated"
+  | "browser.notRunning"
+  | "browser.launchFailed"
+  | "browser.actionFailed"
+
+  // compaction
+  | "compaction.started"
+  | "compaction.done"
+  | "compaction.failed"
+  | "compaction.notNeeded"
+  | "compaction.memoryFlushed";

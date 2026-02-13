@@ -25,6 +25,7 @@ function makeCallbacks(): PlatformCallbacks & {
       messages.push({ chatId, text });
     },
     async onImageMessage() {},
+    async onVoiceMessage() {},
     async onApprovalResponse(nonce, approved) {
       approvals.push({ nonce, approved });
     },

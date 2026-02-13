@@ -26,6 +26,16 @@ export async function createPlatform(
       const { createWebChatPlatform } = await import("./adapters/webchat.js");
       return createWebChatPlatform(config.dashboard, callbacks);
     }
+    case "slack": {
+      if (!config.slack) throw new Error("Slack config missing");
+      const { createSlackPlatform } = await import("./adapters/slack.js");
+      return createSlackPlatform(config.slack, callbacks);
+    }
+    case "discord": {
+      if (!config.discord) throw new Error("Discord config missing");
+      const { createDiscordPlatform } = await import("./adapters/discord.js");
+      return createDiscordPlatform(config.discord, callbacks);
+    }
     default:
       throw new Error(`Unknown platform: ${platformName}`);
   }

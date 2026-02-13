@@ -1,6 +1,6 @@
 # Deployment Guide
 
-This guide covers deploying geofrey.ai in production. The app is a TypeScript Node.js service that connects to Ollama for local LLM inference and communicates with users via Telegram, WhatsApp, or Signal.
+This guide covers deploying geofrey.ai in production. The app is a TypeScript Node.js service that connects to Ollama for local LLM inference and communicates with users via Telegram, WhatsApp, Signal, Slack, Discord, or WebChat.
 
 ## Prerequisites
 
@@ -465,6 +465,50 @@ Then set `SEARXNG_URL=http://searxng:8080` in the geofrey service environment.
 | `MAX_DAILY_BUDGET_USD` | No | — | Daily spend cap in USD. Alerts sent at 50%, 75%, and 90% thresholds |
 
 Cost data is stored in the `usage_log` table in the SQLite database. Each orchestrator and Claude Code invocation is logged with model name, input/output tokens, calculated cost, and chat ID.
+
+### Phase 2 Environment Variables (v1.2)
+
+The following environment variables were added in v1.2 for the new Phase 2 features:
+
+#### Slack
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `SLACK_BOT_TOKEN` | Slack | — | Slack bot OAuth token (`xoxb-...`) |
+| `SLACK_APP_TOKEN` | Slack | — | Slack app-level token (`xapp-...`) for Socket Mode |
+| `SLACK_CHANNEL_ID` | Slack | — | Channel ID the bot operates in |
+
+Slack uses Socket Mode — no public webhook URL needed. Create a Slack app at https://api.slack.com/apps with Bot Token Scopes: `chat:write`, `channels:history`, `channels:read`. Enable Socket Mode and generate an app-level token.
+
+#### Discord
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `DISCORD_BOT_TOKEN` | Discord | — | Discord bot token from Developer Portal |
+| `DISCORD_CHANNEL_ID` | Discord | — | Text channel ID the bot operates in |
+
+Create a Discord application at https://discord.com/developers/applications. Enable Privileged Gateway Intents: Message Content Intent. Invite the bot with permissions: Send Messages, Read Message History, Manage Messages.
+
+#### Voice / Speech-to-Text
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `STT_PROVIDER` | No | `openai` | STT provider: `openai` (Whisper API) or `local` (whisper.cpp) |
+| `OPENAI_API_KEY` | STT (openai) | — | OpenAI API key for Whisper transcription |
+| `WHISPER_MODEL_PATH` | STT (local) | — | Path to whisper.cpp model file (e.g. `models/ggml-base.bin`) |
+
+For local STT, install `whisper-cli` (whisper.cpp) and download a model:
+```bash
+# Example: download base model
+wget https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin
+```
+
+Voice messages require `ffmpeg` for audio conversion (OGG/OPUS/MP4/etc. → WAV 16kHz mono):
+```bash
+# Install ffmpeg
+apt install ffmpeg          # Debian/Ubuntu
+brew install ffmpeg          # macOS
+```
 
 ### Security Checklist
 

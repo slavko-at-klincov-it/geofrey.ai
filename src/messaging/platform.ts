@@ -10,8 +10,14 @@ export interface ImageAttachment {
   caption?: string;
 }
 
+export interface VoiceAttachment {
+  buffer: Buffer;
+  mimeType: string;
+  durationSeconds?: number;
+}
+
 export interface MessagingPlatform {
-  readonly name: "telegram" | "whatsapp" | "signal" | "webchat";
+  readonly name: "telegram" | "whatsapp" | "signal" | "webchat" | "slack" | "discord";
   readonly maxMessageLength: number;
   readonly supportsEdit: boolean;
 
@@ -31,5 +37,6 @@ export interface MessagingPlatform {
 export interface PlatformCallbacks {
   onMessage(chatId: ChatId, text: string): Promise<void>;
   onImageMessage(chatId: ChatId, image: ImageAttachment): Promise<void>;
+  onVoiceMessage(chatId: ChatId, voice: VoiceAttachment): Promise<void>;
   onApprovalResponse(nonce: string, approved: boolean): Promise<void>;
 }

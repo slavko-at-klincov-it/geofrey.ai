@@ -5,22 +5,80 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.2.0] - 2026-02-13
+
+Phase 2 — Power Features release. All 5 roadmap features implemented.
 
 ### Added
 
-- Image upload support across all messaging adapters (Telegram photos/documents, WhatsApp media, Signal attachments)
-- Image processing pipeline (`src/messaging/image-handler.ts`) — sanitize, OCR text extraction via tesseract.js, store sanitized files, forward text description to orchestrator
-- `ImageAttachment` interface and `onImageMessage` callback in `PlatformCallbacks`
-- `data/images/` storage directory for sanitized images
-- 5 new i18n keys (`messaging.image*`) with German and English translations
-- 5 new tests for image handler
+#### Browser Automation (Chrome DevTools Protocol)
+- Chrome binary discovery for macOS, Linux, Windows (`src/browser/launcher.ts`)
+- CDP session management — launch, connect to existing, close, close all
+- Accessibility tree extraction (`src/browser/snapshot.ts`) — `getFullAXTree()`, node-by-role/text search
+- Browser actions (`src/browser/actions.ts`) — navigate, click (via AX nodeId → coordinates), fill, screenshot, evaluate, waitForSelector
+- Browser tool (`src/tools/browser.ts`) with 9 actions: launch, navigate, click, fill, screenshot, evaluate, snapshot, waitForSelector, close
+- Temporary profile directory with auto-cleanup on close
+- 37 new tests for browser module
+
+#### Skill System (SKILL.md)
+- SKILL.md format (`src/skills/format.ts`) — YAML frontmatter (Zod-validated) + plain text instructions
+- Minimal YAML parser supporting strings, arrays, nested objects, quoted values
+- 4-axis permission manifest: filesystem (none/read/write), network (none/local/full), env (none/read), exec (none/restricted/full)
+- Skill registry (`src/skills/registry.ts`) — discover from `~/.geofrey/skills/` (global) + `.geofrey/skills/` (local), local overrides global
+- `buildSkillContext()` (`src/skills/injector.ts`) — wraps enabled skills in `<skill>` XML tags for system prompt injection
+- Skill tool (`src/tools/skill.ts`) with actions: list, install (URL/path), enable, disable, generate
+- Auto-generation of new skills from name + description + instructions
+- Skills loaded on startup via `discoverSkills()` in `index.ts`
+- 30 new tests for skill module
+
+#### Slack + Discord Adapters
+- Slack adapter (`src/messaging/adapters/slack.ts`) — `@slack/bolt` Socket Mode, Block Kit approval buttons, mrkdwn formatting
+- Discord adapter (`src/messaging/adapters/discord.ts`) — `discord.js` Gateway Intents, `ButtonBuilder` approval components
+- Config sections: `slack` (botToken, appToken, channelId), `discord` (botToken, channelId)
+- Platform factory updated for `slack` and `discord` cases
+- Onboarding wizard steps for Slack and Discord setup
+- Platform selection expanded to include Slack and Discord
+- 17 new tests for Slack and Discord adapters
+
+#### Voice Messages / STT (Whisper)
+- Voice transcriber (`src/voice/transcriber.ts`) — dual provider: OpenAI Whisper API (`whisper-1`) + local whisper.cpp (`whisper-cli`)
+- Audio converter (`src/voice/converter.ts`) — ffmpeg via execa, converts OGG/OPUS/MP4/M4A/WebM/MP3/AAC/FLAC to WAV 16kHz mono
+- `VoiceAttachment` interface and `onVoiceMessage` callback in `PlatformCallbacks`
+- Voice message handling in Telegram (voice + audio), WhatsApp (audio), Signal (voice attachments)
+- Voice processing pipeline in `index.ts`: send "transcribing" → convert if needed → transcribe → forward as text
+- Config section: `voice` (sttProvider, openaiApiKey, whisperModelPath)
+- 25 new tests for voice module
+
+#### Session Compaction
+- Token counter (`src/orchestrator/compaction/token-counter.ts`) — ~4 chars/token estimation, context usage %, shouldCompact threshold
+- Compactor (`src/orchestrator/compaction/compactor.ts`) — Ollama-based message summarization, pre-compaction memory flush via `flushToMemory()`
+- Pruner (`src/orchestrator/compaction/pruner.ts`) — tool result truncation (>500 chars → 200 + [truncated]), old/recent message splitting
+- `compactMessages()` and `getTokenCount()` added to conversation manager
+- `/compact` command handler in agent-loop.ts for manual compaction
+- Auto-compaction check before each `streamText()` call (triggers at 75% context usage)
+- 36 new tests for compaction module
+
+#### Config & Infrastructure
+- New config sections: `slack`, `discord`, `voice` in Zod schema
+- `"slack"` and `"discord"` added to platform enum with validation refinements
+- New env vars: `SLACK_BOT_TOKEN`, `SLACK_APP_TOKEN`, `SLACK_CHANNEL_ID`, `DISCORD_BOT_TOKEN`, `DISCORD_CHANNEL_ID`, `STT_PROVIDER`, `OPENAI_API_KEY`, `WHISPER_MODEL_PATH`
+- ~38 new i18n keys across browser, skills, slack, discord, voice, compaction categories (German + English)
+- Browser shutdown (`closeAllBrowsers()`) added to graceful shutdown handler
+- 575 total tests (up from 430), 0 failures
 
 ## [1.1.0] - 2026-02-13
 
 Phase 1 — Essentials release. All 5 roadmap features implemented.
 
 ### Added
+
+#### Image Upload Support
+- Image upload support across all messaging adapters (Telegram photos/documents, WhatsApp media, Signal attachments)
+- Image processing pipeline (`src/messaging/image-handler.ts`) — sanitize, OCR text extraction via tesseract.js, store sanitized files, forward text description to orchestrator
+- `ImageAttachment` interface and `onImageMessage` callback in `PlatformCallbacks`
+- `data/images/` storage directory for sanitized images
+- 5 new i18n keys (`messaging.image*`) with German and English translations
+- 5 new tests for image handler
 
 #### Web Dashboard + WebChat
 - WebChat messaging adapter (`src/messaging/adapters/webchat.ts`) implementing full `MessagingPlatform` interface
@@ -163,6 +221,7 @@ Phase 1 — Essentials release. All 5 roadmap features implemented.
 - Windows compatibility for prerequisites check (cmd start /b for detached Ollama)
 - Platform-aware defaults for Signal socket path in config schema
 
+[1.2.0]: https://github.com/slavko-at-klincov-it/geofrey.ai/releases/tag/v1.2.0
 [1.1.0]: https://github.com/slavko-at-klincov-it/geofrey.ai/releases/tag/v1.1.0
 [1.0.1]: https://github.com/slavko-at-klincov-it/geofrey.ai/releases/tag/v1.0.1
 [1.0.0]: https://github.com/slavko-at-klincov-it/geofrey.ai/releases/tag/v1.0.0

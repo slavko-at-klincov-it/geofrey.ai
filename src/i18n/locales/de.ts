@@ -296,4 +296,57 @@ export const de: Record<TranslationKey, string> = {
   "onboarding.savePrompt": "Konfiguration in .env speichern?",
   "onboarding.backupCreated": "Backup erstellt: {path}",
   "onboarding.envSaved": ".env wurde erstellt",
+
+  // slack
+  "onboarding.slackTitle": "Slack einrichten",
+  "onboarding.slackPrereqs": "\n  Voraussetzungen:\n  1. Slack App erstellt (api.slack.com/apps)\n  2. Socket Mode aktiviert\n  3. Bot Token Scopes: chat:write, channels:history, channels:read\n  → Docs: https://api.slack.com/start\n",
+  "onboarding.slackBotToken": "Bot Token (xoxb-...):",
+  "onboarding.slackAppToken": "App-Level Token (xapp-...):",
+  "onboarding.slackChannelId": "Channel-ID:",
+  "onboarding.slackAborted": "Slack-Setup abgebrochen.",
+  "onboarding.platformSlack": "Slack",
+
+  // discord
+  "onboarding.discordTitle": "Discord einrichten",
+  "onboarding.discordPrereqs": "\n  Voraussetzungen:\n  1. Discord Application erstellt (discord.com/developers)\n  2. Bot erstellt und Token kopiert\n  3. Bot zum Server eingeladen mit: Send Messages, Read Message History\n  → Docs: https://discord.com/developers/docs\n",
+  "onboarding.discordBotToken": "Bot Token:",
+  "onboarding.discordChannelId": "Channel-ID:",
+  "onboarding.discordAborted": "Discord-Setup abgebrochen.",
+  "onboarding.platformDiscord": "Discord",
+
+  // voice
+  "voice.transcribing": "Sprachnachricht wird transkribiert...",
+  "voice.transcribed": "[Sprachnachricht]: {text}",
+  "voice.downloadFailed": "Sprachnachricht konnte nicht heruntergeladen werden.",
+  "voice.transcriptionFailed": "Transkription fehlgeschlagen: {msg}",
+  "voice.ffmpegMissing": "ffmpeg nicht gefunden — für Sprachnachrichten erforderlich",
+  "voice.noProvider": "Kein STT-Provider konfiguriert (STT_PROVIDER + OPENAI_API_KEY oder WHISPER_MODEL_PATH)",
+
+  // skills
+  "skills.listed": "{count} Skills gefunden",
+  "skills.installed": "Skill installiert: {name}",
+  "skills.enabled": "Skill aktiviert: {name}",
+  "skills.disabled": "Skill deaktiviert: {name}",
+  "skills.generated": "Skill erstellt: {name} ({path})",
+  "skills.notFound": "Skill nicht gefunden: {id}",
+  "skills.noSkills": "Keine Skills gefunden",
+  "skills.invalidFormat": "Ungültiges SKILL.md Format: {msg}",
+  "skills.permissionDenied": "Skill-Berechtigung verweigert: {permission}",
+
+  // browser
+  "browser.launched": "Browser gestartet auf Port {port}",
+  "browser.connected": "Browser verbunden auf Port {port}",
+  "browser.closed": "Browser geschlossen",
+  "browser.closedAll": "Alle Browser geschlossen",
+  "browser.navigated": "Navigiert zu {url}",
+  "browser.notRunning": "Kein Browser aktiv — starte zuerst mit 'launch'",
+  "browser.launchFailed": "Browser konnte nicht gestartet werden: {msg}",
+  "browser.actionFailed": "Browser-Aktion fehlgeschlagen: {msg}",
+
+  // compaction
+  "compaction.started": "Konversation wird kompaktiert...",
+  "compaction.done": "Kompaktiert: {original} → {compacted} Nachrichten",
+  "compaction.failed": "Kompaktierung fehlgeschlagen: {msg}",
+  "compaction.notNeeded": "Kompaktierung nicht nötig (Context-Window unter 75%)",
+  "compaction.memoryFlushed": "Wichtige Fakten im Langzeitgedächtnis gespeichert",
 } satisfies Record<TranslationKey, string>;

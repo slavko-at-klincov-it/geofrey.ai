@@ -7,7 +7,7 @@ const DEFAULT_SIGNAL_SOCKET = platform() === "win32"
 
 export const configSchema = z.object({
   locale: z.enum(["de", "en"]).default("de"),
-  platform: z.enum(["telegram", "whatsapp", "signal", "webchat"]).default("telegram"),
+  platform: z.enum(["telegram", "whatsapp", "signal", "webchat", "slack", "discord"]).default("telegram"),
   telegram: z.object({
     botToken: z.string().min(1),
     ownerId: z.coerce.number().int().positive(),
@@ -23,6 +23,15 @@ export const configSchema = z.object({
     signalCliSocket: z.string().default(DEFAULT_SIGNAL_SOCKET),
     ownerPhone: z.string().min(1),
     botPhone: z.string().min(1),
+  }).optional(),
+  slack: z.object({
+    botToken: z.string().min(1),
+    appToken: z.string().min(1),
+    channelId: z.string().min(1),
+  }).optional(),
+  discord: z.object({
+    botToken: z.string().min(1),
+    channelId: z.string().min(1),
   }).optional(),
   ollama: z.object({
     baseUrl: z.string().url().default("http://localhost:11434"),
@@ -75,6 +84,11 @@ export const configSchema = z.object({
   billing: z.object({
     maxDailyBudgetUsd: z.coerce.number().positive().optional(),
   }).default({}),
+  voice: z.object({
+    sttProvider: z.enum(["openai", "local"]).default("openai"),
+    openaiApiKey: z.string().optional(),
+    whisperModelPath: z.string().optional(),
+  }).default({}),
   mcp: z.object({
     // Empty array = all servers allowed (no restriction). Non-empty = only listed servers.
     allowedServers: z.array(z.string()).default([]),
@@ -84,6 +98,12 @@ export const configSchema = z.object({
     return false;
   }
   if (data.platform === "signal" && !data.signal) {
+    return false;
+  }
+  if (data.platform === "slack" && !data.slack) {
+    return false;
+  }
+  if (data.platform === "discord" && !data.discord) {
     return false;
   }
   if (data.platform === "webchat" && !data.dashboard.enabled) {

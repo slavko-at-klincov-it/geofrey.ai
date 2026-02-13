@@ -5,14 +5,14 @@
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                        USER DEVICES                             │
-│  Telegram · WhatsApp · Signal · Web Dashboard                   │
+│  Telegram · WhatsApp · Signal · Web Dashboard · Slack · Discord  │
 └──────────────────────┬──────────────────────────────────────────┘
                        │ messages + approval callbacks
                        ▼
 ┌──────────────────────────────────────────────────────────────────┐
 │                    MESSAGING LAYER                                │
 │  grammY (Telegram) · Cloud API (WhatsApp) · signal-cli (Signal)  │
-│  WebChat (SSE + REST) · Buttons/text for approvals · Streaming   │
+│  @slack/bolt (Slack) · discord.js (Discord) · WebChat (SSE+REST) │
 └──────────────────────┬───────────────────────────────────────────┘
                        │
                        ▼
@@ -59,6 +59,11 @@
 │  │ Git          │  │ Web Search   │  │ Memory             │     │
 │  │ Operations   │  │ + Web Fetch  │  │ (semantic search)  │     │
 │  └──────────────┘  └──────────────┘  └────────────────────┘     │
+│                                                                  │
+│  ┌──────────────┐  ┌──────────────┐  ┌────────────────────┐     │
+│  │ Browser      │  │ Skills       │  │ Voice/STT          │     │
+│  │ (CDP)        │  │ (SKILL.md)   │  │ (Whisper)          │     │
+│  └──────────────┘  └──────────────┘  └────────────────────┘     │
 └──────────────────────────────────────────────────────────────────┘
                        │
                        ▼
@@ -70,6 +75,11 @@
 │  │ Scheduler    │  │ Tracking     │  │ (SSE + REST)       │     │
 │  │ (30s tick)   │  │ (per-request)│  │                    │     │
 │  └──────────────┘  └──────────────┘  └────────────────────┘     │
+│                                                                  │
+│  ┌──────────────────────────────────────────────────────────┐    │
+│  │ Session Compaction (token counting, auto-compact @75%,  │    │
+│  │  Ollama summarization, pre-compaction memory flush)      │    │
+│  └──────────────────────────────────────────────────────────┘    │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
@@ -334,6 +344,120 @@ Agent step finish  ──→  logUsage(model, tokens, cost)  ──→  usage_lo
 - **Budget:** Optional `MAX_DAILY_BUDGET_USD` — alerts at 50%, 75%, 90% thresholds
 - **Integration:** `buildOnStepFinish()` in agent-loop.ts logs usage after each AI SDK step
 
+## Browser Automation (v1.2)
+
+Chrome DevTools Protocol integration for web page interaction using accessibility tree snapshots.
+
+```
+browser tool (launch/navigate/click/fill/screenshot/evaluate/snapshot/waitForSelector/close)
+         │
+         ├── launcher.ts    findChromeBinary() → launch Chrome → CDP connect
+         │                  Sessions stored in Map<port, BrowserSession>
+         │
+         ├── snapshot.ts    getAccessibilityTree() → Accessibility.getFullAXTree()
+         │                  buildTree() → AccessibilityNode[] (role, name, value, children)
+         │                  findNodeByRole(), findNodeByText() — tree traversal
+         │
+         └── actions.ts     navigate() → Page.navigate + loadEventFired
+                            click() → resolve AX nodeId → getBoundingClientRect → Input.dispatchMouseEvent
+                            fill() → DOM.focus → clear → Input.dispatchKeyEvent per char
+                            screenshot() → Page.captureScreenshot (PNG, base64)
+                            evaluate() → Runtime.evaluate (awaitPromise, returnByValue)
+                            waitForSelector() → DOM.querySelector polling (100ms)
+```
+
+- **CDP library:** `chrome-remote-interface` (no Puppeteer dependency)
+- **Chrome discovery:** platform-specific paths (macOS, Linux, Windows) via `findChromeBinary()`
+- **Session management:** auto-cleanup of temp profile dirs on close
+- **Interaction model:** accessibility tree-based (more robust than CSS selectors for LLM agents)
+- **Risk level:** L2 (REQUIRE_APPROVAL) — browser launch can navigate to arbitrary URLs
+
+## Skill System (v1.2)
+
+YAML frontmatter-based skill format with discovery, permissions manifest, and auto-generation.
+
+```
+SKILL.md file:
+  ---
+  name: my-skill
+  description: What it does
+  version: 1.0.0
+  permissions:
+    filesystem: read
+    network: none
+    exec: none
+  ---
+  Plain English instructions for the agent...
+```
+
+- **Format:** `SKILL.md` — YAML frontmatter (Zod-validated) + plain text instructions
+- **Directories:** `~/.geofrey/skills/` (global) + `.geofrey/skills/` (local, overrides global)
+- **Discovery:** `discoverSkills()` scans both directories, parses all `.md` files
+- **Permissions:** 4-axis manifest (filesystem, network, env, exec) with enforcement modes (warn/prompt/deny)
+- **Injection:** `buildSkillContext()` wraps enabled skills in `<skill>` XML tags for system prompt
+- **Tool actions:** list, install (from URL/path), enable, disable, generate (new skill from description)
+- **Risk level:** L1 (NOTIFY) for list/enable/disable, L2 for install/generate
+
+## Slack + Discord Adapters (v1.2)
+
+### Slack
+
+- **Library:** `@slack/bolt` with Socket Mode (no public webhook needed)
+- **Approval UI:** Block Kit buttons (Approve/Deny) with `actions` blocks
+- **Message format:** Slack mrkdwn (auto-converted from standard markdown)
+- **Config:** `SLACK_BOT_TOKEN`, `SLACK_APP_TOKEN`, `SLACK_CHANNEL_ID`
+
+### Discord
+
+- **Library:** `discord.js` with Gateway Intents (Guilds, GuildMessages, MessageContent)
+- **Approval UI:** `ButtonBuilder` components (Success/Danger styles)
+- **Message limit:** 2000 chars (Discord max)
+- **Config:** `DISCORD_BOT_TOKEN`, `DISCORD_CHANNEL_ID`
+
+Both implement the full `MessagingPlatform` interface including `sendMessage`, `editMessage`, `sendApproval`, `start`, `stop`.
+
+## Voice Messages / STT (v1.2)
+
+Speech-to-text pipeline for voice messages across all messaging platforms.
+
+```
+Voice message (OGG/OPUS/MP4/...) → isConversionNeeded() → convertToWav() → transcribe()
+                                         │                        │              │
+                                    Check format             ffmpeg -ar 16000   OpenAI Whisper API
+                                    (WAV pass-through)       -ac 1 -f wav       or local whisper-cli
+```
+
+- **Providers:** OpenAI Whisper API (`whisper-1`) or local `whisper-cli` (whisper.cpp)
+- **Audio conversion:** `ffmpeg` via `execa` — converts OGG/OPUS/MP4/M4A/WebM/MP3/AAC/FLAC to WAV 16kHz mono
+- **Integration:** `onVoiceMessage` callback in all adapters (Telegram, WhatsApp, Signal)
+- **Config:** `STT_PROVIDER` (openai/local), `OPENAI_API_KEY`, `WHISPER_MODEL_PATH`
+- **Risk level:** L0 (AUTO_APPROVE) — transcription is read-only
+
+## Session Compaction (v1.2)
+
+Intelligent context window management with auto-compaction and pre-compaction memory flush.
+
+```
+Agent loop → shouldCompact(messages, maxCtx, 75%) → compactHistory(chatId)
+                                                          │
+                                   ┌──────────────────────┼──────────────────────┐
+                                   │                      │                      │
+                            pruneOldMessages()    flushToMemory()    summarizeMessages()
+                            (keep 10 recent)      (Ollama extract     (Ollama /api/generate)
+                                                   key facts →        condensed summary
+                                                   appendMemory)
+                                                          │
+                                                  compactMessages(chatId, summary)
+                                                  (replace history with summary + recent)
+```
+
+- **Token counting:** ~4 chars/token heuristic, per-message overhead (4 tokens)
+- **Threshold:** 75% context usage triggers auto-compaction (configurable)
+- **Memory flush:** Before compaction, key facts/decisions/preferences extracted via Ollama and appended to MEMORY.md
+- **Pruning:** `pruneToolResults()` truncates tool outputs >500 chars to 200 chars + `[truncated]`
+- **`/compact` command:** Manual compaction trigger via chat message
+- **Integration:** Auto-check before each `streamText()` call in agent-loop.ts
+
 ## Project Structure
 
 ```
@@ -357,8 +481,12 @@ geofrey.ai/
 │   ├── index.ts                 # Entry point + graceful shutdown handler
 │   ├── orchestrator/
 │   │   ├── agent-loop.ts        # Vercel AI SDK streamText wrapper + approval/audit hooks
-│   │   ├── conversation.ts      # Multi-turn conversation manager
-│   │   └── prompt-generator.ts  # Task templates for downstream models
+│   │   ├── conversation.ts      # Multi-turn conversation manager (+ compactMessages, getTokenCount)
+│   │   ├── prompt-generator.ts  # Task templates for downstream models
+│   │   └── compaction/
+│   │       ├── token-counter.ts # Token estimation + context usage tracking
+│   │       ├── compactor.ts     # Ollama summarization + memory flush
+│   │       └── pruner.ts        # Tool result truncation + old message splitting
 │   ├── approval/
 │   │   ├── risk-classifier.ts   # Hybrid: deterministic patterns + LLM fallback
 │   │   └── approval-gate.ts     # Promise-based blocking gate with nonce IDs
@@ -366,10 +494,10 @@ geofrey.ai/
 │   │   ├── index.ts             # t(), setLocale(), getLocale()
 │   │   ├── keys.ts              # TranslationKey union type
 │   │   └── locales/
-│   │       ├── de.ts            # German translations (~150 keys)
-│   │       └── en.ts            # English translations (~150 keys)
+│   │       ├── de.ts            # German translations (~350 keys)
+│   │       └── en.ts            # English translations (~350 keys)
 │   ├── messaging/
-│   │   ├── platform.ts          # MessagingPlatform + ImageAttachment interfaces
+│   │   ├── platform.ts          # MessagingPlatform + ImageAttachment + VoiceAttachment interfaces
 │   │   ├── create-platform.ts   # Async factory: config → adapter
 │   │   ├── streamer.ts          # Platform-agnostic token streaming
 │   │   ├── image-handler.ts     # Image processing pipeline (sanitize → OCR → store → describe)
@@ -377,7 +505,9 @@ geofrey.ai/
 │   │       ├── telegram.ts      # grammY bot + approval UI (inline buttons)
 │   │       ├── whatsapp.ts      # WhatsApp Business Cloud API (interactive buttons)
 │   │       ├── signal.ts        # signal-cli JSON-RPC (text-based approvals)
-│   │       └── webchat.ts       # WebChat adapter (SSE streaming, REST API, Bearer auth)
+│   │       ├── webchat.ts       # WebChat adapter (SSE streaming, REST API, Bearer auth)
+│   │       ├── slack.ts         # Slack adapter (@slack/bolt Socket Mode, Block Kit)
+│   │       └── discord.ts       # Discord adapter (discord.js Gateway Intents, Buttons)
 │   ├── tools/
 │   │   ├── tool-registry.ts     # Tool schema + handler registry (native + MCP)
 │   │   ├── mcp-client.ts        # MCP server discovery + tool wrapping
@@ -390,7 +520,9 @@ geofrey.ai/
 │   │   ├── web-search.ts        # SearXNG + Brave Search providers
 │   │   ├── web-fetch.ts         # URL fetch + HTML→Markdown converter
 │   │   ├── memory.ts            # memory_read, memory_write, memory_search tools
-│   │   └── cron.ts              # Cron job management (create/list/delete)
+│   │   ├── cron.ts              # Cron job management (create/list/delete)
+│   │   ├── browser.ts           # Browser automation (9 CDP actions)
+│   │   └── skill.ts             # Skill management (list/install/enable/disable/generate)
 │   ├── audit/
 │   │   └── audit-log.ts         # Append-only hash-chained JSONL log
 │   ├── memory/
@@ -404,6 +536,17 @@ geofrey.ai/
 │   │   ├── pricing.ts           # Model pricing table + cost calculator
 │   │   ├── usage-logger.ts      # Per-request usage logging + daily aggregates
 │   │   └── budget-monitor.ts    # Budget threshold alerts (50/75/90%)
+│   ├── browser/
+│   │   ├── launcher.ts          # Chrome discovery, CDP launch/connect/close
+│   │   ├── snapshot.ts          # Accessibility tree extraction + node search
+│   │   └── actions.ts           # Navigate, click, fill, screenshot, evaluate, waitForSelector
+│   ├── skills/
+│   │   ├── format.ts            # SKILL.md YAML frontmatter parser + serializer (Zod schema)
+│   │   ├── registry.ts          # Skill discovery, loading, enable/disable, generate
+│   │   └── injector.ts          # buildSkillContext() for system prompt injection
+│   ├── voice/
+│   │   ├── transcriber.ts       # OpenAI Whisper API + local whisper.cpp (whisper-cli)
+│   │   └── converter.ts         # ffmpeg audio → WAV 16kHz mono conversion
 │   ├── dashboard/
 │   │   └── public/              # Single-page chat UI (HTML + CSS + JS)
 │   ├── db/
@@ -424,6 +567,8 @@ geofrey.ai/
 │   │   │   ├── telegram.ts      # Bot token + auto-ID detection
 │   │   │   ├── whatsapp.ts      # WhatsApp Business setup
 │   │   │   ├── signal.ts        # Signal setup
+│   │   │   ├── slack.ts         # Slack setup wizard step
+│   │   │   ├── discord.ts       # Discord setup wizard step
 │   │   │   ├── claude-auth.ts   # Claude Code authentication
 │   │   │   └── summary.ts       # Config review + .env generation
 │   │   └── utils/

@@ -1,6 +1,7 @@
 import { eq, desc } from "drizzle-orm";
 import { getDb } from "../db/client.js";
 import { conversations, messages } from "../db/schema.js";
+import { estimateMessagesTokens } from "./compaction/token-counter.js";
 
 export interface Message {
   id: string;
@@ -117,4 +118,58 @@ export function addMessage(chatId: string, message: Omit<Message, "id" | "create
 
 export function getHistory(chatId: string): Message[] {
   return getOrCreate(chatId).messages;
+}
+
+export function compactMessages(chatId: string, summary: string): void {
+  const conv = getOrCreate(chatId);
+  const summaryMsg: Message = {
+    id: crypto.randomUUID(),
+    role: "system",
+    content: `[Previous conversation summary]\n${summary}`,
+    createdAt: new Date(),
+  };
+  const recentMessages = conv.messages.slice(-10);
+  conv.messages = [summaryMsg, ...recentMessages];
+  conv.updatedAt = new Date();
+
+  if (db) {
+    // Use a transaction for atomicity: delete old messages, insert summary
+    db.transaction(() => {
+      db!.delete(messages)
+        .where(eq(messages.conversationId, conv.id))
+        .run();
+
+      // Insert summary message
+      db!.insert(messages).values({
+        id: summaryMsg.id,
+        conversationId: conv.id,
+        role: summaryMsg.role,
+        content: summaryMsg.content,
+        toolCallId: null,
+        createdAt: summaryMsg.createdAt,
+      }).run();
+
+      // Re-insert recent messages
+      for (const msg of recentMessages) {
+        db!.insert(messages).values({
+          id: msg.id,
+          conversationId: conv.id,
+          role: msg.role,
+          content: msg.content,
+          toolCallId: msg.toolCallId ?? null,
+          createdAt: msg.createdAt,
+        }).run();
+      }
+
+      db!.update(conversations)
+        .set({ updatedAt: conv.updatedAt })
+        .where(eq(conversations.id, conv.id))
+        .run();
+    });
+  }
+}
+
+export function getTokenCount(chatId: string): number {
+  const history = getHistory(chatId);
+  return estimateMessagesTokens(history.map((m) => ({ role: m.role, content: m.content })));
 }

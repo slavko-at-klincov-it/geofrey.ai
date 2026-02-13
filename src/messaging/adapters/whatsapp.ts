@@ -137,6 +137,31 @@ export function createWhatsAppPlatform(
                 continue;
               }
 
+              // Audio / voice message
+              if (msg.type === "audio" && msg.audio?.id) {
+                try {
+                  const mediaRes = await fetch(`${API_BASE}/${msg.audio.id}`, {
+                    headers: { "Authorization": `Bearer ${config.accessToken}` },
+                  });
+                  if (!mediaRes.ok) throw new Error(`Media lookup failed: ${mediaRes.status}`);
+                  const mediaData = await mediaRes.json() as { url: string };
+
+                  const downloadRes = await fetch(mediaData.url, {
+                    headers: { "Authorization": `Bearer ${config.accessToken}` },
+                  });
+                  if (!downloadRes.ok) throw new Error(`Download failed: ${downloadRes.status}`);
+                  const buffer = Buffer.from(await downloadRes.arrayBuffer());
+
+                  await callbacks.onVoiceMessage(senderPhone, {
+                    buffer,
+                    mimeType: msg.audio.mime_type ?? "audio/ogg",
+                  });
+                } catch (err) {
+                  console.error("WhatsApp audio download error:", err);
+                }
+                continue;
+              }
+
               // Text message
               if (msg.type === "text" && msg.text?.body) {
                 await callbacks.onMessage(senderPhone, msg.text.body);
@@ -238,6 +263,7 @@ interface WhatsAppWebhookPayload {
           type: string;
           text?: { body: string };
           image?: { id: string; mime_type?: string; caption?: string };
+          audio?: { id: string; mime_type?: string };
           interactive?: {
             type: string;
             button_reply: { id: string; title: string };

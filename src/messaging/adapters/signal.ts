@@ -83,6 +83,26 @@ export function createSignalPlatform(
       }
     }
 
+    // Check for audio attachments (voice notes)
+    const audioAttachment = dataMsg?.attachments?.find(
+      (a) => a.contentType.startsWith("audio/"),
+    );
+
+    if (audioAttachment) {
+      try {
+        const attachDir = join(homedir(), ".local", "share", "signal-cli", "attachments");
+        const filePath = join(attachDir, audioAttachment.id);
+        const buffer = await readFile(filePath);
+        await callbacks.onVoiceMessage(source, {
+          buffer,
+          mimeType: audioAttachment.contentType,
+        });
+      } catch (err) {
+        console.error("Signal voice attachment read error:", err);
+      }
+      return;
+    }
+
     // Check for image attachments
     const imageAttachment = dataMsg?.attachments?.find(
       (a) => a.contentType.startsWith("image/"),

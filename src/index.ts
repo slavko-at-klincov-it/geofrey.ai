@@ -17,6 +17,12 @@ import { ImageSanitizeError } from "./security/image-sanitizer.js";
 import { setSearchConfig } from "./tools/web-search.js";
 import { initScheduler, stopScheduler } from "./automation/scheduler.js";
 import { setOllamaConfig } from "./memory/embeddings.js";
+import { closeAllBrowsers } from "./browser/launcher.js";
+import { setTranscriberConfig } from "./voice/transcriber.js";
+import { convertToWav, isConversionNeeded } from "./voice/converter.js";
+import { transcribe } from "./voice/transcriber.js";
+import { setCompactionConfig } from "./orchestrator/compaction/compactor.js";
+import { discoverSkills } from "./skills/registry.js";
 
 // Import tools to register them
 import "./tools/filesystem.js";
@@ -29,6 +35,8 @@ import "./tools/web-search.js";
 import "./tools/web-fetch.js";
 import "./tools/cron.js";
 import "./tools/memory.js";
+import "./tools/browser.js";
+import "./tools/skill.js";
 
 let inFlightCount = 0;
 
@@ -100,8 +108,33 @@ async function main() {
   // Initialize memory embeddings config
   setOllamaConfig(config.ollama);
 
+  // Initialize voice transcriber config
+  setTranscriberConfig({
+    provider: config.voice.sttProvider,
+    openaiApiKey: config.voice.openaiApiKey,
+    whisperModelPath: config.voice.whisperModelPath,
+  });
+
+  // Initialize compaction config
+  setCompactionConfig({
+    ollamaBaseUrl: config.ollama.baseUrl,
+    ollamaModel: config.ollama.model,
+    maxContextTokens: config.ollama.numCtx,
+    threshold: 0.75,
+  });
+
   // Ensure memory directory exists
   await mkdir("data/memory", { recursive: true });
+
+  // Discover and load skills
+  try {
+    const skills = await discoverSkills();
+    if (skills.length > 0) {
+      console.log(`Skills loaded: ${skills.length}`);
+    }
+  } catch {
+    // Non-critical: skills are optional
+  }
 
   // Claude Code onboarding check
   const claudeStatus = await checkClaudeCodeReady(config.claude);
@@ -167,6 +200,23 @@ async function main() {
         }
       }
     },
+    async onVoiceMessage(chatId, voice) {
+      try {
+        await platform.sendMessage(chatId, t("voice.transcribing"));
+        let audioBuffer = voice.buffer;
+        const format = voice.mimeType.replace(/^audio\//, "");
+        if (isConversionNeeded(format)) {
+          audioBuffer = await convertToWav(audioBuffer, format);
+        }
+        const result = await transcribe(audioBuffer, "wav");
+        const text = t("voice.transcribed", { text: result.text });
+        await runAgentLoopStreaming(config, chatId, text, platform);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error("Voice transcription error:", msg);
+        await platform.sendMessage(chatId, t("voice.transcriptionFailed", { msg }));
+      }
+    },
     async onApprovalResponse(nonce, approved) {
       resolveApproval(nonce, approved);
     },
@@ -186,6 +236,7 @@ async function main() {
     await platform.stop();
     rejectAllPending("SHUTDOWN");
     await waitForInflight(10_000);
+    await closeAllBrowsers();
     await disconnectAll();
     closeDb();
     console.log("Shutdown complete.");

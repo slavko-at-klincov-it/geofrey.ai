@@ -261,12 +261,59 @@ export async function runAgentLoopStreaming(
   userMessage: string,
   platform: MessagingPlatform,
 ): Promise<void> {
+  // Handle /compact command
+  if (userMessage.trim() === "/compact") {
+    try {
+      const { compactHistory, setCompactionConfig } = await import("./compaction/compactor.js");
+      setCompactionConfig({
+        ollamaBaseUrl: config.ollama.baseUrl,
+        ollamaModel: config.ollama.model,
+        maxContextTokens: config.ollama.numCtx,
+        threshold: 0.75,
+      });
+      const result = await compactHistory(chatId);
+      if (result.originalMessageCount === result.compactedMessageCount) {
+        await platform.sendMessage(chatId, t("compaction.notNeeded"));
+      } else {
+        const msg = t("compaction.done", {
+          original: String(result.originalMessageCount),
+          compacted: String(result.compactedMessageCount),
+        });
+        await platform.sendMessage(chatId, msg);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      await platform.sendMessage(chatId, t("compaction.failed", { msg }));
+    }
+    return;
+  }
+
   getOrCreate(chatId);
   addMessage(chatId, { role: "user", content: userMessage });
 
   const history = getHistory(chatId);
   // F16: Limit history to prevent unbounded context growth
-  const recentHistory = history.slice(-MAX_HISTORY_MESSAGES);
+  let recentHistory = history.slice(-MAX_HISTORY_MESSAGES);
+
+  // Auto-compact if context window is getting full
+  const { shouldCompact } = await import("./compaction/token-counter.js");
+  if (shouldCompact(recentHistory.map((m) => ({ role: m.role, content: m.content })), config.ollama.numCtx)) {
+    try {
+      const { compactHistory, setCompactionConfig } = await import("./compaction/compactor.js");
+      setCompactionConfig({
+        ollamaBaseUrl: config.ollama.baseUrl,
+        ollamaModel: config.ollama.model,
+        maxContextTokens: config.ollama.numCtx,
+        threshold: 0.75,
+      });
+      await compactHistory(chatId);
+      // Re-fetch history after compaction
+      const freshHistory = getHistory(chatId);
+      recentHistory = freshHistory.slice(-MAX_HISTORY_MESSAGES);
+    } catch (err) {
+      console.warn("Compaction failed, continuing with full history:", err);
+    }
+  }
   const messages: ModelMessage[] = recentHistory.map((m) => ({
     role: m.role as "user" | "assistant",
     content: m.content,

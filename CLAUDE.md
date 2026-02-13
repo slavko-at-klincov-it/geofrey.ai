@@ -18,7 +18,7 @@ A better alternative to [OpenClaw](https://github.com/openclaw/openclaw) (former
 | Code Worker (coming soon) | **Qwen3-Coder-Next** via Ollama — 80B MoE / 3B active, 70.6% SWE-Bench (64GB+ RAM) |
 | LLM SDK | **Vercel AI SDK 6** (`ai` + `ai-sdk-ollama`) — ToolLoopAgent, needsApproval |
 | Tool Integration | **MCP Client** (`@modelcontextprotocol/sdk`) wrapped by risk classifier |
-| Messaging | **grammY** (Telegram) · **Cloud API** (WhatsApp) · **signal-cli** (Signal) |
+| Messaging | **grammY** (Telegram) · **Cloud API** (WhatsApp) · **signal-cli** (Signal) · **@slack/bolt** (Slack) · **discord.js** (Discord) |
 | Subprocess | **execa** |
 | State/DB | **SQLite** (better-sqlite3 + **Drizzle ORM**) |
 | Audit | Append-only hash-chained **JSONL** (SHA-256) |
@@ -68,7 +68,14 @@ src/
 ├── orchestrator/
 │   ├── agent-loop.ts        # Vercel AI SDK ToolLoopAgent wrapper
 │   ├── conversation.ts      # Multi-turn conversation manager
-│   └── prompt-generator.ts  # Task templates for downstream models
+│   ├── prompt-generator.ts  # Task templates for downstream models
+│   └── compaction/
+│       ├── token-counter.ts # Token estimation + context usage tracking
+│       ├── compactor.ts     # Ollama-based summarization + memory flush
+│       ├── pruner.ts        # Tool result truncation + old message splitting
+│       ├── token-counter.test.ts
+│       ├── compactor.test.ts
+│       └── pruner.test.ts
 ├── approval/
 │   ├── risk-classifier.ts   # Hybrid: deterministic patterns + LLM fallback
 │   ├── approval-gate.ts     # Promise-based blocking gate (nonce IDs)
@@ -85,7 +92,11 @@ src/
 │       ├── whatsapp.ts      # WhatsApp Business API (Cloud API, webhook)
 │       ├── signal.ts        # signal-cli JSON-RPC (text-based approvals)
 │       ├── webchat.ts       # WebChat adapter (SSE streaming, REST API)
-│       └── webchat.test.ts
+│       ├── webchat.test.ts
+│       ├── slack.ts         # Slack adapter (@slack/bolt Socket Mode, Block Kit buttons)
+│       ├── slack.test.ts
+│       ├── discord.ts       # Discord adapter (discord.js Gateway Intents, Button components)
+│       └── discord.test.ts
 ├── tools/
 │   ├── tool-registry.ts     # Tool schema + handler registry (native + MCP)
 │   ├── mcp-client.ts        # MCP server discovery + tool wrapping
@@ -96,7 +107,9 @@ src/
 │   ├── web-search.ts        # SearXNG + Brave Search providers
 │   ├── web-fetch.ts         # URL fetch + HTML→Markdown converter
 │   ├── memory.ts            # memory_read, memory_write, memory_search tools
-│   └── cron.ts              # Cron job management tool (create/list/delete)
+│   ├── cron.ts              # Cron job management tool (create/list/delete)
+│   ├── browser.ts           # Browser automation tool (9 CDP actions)
+│   └── skill.ts             # Skill management tool (list/install/enable/disable/generate)
 ├── memory/
 │   ├── store.ts             # MEMORY.md read/write/append + daily notes
 │   ├── embeddings.ts        # Ollama embeddings + cosine similarity search
@@ -115,6 +128,24 @@ src/
 │   ├── pricing.test.ts
 │   ├── usage-logger.test.ts
 │   └── budget-monitor.test.ts
+├── browser/
+│   ├── launcher.ts          # Chrome binary discovery, CDP launch/connect/close
+│   ├── snapshot.ts          # Accessibility tree extraction + node search
+│   ├── actions.ts           # Navigate, click, fill, screenshot, evaluate, waitForSelector
+│   ├── launcher.test.ts
+│   ├── snapshot.test.ts
+│   └── actions.test.ts
+├── skills/
+│   ├── format.ts            # SKILL.md YAML frontmatter parser + serializer
+│   ├── registry.ts          # Skill discovery, loading, enable/disable, generate
+│   ├── injector.ts          # buildSkillContext() for system prompt injection
+│   ├── format.test.ts
+│   └── registry.test.ts
+├── voice/
+│   ├── transcriber.ts       # OpenAI Whisper API + local whisper.cpp
+│   ├── converter.ts         # ffmpeg audio → WAV 16kHz mono conversion
+│   ├── transcriber.test.ts
+│   └── converter.test.ts
 ├── dashboard/
 │   └── public/
 │       ├── index.html       # Single-page chat UI
@@ -138,6 +169,8 @@ src/
 │   │   ├── telegram.ts      # Bot token + auto-ID detection
 │   │   ├── whatsapp.ts      # WhatsApp Business setup
 │   │   ├── signal.ts        # Signal setup
+│   │   ├── slack.ts         # Slack setup (bot token, app token, channel)
+│   │   ├── discord.ts       # Discord setup (bot token, channel)
 │   │   ├── claude-auth.ts   # Claude Code authentication
 │   │   └── summary.ts       # Config review + .env generation
 │   └── utils/
@@ -175,7 +208,7 @@ src/
 - [x] Integration: Claude Code subprocess driver
 - [x] DB: Drizzle schema + migrations
 - [x] Audit log
-- [x] Unit tests (430 tests — node:test runner)
+- [x] Unit tests (575 tests — node:test runner)
 - [x] Security: obfuscation-resistant L3 patterns (path variants, script network, base64, chmod +x)
 - [x] Security: MCP output sanitization (DATA boundary tags, instruction filtering)
 - [x] Security: MCP server allowlist (`mcp.allowedServers` config)
@@ -214,6 +247,11 @@ src/
 - [x] Web Search + Web Fetch (SearXNG + Brave Search, HTML→Markdown converter)
 - [x] Cron/Scheduler (5-field cron parser, persistent jobs, exponential retry backoff)
 - [x] Cost Tracking (per-request logging, daily aggregates, budget threshold alerts)
+- [x] Browser Automation (Chrome DevTools Protocol, accessibility tree snapshots, CDP actions)
+- [x] Skill System (SKILL.md YAML frontmatter, registry, permissions manifest, auto-generation)
+- [x] Slack + Discord Adapters (@slack/bolt Socket Mode, discord.js Gateway Intents)
+- [x] Voice Messages STT (OpenAI Whisper API + local whisper.cpp, ffmpeg audio conversion)
+- [x] Session Compaction (token counting, auto-compaction at 75% context, pre-compaction memory flush)
 
 ## Roadmap (OpenClaw Feature Parity + Beyond)
 
@@ -227,11 +265,11 @@ Full gap analysis: `docs/OPENCLAW_GAP_ANALYSIS.md`
 - [x] Cost Tracking (per-request Token/Cost Logging, Budget-Limits)
 
 ### Phase 2 — Power Features (v1.2)
-- [ ] Browser-Automation (Chrome DevTools Protocol)
-- [ ] Skill-System (SKILL.md Format + Registry)
-- [ ] Slack + Discord Adapter
-- [ ] Voice Messages STT (Whisper — WhatsApp/Telegram Sprachnachrichten)
-- [ ] Session Compaction (intelligentes Context-Window-Management)
+- [x] Browser-Automation (Chrome DevTools Protocol)
+- [x] Skill-System (SKILL.md Format + Registry)
+- [x] Slack + Discord Adapter
+- [x] Voice Messages STT (Whisper — WhatsApp/Telegram Sprachnachrichten)
+- [x] Session Compaction (intelligentes Context-Window-Management)
 
 ### Phase 3 — Differenzierung (v1.3)
 - [ ] Docker Sandbox per Session (isolierte Tool-Ausführung)
