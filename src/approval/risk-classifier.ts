@@ -18,7 +18,7 @@ export interface Classification {
 
 const VALID_LEVELS = new Set([RiskLevel.L0, RiskLevel.L1, RiskLevel.L2, RiskLevel.L3]);
 
-function buildRiskClassifierPrompt(): string {
+export function buildRiskClassifierPrompt(): string {
   const language = t("approval.classifierLanguage");
   return `You are a security risk classifier for an AI agent system. Your ONLY job is to classify tool/command requests into risk levels.
 
@@ -431,7 +431,7 @@ const SENSITIVE_ARG_KEYS = new Set([
   "accessToken", "refreshToken", "botToken", "appToken", "clientSecret",
 ]);
 
-function scrubArgsForLlm(args: Record<string, unknown>): Record<string, unknown> {
+export function scrubArgsForLlm(args: Record<string, unknown>): Record<string, unknown> {
   const result: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(args)) {
     result[key] = SENSITIVE_ARG_KEYS.has(key) ? "[REDACTED]" : value;

@@ -33,6 +33,7 @@
     "test": "node --import tsx/esm --test 'src/**/*.test.ts'",
     "index": "tsx src/indexer/cli.ts",
     "setup": "tsx src/onboarding/setup.ts",
+    "benchmark:classifier": "tsx src/benchmarks/risk-classifier-benchmark.ts",
     "prepublishOnly": "pnpm build"
   },
   "dependencies": {

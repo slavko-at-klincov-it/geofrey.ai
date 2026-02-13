@@ -1,21 +1,19 @@
-# openClawNurBesser
+# geofrey.ai
 
 ## Overview
-A better alternative to [OpenClaw](https://github.com/openclaw/openclaw) (formerly Clawdbot/Moltbot) — an open-source personal AI agent with a **local LLM as orchestrator** that acts as a safety layer, prompt optimizer, and user communication bridge.
+An open-source personal AI agent with a **local LLM as orchestrator** that acts as a safety layer, prompt optimizer, and user communication bridge.
 
 ## Core Concept
 1. **Local LLM Orchestrator** (Qwen3 8B via Ollama, configurable via `ORCHESTRATOR_MODEL`) — reviews and approves actions before execution
 2. **User Confirmation via Messaging** — "Do you really want to delete these photos?" via Telegram
-3. **Hybrid Risk Classification** — deterministic patterns + LLM for ambiguous cases
-4. **MCP Integration** — access 10K+ tool servers, wrapped by our safety layer
-5. **Resource Efficient** — local inference instead of expensive cloud API loops ($200-600/mo with OpenClaw)
+3. **Hybrid Risk Classification** — deterministic patterns (90%) + LLM fallback (10%) for all tools (native + MCP)
+4. **Resource Efficient** — local orchestrator instead of expensive cloud API loops
 
 ## Tech Stack
 | Component | Technology |
 |-----------|-----------|
 | Language | **TypeScript** (Node.js ≥22) |
 | Orchestrator LLM | **Qwen3 8B** via Ollama (default, configurable via `ORCHESTRATOR_MODEL`) |
-| Code Worker (coming soon) | **Qwen3-Coder-Next** via Ollama — 80B MoE / 3B active, 70.6% SWE-Bench (64GB+ RAM) |
 | LLM SDK | **Vercel AI SDK 6** (`ai` + `ai-sdk-ollama`) — ToolLoopAgent, needsApproval |
 | Tool Integration | **MCP Client** (`@modelcontextprotocol/sdk`) wrapped by risk classifier |
 | Messaging | **grammY** (Telegram) · **Cloud API** (WhatsApp) · **signal-cli** (Signal) · **@slack/bolt** (Slack) · **discord.js** (Discord) |
@@ -333,6 +331,7 @@ src/
 - [x] Companion Apps Backend (WebSocket server, 6-digit pairing, APNS/FCM push)
 - [x] Smart Home Integration (Philips Hue API v2, HomeAssistant REST, Sonos HTTP, SSDP/mDNS discovery)
 - [x] Gmail/Calendar Automation (Google OAuth2, Gmail API, Google Calendar API)
+- [ ] Benchmark: Risk Classifier LLM path — `pnpm benchmark:classifier qwen3:8b` (Qwen3 8B vs 4B evaluation)
 
 ## Roadmap (OpenClaw Feature Parity + Beyond)
 
@@ -388,7 +387,6 @@ Full gap analysis: `docs/OPENCLAW_GAP_ANALYSIS.md`
 |------|----------|-----------|
 | 2026-02-11 | Project created | Better OpenClaw with local AI orchestrator |
 | 2026-02-11 | Qwen3 8B as default orchestrator | 0.933 F1, 5GB Q4, ~40 tok/s — fits 18GB RAM comfortably |
-| 2026-02-11 | Qwen3-Coder-Next as future code worker | 70.6% SWE-Bench, 80B/3B MoE, 52GB Q4 — local code worker for simple tasks (coming soon) |
 | 2026-02-11 | Mandatory blocking approvals | OpenClaw's fire-and-forget approval is a critical flaw (still not truly fixed) |
 | 2026-02-11 | TypeScript over Python | Async-native, better subprocess mgmt, same stack as OpenClaw/Claude Code |
 | 2026-02-11 | grammY for Telegram | Best TS types, conversations plugin, active ecosystem |
