@@ -54,9 +54,10 @@ services:
       - OLLAMA_BASE_URL=http://ollama:11434
     volumes:
       - ./data:/app/data
-    # Expose only if using WhatsApp webhook:
+    # Expose ports as needed:
     # ports:
-    #   - "3000:3000"
+    #   - "3000:3000"   # WhatsApp webhook
+    #   - "3001:3001"   # Web dashboard (if DASHBOARD_ENABLED=true)
 
 volumes:
   ollama_data:
@@ -325,6 +326,7 @@ pm2 monit                   # real-time monitoring dashboard
 |------|----------|---------|
 | `DATABASE_URL` | SQLite database | `./data/app.db` |
 | `AUDIT_LOG_DIR` | Hash-chained JSONL audit logs | `./data/audit/` |
+| `data/memory/` | Persistent memory (MEMORY.md, daily notes) | Created automatically |
 
 For production, use absolute paths outside the application directory:
 
@@ -408,6 +410,62 @@ server {
 - **Telegram:** Uses long polling. No ports need to be exposed. Works behind NAT/firewalls.
 - **Signal:** Requires `signal-cli` running as a daemon with JSON-RPC. Communicates via Unix socket (default: `/var/run/signal-cli/socket`). No ports need to be exposed.
 
+### Phase 1 Environment Variables (v1.1)
+
+The following environment variables were added in v1.1 for the new Phase 1 features:
+
+#### Web Dashboard + WebChat
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `DASHBOARD_ENABLED` | No | `false` | Enable the web dashboard and WebChat adapter |
+| `DASHBOARD_PORT` | No | `3001` | HTTP server port for the dashboard |
+| `DASHBOARD_TOKEN` | No | — | Bearer token for authentication (recommended for production) |
+
+To use WebChat as the primary platform, set `PLATFORM=webchat` and `DASHBOARD_ENABLED=true`. The dashboard can also run alongside Telegram/WhatsApp/Signal by only setting `DASHBOARD_ENABLED=true`.
+
+When exposing the dashboard beyond localhost, always set `DASHBOARD_TOKEN` and use a reverse proxy with HTTPS:
+
+```nginx
+location / {
+    proxy_pass http://127.0.0.1:3001;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+```
+
+#### Web Search
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `SEARCH_PROVIDER` | No | `searxng` | Search provider: `searxng` (self-hosted) or `brave` |
+| `SEARXNG_URL` | No | `http://localhost:8080` | SearXNG instance URL |
+| `BRAVE_API_KEY` | If brave | — | Brave Search API subscription token |
+
+For SearXNG, you can add it to docker-compose.yml:
+
+```yaml
+services:
+  searxng:
+    image: searxng/searxng:latest
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./searxng:/etc/searxng
+```
+
+Then set `SEARXNG_URL=http://searxng:8080` in the geofrey service environment.
+
+#### Cost Tracking / Billing
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `MAX_DAILY_BUDGET_USD` | No | — | Daily spend cap in USD. Alerts sent at 50%, 75%, and 90% thresholds |
+
+Cost data is stored in the `usage_log` table in the SQLite database. Each orchestrator and Claude Code invocation is logged with model name, input/output tokens, calculated cost, and chat ID.
+
 ### Security Checklist
 
 - [ ] `.env` file has `chmod 600` and is owned by the service user
@@ -415,6 +473,7 @@ server {
 - [ ] The service runs as a non-root user
 - [ ] The database and audit directories have restricted permissions
 - [ ] If using WhatsApp, HTTPS is configured for the webhook endpoint
+- [ ] If using web dashboard, `DASHBOARD_TOKEN` is set and HTTPS is configured via reverse proxy
 - [ ] `MCP_ALLOWED_SERVERS` is set to restrict which MCP servers can be used
 - [ ] If Claude Code is enabled, `CLAUDE_CODE_MAX_BUDGET_USD` limits API spend
 

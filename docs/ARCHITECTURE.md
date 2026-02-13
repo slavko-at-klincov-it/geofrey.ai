@@ -5,14 +5,14 @@
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                        USER DEVICES                             │
-│  Telegram · WhatsApp · Signal                                   │
+│  Telegram · WhatsApp · Signal · Web Dashboard                   │
 └──────────────────────┬──────────────────────────────────────────┘
                        │ messages + approval callbacks
                        ▼
 ┌──────────────────────────────────────────────────────────────────┐
 │                    MESSAGING LAYER                                │
 │  grammY (Telegram) · Cloud API (WhatsApp) · signal-cli (Signal)  │
-│  InlineKeyboard/buttons for approvals · Streaming via edits      │
+│  WebChat (SSE + REST) · Buttons/text for approvals · Streaming   │
 └──────────────────────┬───────────────────────────────────────────┘
                        │
                        ▼
@@ -55,10 +55,21 @@
 │  │ Commands     │  │ Operations   │  │ (external tools)   │     │
 │  └──────────────┘  └──────────────┘  └────────────────────┘     │
 │                                                                  │
-│  ┌──────────────┐                                               │
-│  │ Git          │                                               │
-│  │ Operations   │                                               │
-│  └──────────────┘                                               │
+│  ┌──────────────┐  ┌──────────────┐  ┌────────────────────┐     │
+│  │ Git          │  │ Web Search   │  │ Memory             │     │
+│  │ Operations   │  │ + Web Fetch  │  │ (semantic search)  │     │
+│  └──────────────┘  └──────────────┘  └────────────────────┘     │
+└──────────────────────────────────────────────────────────────────┘
+                       │
+                       ▼
+┌──────────────────────────────────────────────────────────────────┐
+│                    BACKGROUND SERVICES                            │
+│                                                                  │
+│  ┌──────────────┐  ┌──────────────┐  ┌────────────────────┐     │
+│  │ Cron         │  │ Cost         │  │ Web Dashboard      │     │
+│  │ Scheduler    │  │ Tracking     │  │ (SSE + REST)       │     │
+│  │ (30s tick)   │  │ (per-request)│  │                    │     │
+│  └──────────────┘  └──────────────┘  └────────────────────┘     │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
@@ -72,6 +83,8 @@
 | **LLM SDK** | Vercel AI SDK 6 (`ai` package) | `ToolLoopAgent` + `needsApproval` built-in, native Ollama provider, Zod tool schemas |
 | **Tool Integration** | MCP Client (`@modelcontextprotocol/sdk`) | Industry standard, 10K+ servers, wrapped by our risk classifier |
 | **Telegram Bot** | grammY | Best TS types, conversations plugin, active ecosystem |
+| **Web Dashboard** | Native `node:http` + SSE | Zero dependencies, Bearer auth, real-time streaming |
+| **Web Search** | SearXNG (default) or Brave Search API | Self-hosted option + commercial fallback |
 | **Subprocess Mgmt** | execa | Stream-native, ideal for driving Claude Code CLI |
 | **State/Persistence** | SQLite (better-sqlite3) + Drizzle ORM | Type-safe queries, schema migrations, zero runtime overhead |
 | **Audit Log** | Append-only JSONL with SHA-256 hash chain | Tamper-evident, queryable, human-readable |
@@ -89,7 +102,7 @@ Risk classification uses a **two-layer approach**:
 
 | Level | Name | Behavior | Examples |
 |-------|------|----------|----------|
-| **L0** | AUTO_APPROVE | Execute immediately, no notification | `read_file`, `list_dir`, `search`, `git status`, `git log`, `git diff`, `pwd`, `ls`, `cat`, `wc` |
+| **L0** | AUTO_APPROVE | Execute immediately, no notification | `read_file`, `list_dir`, `search`, `git status`, `git log`, `git diff`, `pwd`, `ls`, `cat`, `wc`, `web_search`, `web_fetch`, `memory_read`, `memory_search` |
 | **L1** | NOTIFY | Execute, then inform user | `write_file` (non-config, in project), `git add`, `git stash`, `git branch`, `npm test`, `npm run lint` |
 | **L2** | REQUIRE_APPROVAL | **Block until user approves via Telegram/WhatsApp/Signal** | `delete_file`, `git commit`, `git merge`, `git rebase`, `npm install`, `shell_exec`, `mkdir`, `mv`, `cp` |
 | **L3** | BLOCK | Refuse always, log attempt | `git push --force`, `git reset --hard`, `rm -rf`, `sudo`, `curl`, `wget`, `nc`, `ssh`, `eval` |
@@ -231,6 +244,96 @@ Risk Classifier → Approval Gate → Execute
 
 MCP tools are treated identically to native tools — the risk classifier evaluates every MCP tool call before execution. This gives us access to the entire MCP ecosystem while maintaining our L0-L3 safety model.
 
+## Web Dashboard + WebChat (v1.1)
+
+The web dashboard provides a browser-based chat interface as an alternative to Telegram/WhatsApp/Signal.
+
+```
+Browser (SSE)  ──→  WebChat Adapter (node:http)  ──→  Orchestrator
+                         │
+                         ├── GET  /api/events          SSE stream (messages, approvals, status)
+                         ├── POST /api/message          Send user message
+                         ├── POST /api/approval/:nonce  Approve/deny actions
+                         ├── GET  /api/status           Health check
+                         ├── GET  /api/audit            Recent audit entries
+                         └── GET  /                     Static files (dashboard/public/)
+```
+
+- **Transport:** Server-Sent Events (SSE) for real-time streaming — no WebSocket, no external dependency
+- **Auth:** Bearer token via `DASHBOARD_TOKEN` env var (optional, recommended for production)
+- **Platform:** Implements `MessagingPlatform` interface, selectable via `PLATFORM=webchat`
+- **Static serving:** `src/dashboard/public/` (HTML + CSS + JS) — dark theme, mobile-responsive
+
+## Persistent Memory (v1.1)
+
+Long-term memory using `MEMORY.md` flat files + Ollama embeddings for semantic search.
+
+```
+User message  ──→  autoRecall()  ──→  searchMemory(query, topK=3)
+                                          │
+                                          ├── generateEmbedding(query)  → Ollama /api/embed
+                                          ├── cosineSimilarity(query, chunks)
+                                          └── filter by threshold (0.7)
+                                          │
+                                     Inject context into orchestrator prompt
+```
+
+- **Storage:** `data/memory/MEMORY.md` (flat file, human-readable) + `memory_chunks` table (SQLite, embeddings)
+- **Embeddings:** Ollama `/api/embed` endpoint with configurable model
+- **Chunking:** ~400 tokens per chunk, indexed in `memory_chunks` table
+- **Search:** Cosine similarity with 0.7 threshold, top-K results
+- **Tools:** `memory_read` (L0), `memory_write` (L1), `memory_search` (L0)
+
+## Web Search + Web Fetch (v1.1)
+
+Internet access via SearXNG (self-hosted, default) or Brave Search API.
+
+- **`web_search`** — query SearXNG or Brave, returns formatted results (title + URL + description)
+- **`web_fetch`** — fetch URL, convert HTML to Markdown (strips scripts/nav/footer, converts headings/links/code), truncate to `maxLength`
+- **Providers:** configurable via `SEARCH_PROVIDER` (`searxng` | `brave`)
+- **Risk level:** L0 (AUTO_APPROVE) — read-only internet access
+
+## Cron/Scheduler (v1.1)
+
+Persistent job scheduler for proactive tasks.
+
+```
+cron tool (create/list/delete)  ──→  scheduler (30s tick loop)
+                                          │
+                                     Check next_run_at ≤ now
+                                          │
+                                     Execute job via JobExecutor callback
+                                          │
+                                     Update next_run_at (cron parser)
+                                          │
+                                     On failure: exponential backoff
+                                     (30s → 1m → 5m → 15m → 60m, max 5 retries)
+```
+
+- **Parser:** 5-field cron expressions (minute, hour, day, month, weekday) with `*`, ranges, steps, comma-separated values
+- **Persistence:** `cron_jobs` table (SQLite via Drizzle) — survives restarts
+- **Retry:** Exponential backoff with configurable `max_retries` (default 5)
+- **Graceful shutdown:** Stops tick loop, no orphaned jobs
+
+## Cost Tracking / Billing (v1.1)
+
+Per-request token and cost logging with budget alerts.
+
+```
+Agent step finish  ──→  logUsage(model, tokens, cost)  ──→  usage_log table
+                                                                  │
+                   ──→  checkBudgetThresholds(daily total)        │
+                              │                                    │
+                         50% / 75% / 90% alerts via messaging     │
+                                                                  │
+                   ──→  getDailyUsage()  ──→  aggregate query ────┘
+```
+
+- **Logging:** Every orchestrator and Claude Code invocation logged with model, input/output tokens, cost (USD), chat ID
+- **Pricing:** Built-in pricing table for Claude Sonnet/Opus/Haiku + Ollama ($0); extensible via `DEFAULT_PRICING`
+- **Budget:** Optional `MAX_DAILY_BUDGET_USD` — alerts at 50%, 75%, 90% thresholds
+- **Integration:** `buildOnStepFinish()` in agent-loop.ts logs usage after each AI SDK step
+
 ## Project Structure
 
 ```
@@ -273,7 +376,8 @@ geofrey.ai/
 │   │   └── adapters/
 │   │       ├── telegram.ts      # grammY bot + approval UI (inline buttons)
 │   │       ├── whatsapp.ts      # WhatsApp Business Cloud API (interactive buttons)
-│   │       └── signal.ts        # signal-cli JSON-RPC (text-based approvals)
+│   │       ├── signal.ts        # signal-cli JSON-RPC (text-based approvals)
+│   │       └── webchat.ts       # WebChat adapter (SSE streaming, REST API, Bearer auth)
 │   ├── tools/
 │   │   ├── tool-registry.ts     # Tool schema + handler registry (native + MCP)
 │   │   ├── mcp-client.ts        # MCP server discovery + tool wrapping
@@ -282,12 +386,29 @@ geofrey.ai/
 │   │   ├── filesystem.ts        # File read/write/delete (directory confinement)
 │   │   ├── git.ts               # Git operations
 │   │   ├── search.ts            # Recursive content search (regex, max 20 results)
-│   │   └── project-map.ts       # Project structure queries (.geofrey/project-map.json)
+│   │   ├── project-map.ts       # Project structure queries (.geofrey/project-map.json)
+│   │   ├── web-search.ts        # SearXNG + Brave Search providers
+│   │   ├── web-fetch.ts         # URL fetch + HTML→Markdown converter
+│   │   ├── memory.ts            # memory_read, memory_write, memory_search tools
+│   │   └── cron.ts              # Cron job management (create/list/delete)
 │   ├── audit/
 │   │   └── audit-log.ts         # Append-only hash-chained JSONL log
+│   ├── memory/
+│   │   ├── store.ts             # MEMORY.md read/write/append + daily notes
+│   │   ├── embeddings.ts        # Ollama embeddings + cosine similarity search
+│   │   └── recall.ts            # Auto-recall (semantic search + threshold)
+│   ├── automation/
+│   │   ├── cron-parser.ts       # 5-field cron expression parser + next-run
+│   │   └── scheduler.ts         # Job scheduler (30s tick, exponential retry)
+│   ├── billing/
+│   │   ├── pricing.ts           # Model pricing table + cost calculator
+│   │   ├── usage-logger.ts      # Per-request usage logging + daily aggregates
+│   │   └── budget-monitor.ts    # Budget threshold alerts (50/75/90%)
+│   ├── dashboard/
+│   │   └── public/              # Single-page chat UI (HTML + CSS + JS)
 │   ├── db/
 │   │   ├── client.ts            # better-sqlite3 + Drizzle ORM + migrate()
-│   │   └── schema.ts            # Drizzle table definitions
+│   │   └── schema.ts            # Drizzle table definitions (+ cronJobs, usageLog, memoryChunks)
 │   ├── indexer/
 │   │   ├── cli.ts               # CLI entry point (geofrey index / pnpm index)
 │   │   ├── index.ts             # Incremental project indexer (AST parsing, mtime cache)
@@ -319,6 +440,7 @@ geofrey.ai/
 ├── drizzle/                     # Drizzle migration files
 ├── data/
 │   ├── audit/                   # Audit logs (JSONL)
+│   ├── memory/                  # Persistent memory (MEMORY.md, daily notes)
 │   └── app.db                   # SQLite database
 ├── package.json
 ├── tsconfig.json
@@ -376,7 +498,7 @@ On SIGTERM/SIGINT:
 | Prompt injection via web/email content | 3-layer injection defense (user input, tool output, model response) |
 | 7.1% of ClawHub skills leak credentials | No public marketplace. Local-only tools + MCP with risk classification |
 | Infinite tool-call loops (issue #7500) | Max 15 iterations (`stepCountIs`) + consecutive error limit (3) |
-| CVE-2026-25253 (one-click RCE) | No web interface, no public endpoints |
+| CVE-2026-25253 (one-click RCE) | Optional web dashboard with Bearer auth, localhost-only by default |
 
 ## OWASP Agentic Top 10 Coverage
 

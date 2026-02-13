@@ -14,7 +14,71 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `ImageAttachment` interface and `onImageMessage` callback in `PlatformCallbacks`
 - `data/images/` storage directory for sanitized images
 - 5 new i18n keys (`messaging.image*`) with German and English translations
-- 5 new tests for image handler (298 total across 65 suites)
+- 5 new tests for image handler
+
+## [1.1.0] - 2026-02-13
+
+Phase 1 — Essentials release. All 5 roadmap features implemented.
+
+### Added
+
+#### Web Dashboard + WebChat
+- WebChat messaging adapter (`src/messaging/adapters/webchat.ts`) implementing full `MessagingPlatform` interface
+- Native `node:http` server with SSE (Server-Sent Events) for real-time message streaming
+- REST API endpoints: `/api/events` (SSE), `/api/message`, `/api/approval/:nonce`, `/api/status`, `/api/audit`
+- Bearer token authentication via `DASHBOARD_TOKEN` env var
+- Single-page chat UI (`src/dashboard/public/`) with dark theme, markdown rendering, approval buttons
+- Mobile-responsive design with sidebar navigation
+- Static file serving for dashboard assets
+- Selectable via `PLATFORM=webchat` or as standalone with `DASHBOARD_ENABLED=true`
+- 18 new tests for WebChat adapter
+
+#### Persistent Memory
+- Memory store (`src/memory/store.ts`) — read/write/append to `data/memory/MEMORY.md`, daily notes support
+- Ollama embeddings integration (`src/memory/embeddings.ts`) — `generateEmbedding()` via `/api/embed` endpoint
+- Text chunking (~400 tokens) with cosine similarity search
+- `memory_chunks` table in SQLite for embedding storage
+- Auto-recall (`src/memory/recall.ts`) — semantic search with 0.7 similarity threshold, injects context into orchestrator prompt
+- Three new tools: `memory_read` (L0), `memory_write` (L1), `memory_search` (L0)
+- Drizzle migration `0003_add_memory_chunks.sql`
+- 24 new tests for memory store and embeddings
+
+#### Web Search + Web Fetch
+- Web search tool (`src/tools/web-search.ts`) with two providers: SearXNG (self-hosted, default) and Brave Search API
+- `setSearchConfig()` for runtime provider configuration
+- Web fetch tool (`src/tools/web-fetch.ts`) with custom HTML→Markdown converter
+- `htmlToMarkdown()` strips scripts/nav/footer/header/aside, converts headings/links/code/lists
+- `decodeEntities()` handles named + numeric + hex HTML entities
+- Both tools classified as L0 (AUTO_APPROVE) — read-only internet access
+- 49 new tests for web search and web fetch
+
+#### Cron/Scheduler
+- 5-field cron expression parser (`src/automation/cron-parser.ts`) — minute, hour, day, month, weekday with `*`, ranges, steps, comma-separated values
+- Persistent job scheduler (`src/automation/scheduler.ts`) — 30-second tick loop, SQLite-backed via `cron_jobs` table
+- Exponential retry backoff on failure (30s → 1m → 5m → 15m → 60m, max 5 retries)
+- Cron tool (`src/tools/cron.ts`) with create/list/delete actions
+- `initScheduler()` / `stopScheduler()` lifecycle management
+- Drizzle migration `0001_add_cron_jobs.sql`
+- 29 new tests for cron parser and scheduler (scheduler tests skip gracefully when better-sqlite3 unavailable)
+
+#### Cost Tracking / Billing
+- Model pricing table (`src/billing/pricing.ts`) — built-in rates for Claude Sonnet/Opus/Haiku + Ollama ($0)
+- Per-request usage logger (`src/billing/usage-logger.ts`) — logs model, input/output tokens, cost (USD), chat ID to `usage_log` table
+- Daily usage aggregation via `getDailyUsage()` query
+- Budget monitor (`src/billing/budget-monitor.ts`) — alerts at 50%, 75%, 90% of `MAX_DAILY_BUDGET_USD`
+- Integration in `buildOnStepFinish()` — orchestrator and Claude Code usage logged after each AI SDK step
+- Drizzle migration `0002_add_usage_log.sql`
+- 28 new tests for pricing, usage logger, and budget monitor
+
+#### Config & Infrastructure
+- New config sections: `dashboard`, `search`, `billing` in Zod schema
+- `"webchat"` added to platform enum with validation refinement (requires `dashboard.enabled`)
+- New env vars: `DASHBOARD_ENABLED`, `DASHBOARD_PORT`, `DASHBOARD_TOKEN`, `SEARCH_PROVIDER`, `SEARXNG_URL`, `BRAVE_API_KEY`, `MAX_DAILY_BUDGET_USD`
+- 23 new i18n keys across cron, memory, search, billing, and dashboard categories (German + English)
+- `web_search`, `web_fetch`, `memory_read`, `memory_search` added to L0_TOOLS in risk classifier
+- DB schema versions 1-4 registered in `client.ts`
+- 3 new Drizzle migrations with full snapshots
+- 430 total tests (up from 225), 0 failures
 
 ## [1.0.1] - 2026-02-12
 
@@ -99,5 +163,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Windows compatibility for prerequisites check (cmd start /b for detached Ollama)
 - Platform-aware defaults for Signal socket path in config schema
 
+[1.1.0]: https://github.com/slavko-at-klincov-it/geofrey.ai/releases/tag/v1.1.0
 [1.0.1]: https://github.com/slavko-at-klincov-it/geofrey.ai/releases/tag/v1.0.1
 [1.0.0]: https://github.com/slavko-at-klincov-it/geofrey.ai/releases/tag/v1.0.0

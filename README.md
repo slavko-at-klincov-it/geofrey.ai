@@ -15,11 +15,11 @@ geofrey.ai runs a local LLM (Qwen3 8B via Ollama) as an intelligent orchestrator
 | Monthly cost (moderate use) | $200-600 | $0-30 |
 | Orchestrator | Cloud API (resends 10K token prompt every call) | Local Qwen3 8B (loaded once) |
 | Approval mechanism | Fire-and-forget (bug #2402) | Structural blocking via Promise |
-| Network exposure | Web UI (42K+ exposed instances) | No web UI, messaging only |
-| Security vulnerabilities | CVE-2026-25253 (RCE), CVE-2026-25157 | No web attack surface |
+| Network exposure | Web UI (42K+ exposed instances) | Optional dashboard (localhost, Bearer auth) |
+| Security vulnerabilities | CVE-2026-25253 (RCE), CVE-2026-25157 | No public attack surface |
 | Command injection defense | Basic | 4-layer (decomposition + regex + LLM + gate) |
 | Image metadata defense | None | EXIF/XMP/IPTC stripping + injection scanning |
-| Test coverage | Some | 298 tests across 65 suites |
+| Test coverage | Some | 430 tests across 80+ suites |
 
 ## Features
 
@@ -37,6 +37,11 @@ geofrey.ai runs a local LLM (Qwen3 8B via Ollama) as an intelligent orchestrator
 - **i18n** — German + English with typed translation keys
 - **Windows + macOS + Linux** — cross-platform compatibility
 - **Interactive setup wizard** — `pnpm setup` with auto-detection, OCR, clipboard support
+- **Web dashboard + WebChat** — browser-based chat UI with SSE streaming, REST API, Bearer auth, dark theme
+- **Persistent memory** — MEMORY.md flat files + Ollama embeddings for semantic search (cosine similarity)
+- **Web search + fetch** — SearXNG (self-hosted) or Brave Search API, HTML→Markdown URL fetching
+- **Cron/Scheduler** — persistent job scheduler with 5-field cron expressions, exponential retry backoff
+- **Cost tracking** — per-request token/cost logging, daily aggregates, budget threshold alerts (50/75/90%)
 - **Graceful shutdown** — cleans up child processes, flushes audit log, rejects pending approvals
 
 ## Quick Start
@@ -130,6 +135,19 @@ ORCHESTRATOR_MODEL=qwen3:8b
 MAX_AGENT_STEPS=15
 APPROVAL_TIMEOUT_MS=300000
 MAX_CONSECUTIVE_ERRORS=3
+
+# Web Dashboard (optional)
+# DASHBOARD_ENABLED=true
+# DASHBOARD_PORT=3001
+# DASHBOARD_TOKEN=your_secret_token
+
+# Web Search (optional — SearXNG default, Brave alternative)
+# SEARCH_PROVIDER=searxng
+# SEARXNG_URL=http://localhost:8080
+# BRAVE_API_KEY=your_brave_api_key
+
+# Cost Tracking (optional)
+# MAX_DAILY_BUDGET_USD=10.00
 ```
 
 See `.env.example` for all available options including WhatsApp, Signal, MCP servers, and Claude Code advanced settings.
@@ -152,7 +170,7 @@ User (Telegram/WhatsApp/Signal) → Local Orchestrator (Qwen3 8B) → Risk Class
 - **Risk Classifier** — Hybrid deterministic (regex) + LLM for ambiguous cases
 - **Approval Gate** — Promise-based blocking mechanism, no code path to execute without user approval
 - **Claude Code Driver** — Subprocess manager with streaming, session tracking, tool scoping
-- **Messaging Adapters** — Platform-specific implementations (grammY for Telegram, Cloud API for WhatsApp, signal-cli for Signal)
+- **Messaging Adapters** — Platform-specific implementations (grammY for Telegram, Cloud API for WhatsApp, signal-cli for Signal, SSE for WebChat)
 - **Audit Log** — Append-only JSONL with SHA-256 hash chain for tamper detection
 
 See `docs/ARCHITECTURE.md` for full technical details.
@@ -195,13 +213,20 @@ See `docs/ARCHITECTURE.md` for full technical details.
 - **Features**: signal-cli JSON-RPC, no inline buttons
 - **Setup**: signal-cli installed, bot phone number registered, owner phone number
 
+### WebChat (Web Dashboard)
+
+- **Interface**: Browser-based chat UI with approval buttons
+- **Features**: SSE real-time streaming, dark theme, mobile-responsive, audit log viewer
+- **Setup**: Set `PLATFORM=webchat` + `DASHBOARD_ENABLED=true`, optional `DASHBOARD_TOKEN` for auth
+- **Port**: Default 3001 (configurable via `DASHBOARD_PORT`)
+
 ## Development
 
 ```bash
 # Run in development mode with auto-reload
 pnpm dev
 
-# Run tests (node:test runner, 298 tests across 65 suites)
+# Run tests (node:test runner, 430 tests across 80+ suites)
 pnpm test
 
 # Type check
@@ -222,10 +247,14 @@ src/
 ├── index.ts                 # Entry point + graceful shutdown
 ├── orchestrator/            # Qwen3 agent loop, conversation, prompt generator
 ├── approval/                # Risk classifier, approval gate
-├── messaging/               # Platform adapters, image handler (Telegram, WhatsApp, Signal)
-├── tools/                   # Tool executors (Claude Code, shell, filesystem, git, MCP)
+├── messaging/               # Platform adapters, image handler (Telegram, WhatsApp, Signal, WebChat)
+├── tools/                   # Tool executors (Claude Code, shell, filesystem, git, MCP, web, memory, cron)
 ├── security/                # Image metadata sanitizer, injection scanning
 ├── audit/                   # Hash-chained JSONL audit log
+├── memory/                  # Persistent memory (MEMORY.md, embeddings, recall)
+├── automation/              # Cron parser + job scheduler
+├── billing/                 # Cost tracking, pricing, budget alerts
+├── dashboard/               # Web dashboard static files (HTML + CSS + JS)
 ├── db/                      # SQLite + Drizzle ORM
 ├── i18n/                    # German + English translations
 ├── onboarding/              # Interactive setup wizard
@@ -344,6 +373,13 @@ See `CLAUDE.md` for project conventions and key decisions log.
 | `IMAGE_SANITIZER_ENABLED` | No | `true` | Enable/disable image metadata stripping |
 | `IMAGE_SANITIZER_MAX_SIZE` | No | `20971520` | Max input image size in bytes (20MB) |
 | `IMAGE_SANITIZER_SCAN_INJECTION` | No | `true` | Scan metadata for prompt injection patterns |
+| `DASHBOARD_ENABLED` | No | `false` | Enable web dashboard + WebChat adapter |
+| `DASHBOARD_PORT` | No | `3001` | Dashboard HTTP server port |
+| `DASHBOARD_TOKEN` | No | — | Bearer token for dashboard auth (recommended) |
+| `SEARCH_PROVIDER` | No | `searxng` | Web search provider: `searxng` or `brave` |
+| `SEARXNG_URL` | No | `http://localhost:8080` | SearXNG instance URL |
+| `BRAVE_API_KEY` | Brave | — | Brave Search API key (required if provider is `brave`) |
+| `MAX_DAILY_BUDGET_USD` | No | — | Daily spend cap in USD (alerts at 50/75/90%) |
 
 #### Claude Code CLI
 
@@ -399,7 +435,8 @@ src/
 │   └── adapters/
 │       ├── telegram.ts       # grammY bot + approval UI (inline buttons)
 │       ├── whatsapp.ts       # WhatsApp Business API (Cloud API, webhook + HMAC-SHA256)
-│       └── signal.ts         # signal-cli JSON-RPC (text-based approvals)
+│       ├── signal.ts         # signal-cli JSON-RPC (text-based approvals)
+│       └── webchat.ts        # WebChat adapter (SSE streaming, REST API, Bearer auth)
 ├── tools/
 │   ├── tool-registry.ts      # Native + MCP tool registry → AI SDK bridge
 │   ├── mcp-client.ts         # MCP server discovery + tool wrapping
@@ -408,7 +445,24 @@ src/
 │   ├── filesystem.ts         # File read/write/delete/list (directory confinement)
 │   ├── git.ts                # Git status/log/diff/commit
 │   ├── search.ts             # Recursive content search (regex, max 20 results)
-│   └── project-map.ts        # Project structure queries (.geofrey/project-map.json)
+│   ├── project-map.ts        # Project structure queries (.geofrey/project-map.json)
+│   ├── web-search.ts         # SearXNG + Brave Search providers
+│   ├── web-fetch.ts          # URL fetch + HTML→Markdown converter
+│   ├── memory.ts             # memory_read, memory_write, memory_search tools
+│   └── cron.ts               # Cron job management (create/list/delete)
+├── memory/
+│   ├── store.ts              # MEMORY.md read/write/append + daily notes
+│   ├── embeddings.ts         # Ollama embeddings + cosine similarity search
+│   └── recall.ts             # Auto-recall (semantic search + threshold)
+├── automation/
+│   ├── cron-parser.ts        # 5-field cron expression parser + next-run
+│   └── scheduler.ts          # Job scheduler (30s tick, exponential retry)
+├── billing/
+│   ├── pricing.ts            # Model pricing table + cost calculator
+│   ├── usage-logger.ts       # Per-request usage logging + daily aggregates
+│   └── budget-monitor.ts     # Budget threshold alerts (50/75/90%)
+├── dashboard/
+│   └── public/               # Web chat UI (HTML + CSS + JS)
 ├── security/
 │   └── image-sanitizer.ts    # EXIF/XMP/IPTC stripping + injection scanning
 ├── audit/
@@ -445,9 +499,11 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full system design.
 | Coding Agent | Claude Code CLI (stream-json, sessions, risk-scoped tool profiles) |
 | LLM SDK | Vercel AI SDK 6 (`streamText`, `stepCountIs`, `needsApproval`) |
 | Tool Integration | MCP Client (10K+ servers, wrapped by risk classifier) |
-| Messaging | Telegram (grammY), WhatsApp (Cloud API), Signal (signal-cli) |
+| Messaging | Telegram (grammY), WhatsApp (Cloud API), Signal (signal-cli), WebChat (SSE) |
+| Web Search | SearXNG (self-hosted, default) or Brave Search API |
 | Database | SQLite + Drizzle ORM |
 | Audit | Append-only hash-chained JSONL (with Claude Code cost/token tracking) |
+| Billing | Per-request usage logging, daily aggregates, budget alerts |
 | Validation | Zod |
 
 ### Local LLM
@@ -485,7 +541,7 @@ All MCP tool calls are automatically routed through the risk classifier. The MCP
 pnpm dev          # Run with hot reload (tsx watch)
 pnpm build        # TypeScript compilation
 pnpm lint         # Type check (tsc --noEmit)
-pnpm test         # 298 tests across 65 suites
+pnpm test         # 430 tests across 80+ suites
 pnpm setup        # Interactive setup wizard
 pnpm index        # Generate project map (.geofrey/project-map.json)
 pnpm start        # Run compiled output
@@ -496,7 +552,7 @@ pnpm db:generate  # Generate Drizzle migrations
 
 ## Project Status
 
-**298 tests passing** across 65 suites (266 unit + 32 E2E integration).
+**430 tests passing** across 80+ suites (398 unit + 32 E2E integration).
 
 - [x] Local LLM orchestrator (Qwen3 8B)
 - [x] Hybrid risk classification (deterministic + LLM, XML output)
@@ -520,7 +576,11 @@ pnpm db:generate  # Generate Drizzle migrations
 - [x] End-to-end test suite (32 integration tests)
 - [x] Docker support (Dockerfile + docker-compose.yml with Ollama + GPU)
 - [x] npm CLI entry point (`geofrey` / `geofrey setup`)
-- [ ] Web dashboard (read-only audit viewer)
+- [x] Web dashboard + WebChat adapter (SSE streaming, REST API, Bearer auth, dark theme)
+- [x] Persistent memory (MEMORY.md + Ollama embeddings + cosine similarity search)
+- [x] Web search + web fetch (SearXNG + Brave Search, HTML→Markdown converter)
+- [x] Cron/Scheduler (5-field cron parser, persistent jobs, exponential retry backoff)
+- [x] Cost tracking (per-request usage logging, daily aggregates, budget threshold alerts)
 
 ---
 
@@ -656,7 +716,7 @@ OpenClaw (ehemals Clawdbot/Moltbot) ist die bekannteste Open-Source AI-Agent-Pla
 | Feature | Begründung |
 |---------|-----------|
 | Permission-Bypass-Modus | Ein Bypass ist eine Schwachstelle, kein Feature. OpenClaws `elevated: "full"` ist das beste Beispiel. |
-| Web-UI | Null öffentliche Endpoints = null Web-Angriffsfläche. CVE-2026-25253 wäre bei uns unmöglich. |
+| Öffentliches Web-UI | Dashboard ist optional, localhost-only, Bearer-Auth. CVE-2026-25253-Style-Angriffe wären bei uns unmöglich. |
 | Öffentlicher Marketplace | MCP-Ökosystem mit Allowlist statt unverifiziertem Community-Code. ClawHubs 7,1% Credential-Leaks sind inakzeptabel. |
 | Auto-Retry nach Ablehnung | Timeout = Ablehnung. Der Agent darf ohne neuen User-Input nicht erneut versuchen. |
 | Klartext-Credential-Speicherung | Sensible Pfade (.env, .ssh, .pem) sind L3-blockiert — der Agent kann sie nicht lesen. |
