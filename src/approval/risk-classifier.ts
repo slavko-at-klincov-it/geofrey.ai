@@ -47,6 +47,7 @@ const L0_TOOLS = new Set([
   "memory_read", "memory_search",
   "tts_speak",
   "process_manager:list", "process_manager:check", "process_manager:logs",
+  "agent_list", "companion_list",
 ]);
 
 const L3_COMMANDS = /\b(sudo|rm\s+-rf|curl|wget|nc|ssh|scp|telnet|eval|exec|alias)\b/;
@@ -221,6 +222,70 @@ export function classifyDeterministic(
       return { level: RiskLevel.L1, reason: t("approval.configFile"), deterministic: true };
     }
     if (action === "delete") {
+      return { level: RiskLevel.L2, reason: t("approval.configFile"), deterministic: true };
+    }
+  }
+  if (toolName === "smart_home") {
+    if (action === "discover" || action === "list") {
+      return { level: RiskLevel.L0, reason: t("approval.readOnly"), deterministic: true };
+    }
+    if (action === "control" || action === "scene") {
+      return { level: RiskLevel.L1, reason: t("approval.configFile"), deterministic: true };
+    }
+    if (action === "automation") {
+      return { level: RiskLevel.L2, reason: t("approval.configFile"), deterministic: true };
+    }
+  }
+  if (toolName === "gmail") {
+    if (action === "auth") {
+      return { level: RiskLevel.L2, reason: t("approval.configFile"), deterministic: true };
+    }
+    if (action === "read" || action === "search") {
+      return { level: RiskLevel.L0, reason: t("approval.readOnly"), deterministic: true };
+    }
+    if (action === "send") {
+      return { level: RiskLevel.L2, reason: t("approval.configFile"), deterministic: true };
+    }
+    if (action === "label") {
+      return { level: RiskLevel.L1, reason: t("approval.configFile"), deterministic: true };
+    }
+    if (action === "delete") {
+      return { level: RiskLevel.L2, reason: t("approval.configFile"), deterministic: true };
+    }
+  }
+  if (toolName === "calendar") {
+    if (action === "auth") {
+      return { level: RiskLevel.L2, reason: t("approval.configFile"), deterministic: true };
+    }
+    if (action === "list") {
+      return { level: RiskLevel.L0, reason: t("approval.readOnly"), deterministic: true };
+    }
+    if (action === "create" || action === "update") {
+      return { level: RiskLevel.L1, reason: t("approval.configFile"), deterministic: true };
+    }
+    if (action === "delete") {
+      return { level: RiskLevel.L2, reason: t("approval.configFile"), deterministic: true };
+    }
+  }
+  if (toolName === "agent_send" || toolName === "agent_history") {
+    return { level: RiskLevel.L1, reason: t("approval.configFile"), deterministic: true };
+  }
+  if (toolName === "companion") {
+    if (action === "list") {
+      return { level: RiskLevel.L0, reason: t("approval.readOnly"), deterministic: true };
+    }
+    if (action === "pair" || action === "push_token") {
+      return { level: RiskLevel.L1, reason: t("approval.configFile"), deterministic: true };
+    }
+    if (action === "unpair") {
+      return { level: RiskLevel.L2, reason: t("approval.configFile"), deterministic: true };
+    }
+  }
+  if (toolName === "skill_marketplace") {
+    if (action === "search" || action === "list" || action === "templates") {
+      return { level: RiskLevel.L0, reason: t("approval.readOnly"), deterministic: true };
+    }
+    if (action === "install" || action === "create_from_template") {
       return { level: RiskLevel.L2, reason: t("approval.configFile"), deterministic: true };
     }
   }

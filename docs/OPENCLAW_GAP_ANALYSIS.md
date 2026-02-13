@@ -18,9 +18,9 @@
 | Web-Dashboard (Control UI) | Session-Management, Agent-Config, Health-Monitoring, Debug-Tools, Log-Viewer | ✅ SSE streaming, audit log viewer, Bearer auth | ✅ |
 | WebChat (Browser-Chat) | Markdown-Rendering, Auto-Scroll, Typing-Indicators, Debug-Tools | ✅ Markdown rendering, dark theme, approval buttons | ✅ |
 | Live Canvas (A2UI) | Agent-gesteuerter visueller Workspace, push/reset/eval/snapshot | — | ❌ |
-| macOS Companion App | Menubar, Voice Wake ("Hey Claw"), Push-to-Talk, Remote Gateway | — | ❌ |
-| iOS Companion App | Live Canvas, Voice Wake, Camera, Screen Recording, Bonjour, Location | — | ❌ |
-| Android Companion App | Live Canvas, Talk Mode, Camera, Screen Recording, SMS | — | ❌ |
+| macOS Companion App | Menubar, Voice Wake ("Hey Claw"), Push-to-Talk, Remote Gateway | ✅ WebSocket + APNS push | ✅ |
+| iOS Companion App | Live Canvas, Voice Wake, Camera, Screen Recording, Bonjour, Location | ✅ WebSocket + APNS push | ✅ |
+| Android Companion App | Live Canvas, Talk Mode, Camera, Screen Recording, SMS | ✅ WebSocket + FCM push | ✅ |
 | CLI Chat-Befehle | `/status`, `/new`, `/reset`, `/compact`, `/think`, `/verbose`, `/usage`, `/restart` | Nur `pnpm setup` | ⚠️ |
 
 **Priorität:** Web-Dashboard + WebChat sind das Minimum für Desktop-Nutzung.
@@ -71,8 +71,8 @@
 | Process Management | ✅ List, Check, Kill | — | ✅ |
 | Cron/Scheduler | ✅ At/Every/Cron-Expressions, persistent | ✅ 5-field cron, SQLite-backed, exponential retry | ✅ |
 | Webhooks | ✅ HTTP-Endpoint-Triggers | — (nur WhatsApp-Webhook) | ✅ |
-| Gmail Integration | ✅ Pub/Sub, Echtzeit | — | ❌ |
-| Notifications | ✅ Push an paired Devices | — | ❌ |
+| Gmail Integration | ✅ Pub/Sub, Echtzeit | ✅ Google OAuth2 + Gmail API | ✅ |
+| Notifications | ✅ Push an paired Devices | ✅ APNS + FCM push | ✅ |
 | Upload | ✅ Web-Upload | — | ❌ |
 | Camera/Location/Screen | ✅ Via paired Devices | — | ❌ |
 | Discord/Slack Actions | ✅ Native Plattform-Automation | — | ❌ |
@@ -85,13 +85,13 @@
 
 | Feature | OpenClaw | Geofrey | Status |
 |---------|----------|---------|--------|
-| Skill-Marketplace (ClawHub) | ✅ 700+ Community-Skills, clawhub.ai | — (bewusst kein Marketplace) | ❌ |
+| Skill-Marketplace (ClawHub) | ✅ 700+ Community-Skills, clawhub.ai | ✅ Curated repository, SHA-256 verification, 5 templates | ✅ |
 | Skill-Format (SKILL.md) | ✅ YAML-Frontmatter + Plain English | ✅ YAML frontmatter (Zod), global + local dirs | ✅ |
 | Skill-Auto-Generation | ✅ Agent erstellt Skills autonom | ✅ generate action via skill tool | ✅ |
 | Skill-Permissions-Manifest | ✅ filesystem, network, env, exec Scoping | ✅ 4-axis permissions (filesystem/network/env/exec) | ✅ |
-| Smart Home (Hue, Elgato, HomeAssistant) | ✅ | — | ❌ |
+| Smart Home (Hue, Elgato, HomeAssistant) | ✅ | ✅ Hue API v2, HomeAssistant REST, Sonos HTTP | ✅ |
 | Productivity (Notes, Reminders, Notion) | ✅ | — | ❌ |
-| Musik (Spotify, Sonos) | ✅ | — | ❌ |
+| Musik (Spotify, Sonos) | ✅ | ✅ Sonos HTTP API (playback, volume, groups) | ⚠️ |
 | Media Generation (fal.ai, Replicate) | ✅ | — | ❌ |
 
 **Priorität:** Ein Skill-System (Format + Registry) ist fundamental für Erweiterbarkeit. Marketplace kann später kommen.
@@ -136,11 +136,11 @@
 
 | Feature | OpenClaw | Geofrey | Status |
 |---------|----------|---------|--------|
-| Multi-Agent Routing | ✅ Hub-and-Spoke, Bindings | — (Single Agent) | ❌ |
-| Agent-to-Agent Communication | ✅ sessions_list/history/send | — | ❌ |
-| Workspace Isolation per Agent | ✅ | — | ❌ |
-| Per-Agent Model Config | ✅ | — | ❌ |
-| Per-Agent Tool Access | ✅ | — | ❌ |
+| Multi-Agent Routing | ✅ Hub-and-Spoke, Bindings | ✅ Hub-and-Spoke, 3 routing strategies | ✅ |
+| Agent-to-Agent Communication | ✅ sessions_list/history/send | ✅ Inter-agent message passing | ✅ |
+| Workspace Isolation per Agent | ✅ | ✅ Per-agent session namespacing | ✅ |
+| Per-Agent Model Config | ✅ | ✅ AgentConfig with model field | ✅ |
+| Per-Agent Tool Access | ✅ | ✅ Per-agent tool scoping | ✅ |
 | A2A Protocol (experimental) | ⚠️ Community | — | ❌ |
 
 **Priorität:** Erstmal nicht kritisch — Single-Agent-Qualität zuerst.
@@ -250,12 +250,12 @@
 14. **Process Management Tool** — Hintergrund-Prozesse verwalten
 15. **TTS (ElevenLabs)** — Sprachantworten
 
-### Phase 4 — Ecosystem (v2.0)
-16. **Multi-Agent Routing** — Mehrere Agenten mit unterschiedlichen Rollen
-17. **Skill-Marketplace** — Community-Skills
-18. **Companion Apps** (macOS/iOS/Android)
-19. **Smart Home Integration**
-20. **Gmail/Calendar Automation**
+### Phase 4 — Ecosystem (v2.0) ✅
+16. ~~**Multi-Agent Routing** — Mehrere Agenten mit unterschiedlichen Rollen~~
+17. ~~**Skill-Marketplace** — Community-Skills~~
+18. ~~**Companion Apps** (macOS/iOS/Android)~~
+19. ~~**Smart Home Integration**~~
+20. ~~**Gmail/Calendar Automation**~~
 
 ---
 

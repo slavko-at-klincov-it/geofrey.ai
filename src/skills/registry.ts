@@ -19,6 +19,7 @@ const skills = new Map<string, Skill>();
 
 const GLOBAL_DIR = join(homedir(), ".geofrey", "skills");
 const LOCAL_DIR = join(process.cwd(), ".geofrey", "skills");
+const MARKETPLACE_DIR = join(process.cwd(), ".geofrey", "marketplace");
 
 function idFromPath(filePath: string): string {
   const name = basename(filePath);
@@ -64,7 +65,18 @@ export async function discoverSkills(): Promise<Skill[]> {
     }
   }
 
-  // Local skills override global with same id
+  // Marketplace skills
+  const marketplaceFiles = await listSkillFiles(MARKETPLACE_DIR);
+  for (const f of marketplaceFiles) {
+    try {
+      const skill = await loadSkill(f, "local");
+      skills.set(skill.id, skill);
+    } catch {
+      // Skip invalid skill files
+    }
+  }
+
+  // Local skills override global and marketplace with same id
   const localFiles = await listSkillFiles(LOCAL_DIR);
   for (const f of localFiles) {
     try {

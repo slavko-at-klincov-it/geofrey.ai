@@ -178,6 +178,52 @@ export function loadConfig(): Config {
         host: process.env.WEBHOOK_HOST,
         rateLimit: process.env.WEBHOOK_RATE_LIMIT,
       },
+      agents: {
+        enabled: process.env.AGENTS_ENABLED !== undefined
+          ? process.env.AGENTS_ENABLED === "true"
+          : undefined,
+        routingStrategy: process.env.AGENTS_ROUTING_STRATEGY,
+        maxConcurrentAgents: process.env.AGENTS_MAX_CONCURRENT,
+        sessionIsolation: process.env.AGENTS_SESSION_ISOLATION !== undefined
+          ? process.env.AGENTS_SESSION_ISOLATION === "true"
+          : undefined,
+      },
+      companion: {
+        enabled: process.env.COMPANION_ENABLED !== undefined
+          ? process.env.COMPANION_ENABLED === "true"
+          : undefined,
+        wsPort: process.env.COMPANION_WS_PORT,
+        pairingTtlMs: process.env.COMPANION_PAIRING_TTL_MS,
+        heartbeatIntervalMs: process.env.COMPANION_HEARTBEAT_MS,
+        apns: {
+          keyId: process.env.APNS_KEY_ID,
+          teamId: process.env.APNS_TEAM_ID,
+          keyPath: process.env.APNS_KEY_PATH,
+          bundleId: process.env.APNS_BUNDLE_ID,
+        },
+        fcm: {
+          projectId: process.env.FCM_PROJECT_ID,
+          serviceAccountPath: process.env.FCM_SERVICE_ACCOUNT_PATH,
+        },
+      },
+      smartHome: {
+        hue: {
+          bridgeIp: process.env.HUE_BRIDGE_IP,
+          apiKey: process.env.HUE_API_KEY,
+        },
+        homeAssistant: {
+          url: process.env.HOMEASSISTANT_URL,
+          token: process.env.HOMEASSISTANT_TOKEN,
+        },
+        sonos: {
+          household: process.env.SONOS_HOUSEHOLD,
+        },
+      },
+      google: {
+        clientId: process.env.GOOGLE_CLIENT_ID,
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+        redirectPort: process.env.GOOGLE_REDIRECT_PORT,
+      },
       mcp: {
         allowedServers: process.env.MCP_ALLOWED_SERVERS
           ? process.env.MCP_ALLOWED_SERVERS.split(",").map((s) => s.trim())

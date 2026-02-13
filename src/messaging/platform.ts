@@ -17,7 +17,7 @@ export interface VoiceAttachment {
 }
 
 export interface MessagingPlatform {
-  readonly name: "telegram" | "whatsapp" | "signal" | "webchat" | "slack" | "discord";
+  readonly name: "telegram" | "whatsapp" | "signal" | "webchat" | "slack" | "discord" | "companion";
   readonly maxMessageLength: number;
   readonly supportsEdit: boolean;
 

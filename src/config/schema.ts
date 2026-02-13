@@ -7,7 +7,7 @@ const DEFAULT_SIGNAL_SOCKET = platform() === "win32"
 
 export const configSchema = z.object({
   locale: z.enum(["de", "en"]).default("de"),
-  platform: z.enum(["telegram", "whatsapp", "signal", "webchat", "slack", "discord"]).default("telegram"),
+  platform: z.enum(["telegram", "whatsapp", "signal", "webchat", "slack", "discord", "companion"]).default("telegram"),
   telegram: z.object({
     botToken: z.string().min(1),
     ownerId: z.coerce.number().int().positive(),
@@ -116,6 +116,46 @@ export const configSchema = z.object({
     host: z.string().default("localhost"),
     rateLimit: z.coerce.number().int().positive().default(60),
   }).default({}),
+  agents: z.object({
+    enabled: z.boolean().default(false),
+    routingStrategy: z.enum(["skill-based", "intent-based", "explicit"]).default("skill-based"),
+    maxConcurrentAgents: z.coerce.number().int().positive().default(5),
+    sessionIsolation: z.boolean().default(true),
+  }).default({}),
+  companion: z.object({
+    enabled: z.boolean().default(false),
+    wsPort: z.coerce.number().int().default(3003),
+    pairingTtlMs: z.coerce.number().int().positive().default(300_000),
+    heartbeatIntervalMs: z.coerce.number().int().positive().default(30_000),
+    apns: z.object({
+      keyId: z.string().optional(),
+      teamId: z.string().optional(),
+      keyPath: z.string().optional(),
+      bundleId: z.string().optional(),
+    }).default({}),
+    fcm: z.object({
+      projectId: z.string().optional(),
+      serviceAccountPath: z.string().optional(),
+    }).default({}),
+  }).default({}),
+  smartHome: z.object({
+    hue: z.object({
+      bridgeIp: z.string().optional(),
+      apiKey: z.string().optional(),
+    }).default({}),
+    homeAssistant: z.object({
+      url: z.string().optional(),
+      token: z.string().optional(),
+    }).default({}),
+    sonos: z.object({
+      household: z.string().optional(),
+    }).default({}),
+  }).default({}),
+  google: z.object({
+    clientId: z.string().optional(),
+    clientSecret: z.string().optional(),
+    redirectPort: z.coerce.number().int().default(3004),
+  }).default({}),
   mcp: z.object({
     // Empty array = all servers allowed (no restriction). Non-empty = only listed servers.
     allowedServers: z.array(z.string()).default([]),
@@ -136,9 +176,12 @@ export const configSchema = z.object({
   if (data.platform === "webchat" && !data.dashboard.enabled) {
     return false;
   }
+  if (data.platform === "companion" && !data.companion.enabled) {
+    return false;
+  }
   return true;
 }, {
-  message: "Selected platform config must be provided (e.g. whatsapp config for platform: 'whatsapp', dashboard.enabled for platform: 'webchat')",
+  message: "Selected platform config must be provided (e.g. whatsapp config for platform: 'whatsapp', dashboard.enabled for platform: 'webchat', companion.enabled for platform: 'companion')",
 });
 
 export type Config = z.infer<typeof configSchema>;

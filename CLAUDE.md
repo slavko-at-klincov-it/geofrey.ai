@@ -96,7 +96,8 @@ src/
 │       ├── slack.ts         # Slack adapter (@slack/bolt Socket Mode, Block Kit buttons)
 │       ├── slack.test.ts
 │       ├── discord.ts       # Discord adapter (discord.js Gateway Intents, Button components)
-│       └── discord.test.ts
+│       ├── discord.test.ts
+│       └── companion.ts     # Companion app adapter (WebSocket bridge)
 ├── tools/
 │   ├── tool-registry.ts     # Tool schema + handler registry (native + MCP)
 │   ├── mcp-client.ts        # MCP server discovery + tool wrapping
@@ -112,7 +113,12 @@ src/
 │   ├── skill.ts             # Skill management tool (list/install/enable/disable/generate)
 │   ├── webhook.ts           # Webhook management tool (create/list/delete/test)
 │   ├── process.ts           # Process management tool (spawn/list/check/kill/logs)
-│   └── tts.ts               # TTS tool (tts_speak via ElevenLabs)
+│   ├── tts.ts               # TTS tool (tts_speak via ElevenLabs)
+│   ├── agents.ts            # Agent management tool (list/send/history)
+│   ├── companion.ts         # Companion device tool (pair/unpair/list/push_token)
+│   ├── smart-home.ts        # Smart home tool (discover/list/control/scene/automation)
+│   ├── gmail.ts             # Gmail tool (auth/read/send/label/delete)
+│   └── calendar.ts          # Calendar tool (auth/list/create/update/delete)
 ├── memory/
 │   ├── store.ts             # MEMORY.md read/write/append + daily notes
 │   ├── embeddings.ts        # Ollama embeddings + cosine similarity search
@@ -142,6 +148,9 @@ src/
 │   ├── format.ts            # SKILL.md YAML frontmatter parser + serializer
 │   ├── registry.ts          # Skill discovery, loading, enable/disable, generate
 │   ├── injector.ts          # buildSkillContext() for system prompt injection
+│   ├── marketplace.ts       # Marketplace fetch, search, install, templates
+│   ├── verification.ts      # SHA-256 hash verification
+│   ├── templates.ts         # 5 built-in skill templates
 │   ├── format.test.ts
 │   └── registry.test.ts
 ├── voice/
@@ -174,6 +183,40 @@ src/
 ├── process/
 │   ├── manager.ts           # Background process spawn/kill/logs
 │   └── manager.test.ts
+├── agents/
+│   ├── agent-config.ts      # AgentConfig type + Zod schema, specialist templates
+│   ├── hub.ts               # Hub-and-Spoke router (skill/intent/explicit routing)
+│   ├── session-manager.ts   # Per-agent chat namespacing
+│   ├── communication.ts     # Inter-agent message passing
+│   ├── agent-config.test.ts
+│   ├── hub.test.ts
+│   ├── session-manager.test.ts
+│   └── communication.test.ts
+├── companion/
+│   ├── ws-server.ts         # WebSocket server (ws package, pairing, heartbeat)
+│   ├── pairing.ts           # 6-digit pairing codes (5min TTL)
+│   ├── device-registry.ts   # In-memory device CRUD
+│   ├── push.ts              # APNS (node:http2) + FCM (native fetch) push
+│   ├── ws-server.test.ts
+│   ├── pairing.test.ts
+│   ├── device-registry.test.ts
+│   └── push.test.ts
+├── integrations/
+│   ├── hue.ts               # Philips Hue API v2 client
+│   ├── homeassistant.ts     # HomeAssistant REST API client
+│   ├── sonos.ts             # Sonos HTTP API client
+│   ├── discovery.ts         # SSDP + cloud discovery
+│   ├── google/
+│   │   ├── auth.ts          # Google OAuth2 flow + token management
+│   │   ├── gmail.ts         # Gmail API client
+│   │   ├── calendar.ts      # Google Calendar API client
+│   │   ├── auth.test.ts
+│   │   ├── gmail.test.ts
+│   │   └── calendar.test.ts
+│   ├── hue.test.ts
+│   ├── homeassistant.test.ts
+│   ├── sonos.test.ts
+│   └── discovery.test.ts
 ├── dashboard/
 │   └── public/
 │       ├── index.html       # Single-page chat UI
@@ -236,7 +279,7 @@ src/
 - [x] Integration: Claude Code subprocess driver
 - [x] DB: Drizzle schema + migrations
 - [x] Audit log
-- [x] Unit tests (731 tests — node:test runner)
+- [x] Unit tests (1137 tests — node:test runner)
 - [x] Security: obfuscation-resistant L3 patterns (path variants, script network, base64, chmod +x)
 - [x] Security: MCP output sanitization (DATA boundary tags, instruction filtering)
 - [x] Security: MCP server allowlist (`mcp.allowedServers` config)
@@ -285,6 +328,11 @@ src/
 - [x] Webhook Triggers (HTTP server, HMAC auth, rate limiting, GitHub/Stripe/generic templates)
 - [x] Process Management Tool (spawn, kill, logs, SIGTERM→SIGKILL escalation)
 - [x] TTS via ElevenLabs (speech synthesis, LRU cache, text splitting)
+- [x] Multi-Agent Routing (Hub-and-Spoke, 3 routing strategies, per-agent session isolation)
+- [x] Skill Marketplace (curated repository, SHA-256 hash verification, 5 built-in templates)
+- [x] Companion Apps Backend (WebSocket server, 6-digit pairing, APNS/FCM push)
+- [x] Smart Home Integration (Philips Hue API v2, HomeAssistant REST, Sonos HTTP, SSDP/mDNS discovery)
+- [x] Gmail/Calendar Automation (Google OAuth2, Gmail API, Google Calendar API)
 
 ## Roadmap (OpenClaw Feature Parity + Beyond)
 
@@ -312,11 +360,11 @@ Full gap analysis: `docs/OPENCLAW_GAP_ANALYSIS.md`
 - [x] TTS (ElevenLabs — Sprachantworten)
 
 ### Phase 4 — Ecosystem (v2.0)
-- [ ] Multi-Agent Routing (Hub-and-Spoke, per-Agent Config)
-- [ ] Skill-Marketplace (Community-Skills)
-- [ ] Companion Apps (macOS/iOS/Android)
-- [ ] Smart Home Integration (Hue, HomeAssistant, Sonos)
-- [ ] Gmail/Calendar Automation
+- [x] Multi-Agent Routing (Hub-and-Spoke, per-Agent Config)
+- [x] Skill-Marketplace (Community-Skills)
+- [x] Companion Apps (macOS/iOS/Android)
+- [x] Smart Home Integration (Hue, HomeAssistant, Sonos)
+- [x] Gmail/Calendar Automation
 
 ### Geofrey-Vorteile vs. OpenClaw (beibehalten & ausbauen)
 - 3-Layer Prompt Injection Defense (User/Tool/Model)
@@ -376,3 +424,8 @@ Full gap analysis: `docs/OPENCLAW_GAP_ANALYSIS.md`
 | 2026-02-12 | Image metadata sanitization | EXIF/XMP/IPTC can carry prompt injection — strip before LLM, scan for patterns, audit findings |
 | 2026-02-12 | sharp for image processing | Prebuilt binaries, EXIF orientation, metadata stripping in one pipeline; configurable via env vars |
 | 2026-02-13 | OpenClaw gap analysis + roadmap | 4-phase roadmap (v1.1→v2.0) based on comprehensive OpenClaw feature comparison |
+| 2026-02-13 | Hub-and-Spoke multi-agent routing | 3 strategies (skill/intent/explicit); per-agent session isolation; persistent agent configs |
+| 2026-02-13 | Skill marketplace with SHA-256 verification | Curated repository, hash-verified downloads, 5 built-in templates |
+| 2026-02-13 | Companion apps via WebSocket + push | ws package, 6-digit pairing (5min TTL), APNS (node:http2) + FCM (native fetch) |
+| 2026-02-13 | Smart home integration (Hue/HA/Sonos) | Hue API v2, HomeAssistant REST, Sonos HTTP; SSDP discovery via node:dgram |
+| 2026-02-13 | Gmail/Calendar via Google OAuth2 | OAuth2 with node:http callback, Gmail API + Calendar API (native fetch) |

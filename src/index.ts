@@ -29,6 +29,8 @@ import { startWebhookServer } from "./webhooks/server.js";
 import { killAllProcesses } from "./tools/process.js";
 import { destroyAllSessions, getOrCreateContainer } from "./sandbox/session-pool.js";
 import { isDockerAvailable } from "./sandbox/container.js";
+import { createHub } from "./agents/hub.js";
+import { createCompanionWSServer, type CompanionWSServer } from "./companion/ws-server.js";
 
 // Import tools to register them
 import "./tools/filesystem.js";
@@ -45,6 +47,11 @@ import "./tools/browser.js";
 import "./tools/skill.js";
 import "./tools/process.js";
 import "./tools/tts.js";
+import "./tools/agents.js";
+import "./tools/companion.js";
+import "./tools/smart-home.js";
+import "./tools/gmail.js";
+import "./tools/calendar.js";
 
 let inFlightCount = 0;
 
@@ -253,6 +260,45 @@ async function main() {
 
   const platform = await createPlatform(config, callbacks);
 
+  // Initialize companion WebSocket server (after platform is ready)
+  let companionServer: CompanionWSServer | null = null;
+  if (config.companion.enabled) {
+    companionServer = createCompanionWSServer({
+      port: config.companion.wsPort,
+      callbacks: {
+        async onMessage(chatId, text) {
+          await runAgentLoopStreaming(config, chatId, text, platform);
+        },
+        async onImageMessage(chatId, data, mime) {
+          await callbacks.onImageMessage(chatId, { buffer: data, mimeType: mime });
+        },
+        async onVoiceMessage(chatId, data, mime) {
+          await callbacks.onVoiceMessage(chatId, { buffer: data, mimeType: mime });
+        },
+        async onApprovalResponse(nonce, approved) {
+          resolveApproval(nonce, approved);
+        },
+        async onLocation(_chatId, _lat, _lon) {
+          // Location handling — future use
+        },
+      },
+    });
+    await companionServer.start();
+    console.log(`Companion: WebSocket server on port ${config.companion.wsPort}`);
+  }
+
+  // Initialize agent hub (after platform is ready)
+  const agentHub = config.agents.enabled
+    ? createHub({ routingStrategy: config.agents.routingStrategy })
+    : null;
+  if (agentHub) {
+    await agentHub.init(async (_agentId, chatId, message) => {
+      await runAgentLoopStreaming(config, chatId, message, platform);
+      return "OK";
+    });
+    console.log(`Agent hub: ${config.agents.routingStrategy} routing`);
+  }
+
   // Initialize scheduler after platform is ready (executor needs platform reference)
   initScheduler(
     async (chatId, task) => runAgentLoopStreaming(config, chatId, task, platform),
@@ -287,6 +333,7 @@ async function main() {
     await killAllProcesses();
     await destroyAllSessions();
     await closeAllBrowsers();
+    if (companionServer) companionServer.stop();
     await disconnectAll();
     closeDb();
     console.log("Shutdown complete.");

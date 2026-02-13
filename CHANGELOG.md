@@ -5,6 +5,54 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 2.0.0 - 2026-02-13 (unreleased)
+
+Phase 4 — Ecosystem release. All 5 roadmap features implemented. Full OpenClaw feature parity achieved.
+
+### Added
+
+#### Multi-Agent Routing
+- Hub-and-Spoke router (`src/agents/hub.ts`) — 3 routing strategies: skill-based, intent-based, explicit @mention
+- Agent config (`src/agents/agent-config.ts`) — AgentConfig type + Zod schema, specialist templates
+- Session manager (`src/agents/session-manager.ts`) — per-agent chat namespacing and isolation
+- Inter-agent communication (`src/agents/communication.ts`) — message passing between agents
+- Agent tool (`src/tools/agents.ts`) — list, send, history actions
+- Configurable: routing strategy, max concurrent agents
+
+#### Skill Marketplace
+- Marketplace client (`src/skills/marketplace.ts`) — curated repository fetch, search, install
+- SHA-256 hash verification (`src/skills/verification.ts`) — integrity checking for downloaded skills
+- Built-in templates (`src/skills/templates.ts`) — 5 starter skill templates
+- Integrated with existing skill registry for seamless install flow
+
+#### Companion Apps Backend
+- WebSocket server (`src/companion/ws-server.ts`) — ws package, pairing handshake, heartbeat monitoring
+- Pairing system (`src/companion/pairing.ts`) — 6-digit codes with 5-minute TTL
+- Device registry (`src/companion/device-registry.ts`) — in-memory device CRUD
+- Push notifications (`src/companion/push.ts`) — APNS via node:http2, FCM via native fetch
+- Companion adapter (`src/messaging/adapters/companion.ts`) — WebSocket bridge to messaging platform
+- Companion tool (`src/tools/companion.ts`) — pair, unpair, list, push_token actions
+
+#### Smart Home Integration
+- Philips Hue client (`src/integrations/hue.ts`) — Hue API v2 (lights, rooms, scenes)
+- HomeAssistant client (`src/integrations/homeassistant.ts`) — REST API (entities, services, automations)
+- Sonos client (`src/integrations/sonos.ts`) — HTTP API (playback, volume, groups)
+- Device discovery (`src/integrations/discovery.ts`) — SSDP via node:dgram + cloud discovery
+- Smart home tool (`src/tools/smart-home.ts`) — discover, list, control, scene, automation actions
+
+#### Gmail/Calendar Automation
+- Google OAuth2 (`src/integrations/google/auth.ts`) — OAuth2 flow with node:http callback server, token refresh
+- Gmail client (`src/integrations/google/gmail.ts`) — Gmail API (read, send, label, delete)
+- Calendar client (`src/integrations/google/calendar.ts`) — Google Calendar API (list, create, update, delete events)
+- Gmail tool (`src/tools/gmail.ts`) — auth, read, send, label, delete actions
+- Calendar tool (`src/tools/calendar.ts`) — auth, list, create, update, delete actions
+
+#### Config & Infrastructure
+- New config sections: `agents`, `companion`, `smartHome`, `google` in Zod schema
+- New env vars: `AGENTS_ENABLED/ROUTING_STRATEGY/MAX_CONCURRENT`, `COMPANION_ENABLED/WS_PORT`, `APNS_KEY_ID/TEAM_ID/KEY_PATH/BUNDLE_ID`, `FCM_PROJECT_ID/SERVICE_ACCOUNT_PATH`, `HUE_BRIDGE_IP/API_KEY`, `HOMEASSISTANT_URL/TOKEN`, `SONOS_HOUSEHOLD`, `GOOGLE_CLIENT_ID/CLIENT_SECRET/REDIRECT_PORT`
+- New i18n keys across agents, companion, smart-home, gmail, calendar categories (German + English)
+- 1137 total tests (up from 731), 0 failures
+
 ## 1.3.0 - 2026-02-13 (unreleased)
 
 Phase 3 — Differenzierung release. All 5 roadmap features implemented.
