@@ -155,6 +155,8 @@ async function main() {
 
   // Initialize sandbox (check Docker availability)
   if (config.sandbox.enabled) {
+    const { setSandboxConfig } = await import("./tools/shell.js");
+    setSandboxConfig(config.sandbox);
     const dockerOk = await isDockerAvailable();
     if (dockerOk) {
       console.log("Sandbox: Docker available");
@@ -268,8 +270,8 @@ async function main() {
 
   // Initialize agent hub executor (hub was created early, now wire the executor)
   if (agentHub) {
-    await agentHub.init(async (_agentId, chatId, message) => {
-      await runAgentLoopStreaming(config, chatId, message, platform);
+    await agentHub.init(async (agentId, chatId, message) => {
+      await runAgentLoopStreaming(config, chatId, message, platform, agentId);
       return "OK";
     });
     console.log(`Agent hub: ${config.agents.routingStrategy} routing`);

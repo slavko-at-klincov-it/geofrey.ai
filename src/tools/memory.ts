@@ -20,12 +20,13 @@ registerTool({
   parameters: z.object({
     type: z.enum(["main", "daily"]).default("main"),
     date: z.string().optional(),
+    agentId: z.string().optional(),
   }),
   source: "native",
-  execute: async ({ type, date }) => {
+  execute: async ({ type, date, agentId }) => {
     const content = type === "daily"
-      ? await readDailyNote(date)
-      : await readMemory();
+      ? await readDailyNote(date, agentId)
+      : await readMemory(agentId);
     return content.length > 0 ? content : t("memory.empty");
   },
 });
@@ -38,20 +39,21 @@ registerTool({
     content: z.string(),
     mode: z.enum(["overwrite", "append"]).default("append"),
     date: z.string().optional(),
+    agentId: z.string().optional(),
   }),
   source: "native",
-  execute: async ({ type, content, mode, date }) => {
+  execute: async ({ type, content, mode, date, agentId }) => {
     if (type === "daily") {
       if (mode === "overwrite") {
-        await writeDailyNote(content, date);
+        await writeDailyNote(content, date, agentId);
       } else {
-        await appendDailyNote(content, date);
+        await appendDailyNote(content, date, agentId);
       }
     } else {
       if (mode === "overwrite") {
-        await writeMemory(content);
+        await writeMemory(content, agentId);
       } else {
-        await appendMemory(content);
+        await appendMemory(content, agentId);
       }
     }
     return t("memory.saved");

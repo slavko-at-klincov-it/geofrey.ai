@@ -10,6 +10,13 @@ const DEFAULT_PRICING: Record<string, ModelPricing> = {
   "claude-haiku-4-5-20251001": { inputPer1kTokens: 0.0008, outputPer1kTokens: 0.004 },
   // Ollama/local models (free)
   "qwen3:8b": { inputPer1kTokens: 0, outputPer1kTokens: 0 },
+  // OpenRouter models
+  "openai/gpt-4o": { inputPer1kTokens: 0.0025, outputPer1kTokens: 0.01 },
+  "openai/gpt-4o-mini": { inputPer1kTokens: 0.00015, outputPer1kTokens: 0.0006 },
+  "anthropic/claude-sonnet-4-5-20250929": { inputPer1kTokens: 0.003, outputPer1kTokens: 0.015 },
+  "google/gemini-2.0-flash": { inputPer1kTokens: 0.0001, outputPer1kTokens: 0.0004 },
+  "deepseek/deepseek-chat": { inputPer1kTokens: 0.00014, outputPer1kTokens: 0.00028 },
+  "meta-llama/llama-3.3-70b-instruct": { inputPer1kTokens: 0.00039, outputPer1kTokens: 0.0004 },
 };
 
 const ZERO_PRICING: ModelPricing = { inputPer1kTokens: 0, outputPer1kTokens: 0 };

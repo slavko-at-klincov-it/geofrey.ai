@@ -40,9 +40,9 @@ describe("classifyDeterministic", () => {
     }
   });
 
-  it("returns null for ambiguous cases", () => {
+  it("returns L1 for write_file with normal path", () => {
     const r = classifyDeterministic("write_file", { path: "src/index.ts" });
-    assert.equal(r, null);
+    assert.equal(r?.level, RiskLevel.L1);
   });
 
   it("returns null for empty args", () => {

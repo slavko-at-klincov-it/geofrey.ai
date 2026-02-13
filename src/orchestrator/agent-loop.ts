@@ -7,6 +7,7 @@ import { createApproval } from "../approval/approval-gate.js";
 import { classifyRisk, classifyDeterministic, RiskLevel } from "../approval/risk-classifier.js";
 import { t } from "../i18n/index.js";
 import { getOrCreate, addMessage, getHistory } from "./conversation.js";
+import { agentChatId } from "../agents/session-manager.js";
 import { appendAuditEntry } from "../audit/audit-log.js";
 import { createStream } from "../messaging/streamer.js";
 import { getAndClearLastResult, setStreamCallbacks, clearStreamCallbacks } from "../tools/claude-code.js";
@@ -260,6 +261,7 @@ export async function runAgentLoopStreaming(
   chatId: ChatId,
   userMessage: string,
   platform: MessagingPlatform,
+  agentId?: string,
 ): Promise<void> {
   // Handle /compact command
   if (userMessage.trim() === "/compact") {
@@ -288,10 +290,20 @@ export async function runAgentLoopStreaming(
     return;
   }
 
-  getOrCreate(chatId);
-  addMessage(chatId, { role: "user", content: userMessage });
+  // Resolve agent config if running as a specialist agent
+  let agentConfig: { systemPrompt: string; allowedTools: string[] } | undefined;
+  if (agentId) {
+    const { getAgent } = await import("../agents/communication.js");
+    agentConfig = getAgent(agentId);
+  }
 
-  const history = getHistory(chatId);
+  // Use agent-namespaced chatId for conversation isolation
+  const effectiveChatId = agentId ? agentChatId(agentId, chatId) : chatId;
+
+  getOrCreate(effectiveChatId);
+  addMessage(effectiveChatId, { role: "user", content: `<user_input>${userMessage}</user_input>` });
+
+  const history = getHistory(effectiveChatId);
   // F16: Limit history to prevent unbounded context growth
   let recentHistory = history.slice(-MAX_HISTORY_MESSAGES);
 
@@ -306,9 +318,9 @@ export async function runAgentLoopStreaming(
         maxContextTokens: config.ollama.numCtx,
         threshold: 0.75,
       });
-      await compactHistory(chatId);
+      await compactHistory(effectiveChatId);
       // Re-fetch history after compaction
-      const freshHistory = getHistory(chatId);
+      const freshHistory = getHistory(effectiveChatId);
       recentHistory = freshHistory.slice(-MAX_HISTORY_MESSAGES);
     } catch (err) {
       console.warn("Compaction failed, continuing with full history:", err);
@@ -320,10 +332,20 @@ export async function runAgentLoopStreaming(
   }));
 
   const ollama = createOllama({ baseURL: config.ollama.baseUrl });
-  const aiTools = getAiSdkTools();
+  const aiTools = agentConfig?.allowedTools?.length
+    ? getAiSdkTools(agentConfig.allowedTools)
+    : getAiSdkTools();
   const stream = createStream(platform, chatId);
 
   await stream.start();
+
+  // Set active chat for sandbox container routing
+  try {
+    const { setActiveChatId } = await import("../tools/shell.js");
+    setActiveChatId(chatId);
+  } catch {
+    // Non-critical: sandbox may not be enabled
+  }
 
   // F11: Set streaming callbacks so claude_code tool streams live to platform
   setStreamCallbacks({
@@ -334,7 +356,7 @@ export async function runAgentLoopStreaming(
   try {
     const result = await streamText({
       model: ollama(config.ollama.model, { options: { num_ctx: config.ollama.numCtx } }),
-      system: buildOrchestratorPrompt(),
+      system: agentConfig?.systemPrompt ?? buildOrchestratorPrompt(),
       messages,
       tools: aiTools,
       stopWhen: stepCountIs(config.limits.maxAgentSteps),
@@ -349,7 +371,7 @@ export async function runAgentLoopStreaming(
     await stream.finish();
 
     const fullText = (await result.text) || t("orchestrator.noResponse");
-    addMessage(chatId, { role: "assistant", content: fullText });
+    addMessage(effectiveChatId, { role: "assistant", content: fullText });
 
     // Log orchestrator usage to billing
     try {
@@ -399,7 +421,7 @@ export async function runAgentLoopStreaming(
 
     stream.append(`\n\n${fallback}`);
     await stream.finish();
-    addMessage(chatId, { role: "assistant", content: fallback });
+    addMessage(effectiveChatId, { role: "assistant", content: fallback });
   } finally {
     // F11: Always clear streaming callbacks
     clearStreamCallbacks();

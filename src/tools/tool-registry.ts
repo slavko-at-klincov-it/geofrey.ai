@@ -63,10 +63,15 @@ export function getAiSdkTools(allowedToolNames?: string[]) {
           }
           trackInflight(1);
           try {
-            return await toolDef.execute(input);
+            const result = await toolDef.execute(input);
+            // Wrap native tool output in DATA boundary tags (MCP tools already use <mcp_data>)
+            if (toolDef.source === "mcp") return result;
+            return `<tool_output>${result}</tool_output>`;
           } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
-            return t("tools.executionFailed", { name, msg });
+            const errorResult = t("tools.executionFailed", { name, msg });
+            if (toolDef.source === "mcp") return errorResult;
+            return `<tool_output>${errorResult}</tool_output>`;
           } finally {
             trackInflight(-1);
           }

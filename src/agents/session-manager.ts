@@ -1,6 +1,7 @@
 /**
  * Per-agent session isolation — each agent has its own conversation history.
  * Uses agentId-prefixed chatIds to keep histories separate.
+ * Persists sessions to DB for restart recovery.
  */
 
 import {
@@ -10,6 +11,9 @@ import {
   compactMessages,
   type Message,
 } from "../orchestrator/conversation.js";
+import { getDb } from "../db/client.js";
+import { agentSessions } from "../db/schema.js";
+import { eq, and } from "drizzle-orm";
 
 /**
  * Builds a namespaced chatId for agent-specific conversations.
@@ -21,20 +25,59 @@ export function agentChatId(agentId: string, chatId: string): string {
 
 /**
  * Ensures a conversation exists for the given agent + chatId.
+ * Also upserts the session into the DB for restart recovery.
  */
 export function ensureAgentSession(agentId: string, chatId: string): void {
   getOrCreate(agentChatId(agentId, chatId));
+
+  // Persist to DB (best-effort — don't break on DB errors)
+  try {
+    const db = getDb("./data/app.db");
+    const now = new Date();
+    const id = `${agentId}:${chatId}`;
+
+    const existing = db.select()
+      .from(agentSessions)
+      .where(and(eq(agentSessions.agentId, agentId), eq(agentSessions.chatId, chatId)))
+      .get();
+
+    if (!existing) {
+      db.insert(agentSessions).values({
+        id,
+        agentId,
+        chatId,
+        createdAt: now,
+        updatedAt: now,
+      }).run();
+    }
+  } catch {
+    // Non-critical: in-memory store is primary
+  }
 }
 
 /**
  * Adds a message to the agent's conversation.
+ * Updates the DB timestamp for the session.
  */
 export function addAgentMessage(
   agentId: string,
   chatId: string,
   message: Omit<Message, "id" | "createdAt">,
 ): Message {
-  return addMessage(agentChatId(agentId, chatId), message);
+  const result = addMessage(agentChatId(agentId, chatId), message);
+
+  // Update DB timestamp (best-effort)
+  try {
+    const db = getDb("./data/app.db");
+    db.update(agentSessions)
+      .set({ updatedAt: new Date() })
+      .where(and(eq(agentSessions.agentId, agentId), eq(agentSessions.chatId, chatId)))
+      .run();
+  } catch {
+    // Non-critical
+  }
+
+  return result;
 }
 
 /**

@@ -20,6 +20,7 @@ export function getDb(url: string) {
     db.run(sql`INSERT OR IGNORE INTO schema_version (version, applied_at) VALUES (2, ${Date.now()})`);
     db.run(sql`INSERT OR IGNORE INTO schema_version (version, applied_at) VALUES (3, ${Date.now()})`);
     db.run(sql`INSERT OR IGNORE INTO schema_version (version, applied_at) VALUES (4, ${Date.now()})`);
+    db.run(sql`INSERT OR IGNORE INTO schema_version (version, applied_at) VALUES (5, ${Date.now()})`);
   }
   return db;
 }

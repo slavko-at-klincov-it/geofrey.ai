@@ -248,6 +248,46 @@ export function classifyDeterministic(
     }
   }
 
+  // Tool-specific deterministic rules
+  if (toolName === "write_file") {
+    const writePath = typeof args.path === "string" ? args.path : "";
+    if (SENSITIVE_PATHS.test(writePath)) {
+      return { level: RiskLevel.L3, reason: t("approval.sensitivePath"), deterministic: true };
+    }
+    if (CONFIG_FILES.test(writePath)) {
+      return { level: RiskLevel.L2, reason: t("approval.configFile"), deterministic: true };
+    }
+    return { level: RiskLevel.L1, reason: "Safe write in project dir", deterministic: true };
+  }
+  if (toolName === "delete_file") {
+    return { level: RiskLevel.L2, reason: "File deletion is hard to reverse", deterministic: true };
+  }
+  if (toolName === "git_commit") {
+    return { level: RiskLevel.L2, reason: "Creates a git commit", deterministic: true };
+  }
+  if (toolName === "claude_code") {
+    return { level: RiskLevel.L1, reason: "Bounded by tool profiles", deterministic: true };
+  }
+  if (toolName === "memory_write") {
+    return { level: RiskLevel.L1, reason: "Reversible memory write", deterministic: true };
+  }
+  if (toolName === "cron" && action === "create") {
+    return { level: RiskLevel.L1, reason: "Schedules a cron job", deterministic: true };
+  }
+  if (toolName === "browser") {
+    if (action === "evaluate") {
+      // Scan for network API calls — escalate to L3
+      const expression = typeof args.expression === "string" ? args.expression : "";
+      if (/\bfetch\s*\(|\bXMLHttpRequest\b|\bWebSocket\b|\bnavigator\.sendBeacon\b/.test(expression)) {
+        return { level: RiskLevel.L3, reason: "Network API in browser evaluate", deterministic: true };
+      }
+      return { level: RiskLevel.L2, reason: "Arbitrary JS execution", deterministic: true };
+    }
+  }
+  if (toolName === "skill" && action === "install") {
+    return { level: RiskLevel.L2, reason: "Installs external code", deterministic: true };
+  }
+
   if (L0_TOOLS.has(toolName)) {
     return { level: RiskLevel.L0, reason: t("approval.readOnly"), deterministic: true };
   }
