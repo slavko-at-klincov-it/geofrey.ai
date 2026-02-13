@@ -88,7 +88,7 @@ registerTool({
         if (!body) return t("tools.paramRequired", { param: "body", action: "send" });
         try {
           const id = await sendMessage(to, subject, body);
-          return t("gmail.sent", { id });
+          return t("gmail.sent", { to });
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
           return `Gmail send error: ${msg}`;

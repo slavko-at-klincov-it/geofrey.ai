@@ -30,7 +30,6 @@ export interface MessagingPlatform {
     args: Record<string, unknown>,
     classification: Classification,
   ): Promise<void>;
-  sendAudio?(chatId: ChatId, audio: Buffer, filename: string): Promise<MessageRef>;
   start(): Promise<void>;
   stop(): Promise<void>;
 }

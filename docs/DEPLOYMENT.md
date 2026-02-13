@@ -526,15 +526,6 @@ brew install ffmpeg          # macOS
 
 Requires Docker CLI available on the host. Containers are created per-session and destroyed on shutdown.
 
-#### Multi-Model Support (OpenRouter)
-
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `OPENROUTER_API_KEY` | OpenRouter | — | OpenRouter API key for 100+ model access |
-| `OPENROUTER_DEFAULT_MODEL` | No | — | Default model for OpenRouter requests |
-| `OPENROUTER_FAILOVER_CHAIN` | No | — | Comma-separated failover chain (e.g. `gpt-4o,claude-sonnet,llama`) |
-| `OPENROUTER_TASK_MODELS` | No | — | JSON map of task→model routing (e.g. `{"coding":"deepseek-coder"}`) |
-
 #### Webhook Triggers
 
 | Variable | Required | Default | Description |

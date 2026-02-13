@@ -166,12 +166,6 @@ src/
 │   ├── container.test.ts
 │   ├── session-pool.test.ts
 │   └── volume-mount.test.ts
-├── models/
-│   ├── provider.ts          # ModelProvider interface + types
-│   ├── openrouter.ts        # OpenRouter provider (native fetch, SSE streaming)
-│   ├── model-registry.ts    # Model registry with failover chains
-│   ├── openrouter.test.ts
-│   └── model-registry.test.ts
 ├── webhooks/
 │   ├── router.ts            # Route registry + HMAC auth + rate limiting
 │   ├── handler.ts           # Event templates (GitHub/Stripe/generic)
@@ -286,7 +280,7 @@ src/
 - [x] Integration: Claude Code subprocess driver
 - [x] DB: Drizzle schema + migrations
 - [x] Audit log
-- [x] Unit tests (~990 tests — node:test runner)
+- [x] Unit tests (~950 tests — node:test runner)
 - [x] Security: obfuscation-resistant L3 patterns (path variants, script network, base64, chmod +x)
 - [x] Security: MCP output sanitization (DATA boundary tags, instruction filtering)
 - [x] Security: MCP server allowlist (`mcp.allowedServers` config)
@@ -331,7 +325,6 @@ src/
 - [x] Voice Messages STT (OpenAI Whisper API + local whisper.cpp, ffmpeg audio conversion)
 - [x] Session Compaction (token counting, auto-compaction at 75% context, pre-compaction memory flush)
 - [x] Docker Sandbox per Session (container lifecycle, session pool, volume mounting, health checks)
-- [x] Multi-Model Support via OpenRouter (provider interface, failover chains, task-specific routing)
 - [x] Webhook Triggers (HTTP server, HMAC auth, rate limiting, GitHub/Stripe/generic templates)
 - [x] Process Management Tool (spawn, kill, logs, SIGTERM→SIGKILL escalation)
 - [x] TTS via ElevenLabs (speech synthesis, LRU cache, text splitting)
@@ -361,7 +354,6 @@ Full gap analysis: `docs/OPENCLAW_GAP_ANALYSIS.md`
 
 ### Phase 3 — Differenzierung (v1.3)
 - [x] Docker Sandbox per Session (isolierte Tool-Ausführung)
-- [x] Multi-Model Support via OpenRouter (100+ Modelle)
 - [x] Webhook-Triggers (externe Events als Auslöser)
 - [x] Process Management Tool (Hintergrund-Prozesse)
 - [x] TTS (ElevenLabs — Sprachantworten)

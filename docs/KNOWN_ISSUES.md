@@ -30,7 +30,6 @@ The following issues from the post-Phase 4 audit have been resolved:
 | memoryScope: 'isolated' never enforced | `store.ts` accepts `agentId`, resolves to `data/memory/agents/{id}/` |
 | browser:evaluate allows arbitrary JS | Deterministic L2 + network API scan (`fetch`, `XMLHttpRequest`, `WebSocket`, `sendBeacon`) → L3 |
 | Multiple tools lack deterministic risk rules | Added rules for `write_file`, `delete_file`, `git_commit`, `claude_code`, `memory_write`, `cron`, `browser`, `skill` |
-| OpenRouter costs not tracked | Added 6 OpenRouter models to `pricing.ts` DEFAULT_PRICING |
 | MCP allowlist not enforced at connection time | Already enforced at `mcp-client.ts:57` (pre-existing) |
 | No rate limiting on WebChat REST API | Per-IP rate limiting (30 req/60s) with 429 responses |
 | Conversation history unbounded | Hard cap of 200 messages in memory (DB retains full history) |

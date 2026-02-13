@@ -451,6 +451,7 @@ export const de: Record<TranslationKey, string> = {
   "gmail.notConfigured": "Gmail nicht konfiguriert — setze GOOGLE_ENABLED=true und GOOGLE_CLIENT_ID",
 
   // calendar
+  "calendar.authUrl": "Google-Anmeldung: {url}",
   "calendar.listEmpty": "Keine Termine gefunden",
   "calendar.listHeader": "{count} Termine:",
   "calendar.created": "Termin erstellt: {summary}",

@@ -41,7 +41,7 @@ registerTool({
         };
         registerDevice(device);
         const pairingCode = createPairing(id);
-        return t("companion.pairingCode", { code: pairingCode, deviceName });
+        return t("companion.pairingCode", { code: pairingCode, ttl: "300" });
       }
 
       case "unpair": {

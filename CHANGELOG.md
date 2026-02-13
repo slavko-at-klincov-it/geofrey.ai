@@ -66,13 +66,6 @@ Phase 3 — Differenzierung release. All 5 roadmap features implemented.
 - Docker availability check on startup
 - 49 new tests for sandbox module (6 skipped when Docker unavailable)
 
-#### Multi-Model Support via OpenRouter
-- Provider interface (`src/models/provider.ts`) — `ModelProvider` abstraction with `generate()`, `stream()`, `getModelInfo()`
-- OpenRouter provider (`src/models/openrouter.ts`) — native fetch, SSE streaming, usage token tracking, retryable errors
-- Model registry (`src/models/model-registry.ts`) — failover chains (max 3 attempts), task-specific model routing, built-in aliases
-- Built-in aliases: `gpt-4o`, `claude-sonnet`, `gemini-pro`, `llama`, `mixtral`, `deepseek-coder`, `qwen`
-- 41 new tests for models module
-
 #### Webhook Triggers
 - Webhook router (`src/webhooks/router.ts`) — route registry, HMAC-SHA256 authentication, per-webhook rate limiting
 - Webhook handler (`src/webhooks/handler.ts`) — event templates (GitHub push/PR/issues, Stripe payment, generic JSON), executor callback
@@ -91,14 +84,14 @@ Phase 3 — Differenzierung release. All 5 roadmap features implemented.
 - Speech synthesizer (`src/voice/synthesizer.ts`) — ElevenLabs API client, LRU audio cache (SHA-256 keys), configurable voice/model
 - Text splitter — sentence-boundary splitting for texts >5000 characters
 - TTS tool (`src/tools/tts.ts`) — `tts_speak` action with `getLastSynthesizedAudio()` for platform delivery
-- Optional `sendAudio()` method added to `MessagingPlatform` interface
+- TTS via ElevenLabs: `tts_speak` tool (synthesize, list_voices), LRU cache, text splitting
 - Tests for synthesizer module
 
 #### Config & Infrastructure
-- New config sections: `sandbox`, `models`, `webhook`, `tts` in Zod schema
-- New env vars: `SANDBOX_ENABLED/IMAGE/MEMORY_LIMIT/NETWORK/PIDS_LIMIT/READ_ONLY/TTL_MS`, `OPENROUTER_API_KEY/DEFAULT_MODEL/FAILOVER_CHAIN/TASK_MODELS`, `WEBHOOK_ENABLED/PORT/HOST/RATE_LIMIT`, `ELEVENLABS_API_KEY/VOICE_ID/MODEL/CACHE_SIZE`
+- New config sections: `sandbox`, `webhook`, `tts` in Zod schema
+- New env vars: `SANDBOX_ENABLED/IMAGE/MEMORY_LIMIT/NETWORK/PIDS_LIMIT/READ_ONLY/TTL_MS`, `WEBHOOK_ENABLED/PORT/HOST/RATE_LIMIT`, `ELEVENLABS_API_KEY/VOICE_ID/MODEL/CACHE_SIZE`
 - ~20 new i18n keys across process, tts, sandbox, webhook categories (German + English)
-- Risk classifier updated: `tts_speak`=L0, `process_manager` action-based (list/check/logs=L0, spawn/kill=L2), `webhook` action-based (list/test=L0, create=L1, delete=L2)
+- Risk classifier updated: `tts_speak`=L1, `process_manager` action-based (list/check/logs=L0, spawn/kill=L2), `webhook` action-based (list/test=L0, create=L1, delete=L2)
 - Graceful shutdown: `killAllProcesses()`, `destroyAllSessions()`, webhook server stop
 - 731 total tests (up from 575), 0 failures
 

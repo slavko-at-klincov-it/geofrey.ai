@@ -219,10 +219,10 @@ export function classifyDeterministic(
           if (result && result.level === RiskLevel.L3) return result;
         }
       }
-      return { level: RiskLevel.L2, reason: t("approval.configFile"), deterministic: true };
+      return { level: RiskLevel.L2, reason: "Spawns background process", deterministic: true };
     }
     if (action === "kill") {
-      return { level: RiskLevel.L2, reason: t("approval.configFile"), deterministic: true };
+      return { level: RiskLevel.L2, reason: "Terminates background process", deterministic: true };
     }
   }
   if (toolName === "webhook") {
@@ -230,22 +230,17 @@ export function classifyDeterministic(
       return { level: RiskLevel.L0, reason: t("approval.readOnly"), deterministic: true };
     }
     if (action === "create") {
-      return { level: RiskLevel.L1, reason: t("approval.configFile"), deterministic: true };
+      return { level: RiskLevel.L1, reason: "Creates webhook endpoint", deterministic: true };
     }
     if (action === "delete") {
-      return { level: RiskLevel.L2, reason: t("approval.configFile"), deterministic: true };
+      return { level: RiskLevel.L2, reason: "Deletes webhook endpoint", deterministic: true };
     }
   }
-  if (toolName === "agent_send" || toolName === "agent_history") {
-    return { level: RiskLevel.L1, reason: t("approval.configFile"), deterministic: true };
+  if (toolName === "agent_send") {
+    return { level: RiskLevel.L1, reason: "Inter-agent communication", deterministic: true };
   }
-  if (toolName === "skill_marketplace") {
-    if (action === "search" || action === "list" || action === "templates") {
-      return { level: RiskLevel.L0, reason: t("approval.readOnly"), deterministic: true };
-    }
-    if (action === "install" || action === "create_from_template") {
-      return { level: RiskLevel.L2, reason: t("approval.configFile"), deterministic: true };
-    }
+  if (toolName === "agent_history") {
+    return { level: RiskLevel.L0, reason: t("approval.readOnly"), deterministic: true };
   }
 
   // Tool-specific deterministic rules

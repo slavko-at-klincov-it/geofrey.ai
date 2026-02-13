@@ -157,12 +157,12 @@
 | Google (Gemini 3 Pro) | ✅ | — | ❌ |
 | DeepSeek | ✅ | — | ❌ |
 | LM Studio | ✅ | — | ❌ |
-| OpenRouter (100+ Modelle) | ✅ | ✅ Native fetch, SSE streaming, usage tracking | ✅ |
-| Model Failover | ✅ Auth Profile Rotation | ✅ Failover chains (max 3 attempts) in model-registry.ts | ✅ |
-| Per-Task Model Routing | ✅ | ✅ Task-specific model routing + built-in aliases | ✅ |
+| OpenRouter (100+ Modelle) | ✅ | — | ❌ Bewusst nicht implementiert — widerspricht Local-First-Philosophie |
+| Model Failover | ✅ Auth Profile Rotation | — | ❌ |
+| Per-Task Model Routing | ✅ | — | ❌ |
 | Extended Thinking (Levels) | ✅ off/minimal/low/medium/high/xhigh | — | ❌ |
 
-**Status:** OpenRouter implementiert mit Failover und Task-Routing. Nur Extended Thinking und direkte OpenAI/Google/DeepSeek/LM Studio Provider fehlen.
+**Status:** Geofrey nutzt bewusst einen lokalen Ollama-Orchestrator statt Cloud-API-Gateways. Multi-Model über Cloud-Dienste widerspricht dem Kernprinzip der lokalen, kostengünstigen Inferenz.
 
 ---
 
@@ -245,8 +245,7 @@
 
 ### Phase 3 — Differenzierung (v1.3)
 11. **Docker Sandbox per Session** — Isolierte Tool-Ausführung
-12. **Multi-Model Support (OpenRouter)** — 100+ Modelle
-13. **Webhook-Triggers** — Externe Events als Auslöser
+12. **Webhook-Triggers** — Externe Events als Auslöser
 14. **Process Management Tool** — Hintergrund-Prozesse verwalten
 15. **TTS (ElevenLabs)** — Sprachantworten
 

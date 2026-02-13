@@ -36,7 +36,7 @@ registerTool({
           if (results.hue) lines.push(`Hue Bridge: ${results.hue}`);
           if (results.sonos.length > 0) lines.push(`Sonos: ${results.sonos.join(", ")}`);
           if (lines.length === 0) return t("smartHome.listEmpty");
-          return t("smartHome.discovered") + "\n" + lines.join("\n");
+          return t("smartHome.discovered", { count: String(lines.length) }) + "\n" + lines.join("\n");
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
           return `Discovery failed: ${msg}`;
@@ -85,7 +85,7 @@ registerTool({
         }
 
         if (lines.length === 0) return t("smartHome.listEmpty");
-        return t("smartHome.listHeader") + "\n" + lines.join("\n");
+        return t("smartHome.listHeader", { count: String(lines.length) }) + "\n" + lines.join("\n");
       }
 
       case "control": {

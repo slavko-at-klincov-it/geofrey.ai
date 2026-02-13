@@ -46,7 +46,7 @@ registerTool({
             console.error("Calendar: Token exchange failed:", err);
           }
         }).catch(() => { /* timeout or error */ });
-        return t("gmail.authUrl", { url: authUrl });
+        return t("calendar.authUrl", { url: authUrl });
       }
 
       case "list": {

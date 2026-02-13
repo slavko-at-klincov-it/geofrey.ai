@@ -431,6 +431,7 @@ export type TranslationKey =
   | "gmail.notConfigured"
 
   // calendar
+  | "calendar.authUrl"
   | "calendar.listEmpty"
   | "calendar.listHeader"
   | "calendar.created"

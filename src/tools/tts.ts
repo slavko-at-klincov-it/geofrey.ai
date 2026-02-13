@@ -22,7 +22,7 @@ registerTool({
         if (!text) return t("tools.paramRequired", { param: "text", action: "speak" });
         try {
           const audio = await synthesizeLong(text, voiceId);
-          return t("tts.spoken", { bytes: String(audio.length) });
+          return t("tts.spoken", { length: String(audio.length) });
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
           return t("tts.synthesizeFailed", { msg });

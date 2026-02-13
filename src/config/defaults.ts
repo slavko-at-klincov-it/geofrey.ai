@@ -187,16 +187,6 @@ export function loadConfig(): Config {
           : undefined,
         ttlMs: process.env.SANDBOX_TTL_MS,
       },
-      models: {
-        openrouterApiKey: process.env.OPENROUTER_API_KEY,
-        defaultModel: process.env.OPENROUTER_DEFAULT_MODEL,
-        failoverChain: process.env.OPENROUTER_FAILOVER_CHAIN
-          ? process.env.OPENROUTER_FAILOVER_CHAIN.split(",").map((s) => s.trim())
-          : undefined,
-        taskModels: process.env.OPENROUTER_TASK_MODELS
-          ? JSON.parse(process.env.OPENROUTER_TASK_MODELS) as Record<string, string>
-          : undefined,
-      },
       webhook: {
         enabled: process.env.WEBHOOK_ENABLED !== undefined
           ? process.env.WEBHOOK_ENABLED === "true"

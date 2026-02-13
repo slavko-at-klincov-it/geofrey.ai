@@ -26,7 +26,7 @@ import { discoverSkills } from "./skills/registry.js";
 import { initWebhookTool } from "./tools/webhook.js";
 import { startWebhookServer } from "./webhooks/server.js";
 import { killAllProcesses } from "./tools/process.js";
-import { destroyAllSessions, getOrCreateContainer } from "./sandbox/session-pool.js";
+import { destroyAllSessions } from "./sandbox/session-pool.js";
 import { isDockerAvailable } from "./sandbox/container.js";
 import { createHub } from "./agents/hub.js";
 

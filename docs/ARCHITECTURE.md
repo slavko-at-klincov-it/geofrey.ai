@@ -65,10 +65,10 @@
 │  │ (CDP)        │  │ (SKILL.md)   │  │ (Whisper+ElevenLabs│     │
 │  └──────────────┘  └──────────────┘  └────────────────────┘     │
 │                                                                  │
-│  ┌──────────────┐  ┌──────────────┐  ┌────────────────────┐     │
-│  │ Process      │  │ Docker       │  │ OpenRouter         │     │
-│  │ Manager      │  │ Sandbox      │  │ (100+ models)      │     │
-│  └──────────────┘  └──────────────┘  └────────────────────┘     │
+│  ┌──────────────┐  ┌──────────────┐                              │
+│  │ Process      │  │ Docker       │                              │
+│  │ Manager      │  │ Sandbox      │                              │
+│  └──────────────┘  └──────────────┘                              │
 │                                                                  │
 │  ┌──────────────┐  ┌──────────────┐  ┌────────────────────┐     │
 │  │ Smart Home   │  │ Gmail /      │  │ Companion          │     │
@@ -490,15 +490,6 @@ Per-session Docker containers for isolated tool execution.
 - **Configurable:** image, memory limit, network, PID limit, read-only, TTL
 - **Integration:** `shell.ts` routes commands through Docker when `sandbox.enabled=true`
 
-## Multi-Model Support via OpenRouter (v1.3)
-
-100+ models via OpenRouter with failover chains and task-specific routing.
-
-- **Provider interface:** `ModelProvider` abstraction with `generate()`, `stream()`, `getModelInfo()`
-- **OpenRouter provider:** native fetch, SSE streaming, usage token tracking
-- **Model registry:** failover chains (max 3 attempts), task-specific model routing
-- **Built-in aliases:** `gpt-4o`, `claude-sonnet`, `gemini-pro`, `llama`, `mixtral`, `deepseek-coder`, `qwen`
-
 ## Webhook Triggers (v1.3)
 
 HTTP webhook server for external event-driven automation.
@@ -717,10 +708,6 @@ geofrey.ai/
 │   │   ├── container.ts         # Docker container lifecycle (create/exec/destroy)
 │   │   ├── session-pool.ts      # Per-session container pool management
 │   │   └── volume-mount.ts      # Safe volume mounting + path validation
-│   ├── models/
-│   │   ├── provider.ts          # ModelProvider interface + types
-│   │   ├── openrouter.ts        # OpenRouter provider (native fetch, SSE streaming)
-│   │   └── model-registry.ts    # Model registry with failover chains
 │   ├── webhooks/
 │   │   ├── router.ts            # Route registry + HMAC auth + rate limiting
 │   │   ├── handler.ts           # Event templates (GitHub/Stripe/generic)
