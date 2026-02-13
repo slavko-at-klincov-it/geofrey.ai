@@ -78,6 +78,8 @@ src/
 │   ├── platform.ts          # MessagingPlatform interface + types
 │   ├── create-platform.ts   # Async factory: config → adapter
 │   ├── streamer.ts          # Platform-agnostic token streaming
+│   ├── image-handler.ts     # Image processing pipeline (sanitize → OCR → store → describe)
+│   ├── image-handler.test.ts
 │   └── adapters/
 │       ├── telegram.ts      # grammY bot + approval UI (inline buttons)
 │       ├── whatsapp.ts      # WhatsApp Business API (Cloud API, webhook)
@@ -176,6 +178,7 @@ src/
 - [x] CHANGELOG.md
 - [x] v1.0.0 release
 - [x] v1.0.1 release — image metadata sanitizer (EXIF/XMP/IPTC stripping + injection scanning)
+- [x] Image upload support (Telegram/WhatsApp/Signal → sanitize → OCR → text description to orchestrator)
 
 ## Conventions
 - Code language: English
