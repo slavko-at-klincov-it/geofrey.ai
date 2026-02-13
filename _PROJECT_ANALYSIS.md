@@ -70,6 +70,7 @@
 ### Callbacks (Brücke Messaging → Orchestrator)
 ```typescript
 onMessage(chatId, text) → runAgentLoopStreaming(config, chatId, text, platform)
+onImageMessage(chatId, image) → processImage() → runAgentLoopStreaming(config, chatId, description, platform)
 onApprovalResponse(nonce, approved) → resolveApproval(nonce, approved)
 ```
 
@@ -300,6 +301,7 @@ interface MessagingPlatform {
 
 interface PlatformCallbacks {
   onMessage(chatId, text): Promise<void>;
+  onImageMessage(chatId, image: ImageAttachment): Promise<void>;
   onApprovalResponse(nonce, approved): Promise<void>;
 }
 ```
@@ -350,7 +352,7 @@ Factory: `config.platform` → dynamischer Import → Adapter-Instanz
 - Jailbreak: "ignore previous instructions", "new system prompt", "act as", "DAN"
 - Bypass: "disregard instructions", "do not follow rules"
 
-**Hinweis:** Noch nicht in Messaging-Pipeline integriert — wartet auf Bild-Upload-Support — siehe [F12](#f12)
+✅ Integriert in Messaging-Pipeline via `image-handler.ts` — Adapter downloaden Bilder → Sanitize → OCR → Store → Text-Beschreibung an Orchestrator — siehe [F12](#f12)
 
 ---
 
@@ -612,7 +614,7 @@ index.ts ──────┬── config/defaults ── config/schema
 
 ## 15. FEHLER & LÜCKEN
 
-> **Stand nach Fixes (Commit `8171a35`):** 16 von 17 Problemen behoben. Nur F7 und F12 bleiben bewusst offen.
+> **Stand:** 17 von 17 Problemen behoben. Nur F7 bleibt bewusst offen (nützliche Public API).
 
 ### A. Fehlende Brücken / Nicht-verdrahtete Logik
 
@@ -637,8 +639,8 @@ index.ts ──────┬── config/defaults ── config/schema
 **Lösung:** `claude-code.ts` exportiert `setStreamCallbacks()` / `clearStreamCallbacks()`. `agent-loop.ts` setzt vor `streamText()` die Callbacks (`onText` → `stream.append()`, `onToolUse` → `> toolName...`), cleared im `finally`-Block. User sehen jetzt Live-Updates während Claude Code arbeitet.
 
 <a id="f12"></a>
-#### F12: Image Sanitizer nicht integriert (NIEDRIG) — OFFEN
-**Status:** Bewusst offen — wird erst relevant wenn Bild-Upload-Support in Messaging-Adaptern implementiert wird. Modul ist getestet und bereit.
+#### F12: Image Sanitizer nicht integriert ~~(NIEDRIG)~~ ✅ GEFIXT
+**Lösung:** `image-handler.ts` implementiert die Pipeline: Adapter download → `sanitizeImage()` → OCR via `tesseract.js` → Store in `data/images/` → Text-Beschreibung an Orchestrator. Alle drei Adapter (Telegram, WhatsApp, Signal) unterstützen jetzt Bild-Upload. `onImageMessage` Callback in `index.ts` verdrahtet.
 
 ### B. Dead Code / Ungenutzte Module
 
@@ -710,5 +712,5 @@ index.ts ──────┬── config/defaults ── config/schema
 | OFFEN | F7 | Registry-Exports — bewusst beibehalten (Public API) |
 | ✅ GEFIXT | F8 | Dead Code claude-code.ts — entfernt |
 | ✅ GEFIXT | F9 | `confine()` — statischer `PROJECT_ROOT` |
-| OFFEN | F12 | Image Sanitizer — wartet auf Bild-Upload-Support |
+| ✅ GEFIXT | F12 | Image Sanitizer — `image-handler.ts` + Adapter-Integration |
 | ✅ GEFIXT | F16 | History-Limit — max 50 Messages an LLM |

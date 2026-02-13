@@ -184,36 +184,26 @@ Agent calls tool → Deterministic Classifier → known? ──yes──→ appl
 
 ```typescript
 import { createOllama } from "ai-sdk-ollama";
-import { generateText, tool } from "ai";
-import { z } from "zod";
+import { streamText, stepCountIs } from "ai";
 
 const ollama = createOllama({ baseURL: "http://localhost:11434" });
 
-const result = await generateText({
-  model: ollama(process.env.ORCHESTRATOR_MODEL ?? "qwen3:8b"),
-  system: ORCHESTRATOR_SYSTEM_PROMPT,
-  messages: conversationHistory,
-  tools: {
-    read_file: tool({
-      description: "Read a file",
-      parameters: z.object({ path: z.string() }),
-      execute: async ({ path }) => readFile(path),
-    }),
-    shell_exec: tool({
-      description: "Execute a shell command",
-      parameters: z.object({ command: z.string() }),
-      execute: async ({ command }) => execShell(command),
-      // AI SDK 6 native approval hook
-      needsApproval: async ({ command }) => {
-        const level = classifyRisk(command);
-        return level >= RiskLevel.L2;
-      },
-    }),
-  },
-  maxSteps: 15,             // agent loop iteration cap
-  maxRetries: 2,            // per-step retry limit
+const result = await streamText({
+  model: ollama(config.ollama.model, { options: { num_ctx: config.ollama.numCtx } }),
+  system: buildOrchestratorPrompt(),
+  messages,
+  tools: getAiSdkTools(),        // tools registered with needsApproval hook
+  stopWhen: stepCountIs(config.limits.maxAgentSteps),  // agent loop iteration cap
+  prepareStep: buildPrepareStep(config, chatId, platform),  // approval gate
+  onStepFinish: buildOnStepFinish(config, chatId),          // audit logging
 });
+
+for await (const chunk of result.textStream) {
+  stream.append(chunk);  // live Telegram/WhatsApp/Signal updates
+}
 ```
+
+The `needsApproval` hook is set in `tool-registry.ts` via `getAiSdkTools()`, which uses `classifyDeterministic()` to flag L2/L3 tools. The `prepareStep` hook then handles the full approval flow (risk classification, approval gate, audit logging).
 
 ### Ollama Performance Config
 
@@ -274,9 +264,7 @@ geofrey.ai/
 │   │   └── prompt-generator.ts  # Task templates for downstream models
 │   ├── approval/
 │   │   ├── risk-classifier.ts   # Hybrid: deterministic patterns + LLM fallback
-│   │   ├── approval-gate.ts     # Promise-based blocking gate with nonce IDs
-│   │   ├── action-registry.ts   # Action definitions + escalation rules
-│   │   └── execution-guard.ts   # Final revocation check before exec
+│   │   └── approval-gate.ts     # Promise-based blocking gate with nonce IDs
 │   ├── i18n/
 │   │   ├── index.ts             # t(), setLocale(), getLocale()
 │   │   ├── keys.ts              # TranslationKey union type
@@ -284,9 +272,10 @@ geofrey.ai/
 │   │       ├── de.ts            # German translations (~150 keys)
 │   │       └── en.ts            # English translations (~150 keys)
 │   ├── messaging/
-│   │   ├── platform.ts          # MessagingPlatform interface
+│   │   ├── platform.ts          # MessagingPlatform + ImageAttachment interfaces
 │   │   ├── create-platform.ts   # Async factory: config → adapter
 │   │   ├── streamer.ts          # Platform-agnostic token streaming
+│   │   ├── image-handler.ts     # Image processing pipeline (sanitize → OCR → store → describe)
 │   │   └── adapters/
 │   │       ├── telegram.ts      # grammY bot + approval UI (inline buttons)
 │   │       ├── whatsapp.ts      # WhatsApp Business Cloud API (interactive buttons)

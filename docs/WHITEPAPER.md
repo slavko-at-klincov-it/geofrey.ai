@@ -289,7 +289,7 @@ Target users:
 | OWASP Agentic coverage | Partial | N/A | N/A | **Full** |
 | Open source | Yes | No | No | **Yes** |
 | Data sovereignty | Cloud-dependent | Cloud | Cloud | **100% local** |
-| Test coverage | Some | N/A | N/A | **257 tests, 59 suites** |
+| Test coverage | Some | N/A | N/A | **298 tests, 65 suites** |
 | Image metadata defense | None | N/A | N/A | **EXIF/XMP/IPTC stripping + injection scan** |
 
 ---
@@ -305,7 +305,7 @@ Target users:
 - [x] MCP client integration (allowlist, output sanitization)
 - [x] Hash-chained audit log
 - [x] SQLite persistence
-- [x] 257 tests (188 unit + 32 E2E integration) across 59 suites
+- [x] 298 tests (266 unit + 32 E2E integration) across 65 suites
 
 ### Phase 1.5 — Claude Code Integration + Security Hardening (Complete)
 - [x] XML-based LLM classifier output (more reliable with small models, JSON fallback)

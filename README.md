@@ -19,7 +19,7 @@ geofrey.ai runs a local LLM (Qwen3 8B via Ollama) as an intelligent orchestrator
 | Security vulnerabilities | CVE-2026-25253 (RCE), CVE-2026-25157 | No web attack surface |
 | Command injection defense | Basic | 4-layer (decomposition + regex + LLM + gate) |
 | Image metadata defense | None | EXIF/XMP/IPTC stripping + injection scanning |
-| Test coverage | Some | 257 tests across 59 suites |
+| Test coverage | Some | 298 tests across 65 suites |
 
 ## Features
 
@@ -31,6 +31,7 @@ geofrey.ai runs a local LLM (Qwen3 8B via Ollama) as an intelligent orchestrator
 - **MCP ecosystem access** — 10K+ community tool servers wrapped by risk classifier
 - **Hash-chained audit log** — tamper-evident JSONL with SHA-256 chain, tracks cost/tokens/model/session
 - **Prompt injection defense** — 3-layer isolation (user input, tool output, model response) + image metadata sanitization
+- **Image upload support** — receive images on all platforms, sanitize, OCR text extraction, forward description to orchestrator
 - **Image metadata sanitizer** — strips EXIF/XMP/IPTC/PNG text chunks, applies orientation, scans for prompt injection in metadata
 - **Command decomposition** — shlex-style split prevents `ls && curl evil` bypass
 - **i18n** — German + English with typed translation keys
@@ -198,7 +199,7 @@ See `docs/ARCHITECTURE.md` for full technical details.
 # Run in development mode with auto-reload
 pnpm dev
 
-# Run tests (node:test runner, 257 tests across 59 suites)
+# Run tests (node:test runner, 298 tests across 65 suites)
 pnpm test
 
 # Type check
@@ -218,8 +219,8 @@ pnpm db:migrate   # Apply migrations
 src/
 ├── index.ts                 # Entry point + graceful shutdown
 ├── orchestrator/            # Qwen3 agent loop, conversation, prompt generator
-├── approval/                # Risk classifier, approval gate, execution guard
-├── messaging/               # Platform adapters (Telegram, WhatsApp, Signal)
+├── approval/                # Risk classifier, approval gate
+├── messaging/               # Platform adapters, image handler (Telegram, WhatsApp, Signal)
 ├── tools/                   # Tool executors (Claude Code, shell, filesystem, git, MCP)
 ├── security/                # Image metadata sanitizer, injection scanning
 ├── audit/                   # Hash-chained JSONL audit log
@@ -473,7 +474,7 @@ All MCP tool calls are automatically routed through the risk classifier. The MCP
 pnpm dev          # Run with hot reload (tsx watch)
 pnpm build        # TypeScript compilation
 pnpm lint         # Type check (tsc --noEmit)
-pnpm test         # 257 tests across 59 suites
+pnpm test         # 298 tests across 65 suites
 pnpm setup        # Interactive setup wizard
 pnpm start        # Run compiled output
 pnpm db:generate  # Generate Drizzle migrations
@@ -483,7 +484,7 @@ pnpm db:generate  # Generate Drizzle migrations
 
 ## Project Status
 
-**257 tests passing** across 59 suites (225 unit + 32 E2E integration).
+**298 tests passing** across 65 suites (266 unit + 32 E2E integration).
 
 - [x] Local LLM orchestrator (Qwen3 8B)
 - [x] Hybrid risk classification (deterministic + LLM, XML output)
@@ -500,6 +501,7 @@ pnpm db:generate  # Generate Drizzle migrations
 - [x] Security hardening (obfuscation-resistant L3 patterns, pipe-to-shell detection)
 - [x] Security: filesystem directory confinement + MCP Zod response validation
 - [x] Security: image metadata sanitizer (EXIF/XMP/IPTC stripping + prompt injection scanning)
+- [x] Image upload support (Telegram/WhatsApp/Signal → sanitize → OCR → text description to orchestrator)
 - [x] Interactive setup wizard (`pnpm setup` — auto-detection, OCR, clipboard, real-time validation)
 - [x] Windows compatibility (shell executor, Signal named pipes, OCR, risk classifier)
 - [x] Graceful shutdown (Signal pending request rejection, schema versioning)

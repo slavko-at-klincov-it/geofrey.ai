@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Image upload support across all messaging adapters (Telegram photos/documents, WhatsApp media, Signal attachments)
+- Image processing pipeline (`src/messaging/image-handler.ts`) — sanitize, OCR text extraction via tesseract.js, store sanitized files, forward text description to orchestrator
+- `ImageAttachment` interface and `onImageMessage` callback in `PlatformCallbacks`
+- `data/images/` storage directory for sanitized images
+- 5 new i18n keys (`messaging.image*`) with German and English translations
+- 5 new tests for image handler (298 total across 65 suites)
+
 ## [1.0.1] - 2026-02-12
 
 ### Added
