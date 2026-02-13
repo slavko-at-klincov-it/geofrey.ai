@@ -93,7 +93,7 @@ SIGINT/SIGTERM → platform.stop()
 
 ### `src/orchestrator/agent-loop.ts`
 
-**Exports:** `runAgentLoop()`, `runAgentLoopStreaming()`
+**Exports:** `runAgentLoopStreaming()`
 
 **Imports (intern):**
 | Modul | Import |
@@ -107,7 +107,7 @@ SIGINT/SIGTERM → platform.stop()
 | `orchestrator/conversation` | `getOrCreate`, `addMessage`, `getHistory` |
 | `audit/audit-log` | `appendAuditEntry` |
 | `messaging/streamer` | `createStream` |
-| `tools/claude-code` | `ClaudeResult` (type) |
+| `tools/claude-code` | `ClaudeResult` (type), `getAndClearLastResult`, `setStreamCallbacks`, `clearStreamCallbacks` |
 
 **Kernfunktionen:**
 
@@ -135,19 +135,19 @@ Audit-Logging nach jeder Tool-Execution:
 - `appendAuditEntry()` mit Tool-Name, Args, Risk-Level
 - Claude Code Enrichment: `lastClaudeResult.get(chatId)` für Session/Cost/Tokens
 
-#### `lastClaudeResult` Map (Modul-Level)
-- **Zweck:** Speichert letztes Claude Code Ergebnis pro Chat für Audit-Enrichment
-- **⚠️ PROBLEM:** Wird nie befüllt (`lastClaudeResult.set()` existiert nirgends) — siehe [Fehler #1](#f1)
+#### `lastInvokeResult` + `getAndClearLastResult()` (Modul-Level)
+- **Zweck:** Speichert letztes Claude Code Ergebnis für Audit-Enrichment
+- ✅ `agent-loop.ts` liest via `getAndClearLastResult()` im `onStepFinish` Hook
 
 ### `src/orchestrator/conversation.ts`
 
-**Exports:** `setDbUrl`, `getOrCreate`, `addMessage`, `getHistory`, `setClaudeSession`, `getClaudeSession`, `clearConversation`
+**Exports:** `setDbUrl`, `getOrCreate`, `addMessage`, `getHistory`
 
 **State:** Dual-Persistence (In-Memory Map + SQLite)
 - Reads: Memory-first, DB-Fallback
 - Writes: Beide gleichzeitig
 
-**⚠️ PROBLEM:** `setClaudeSession`, `getClaudeSession`, `clearConversation` werden nie in Production aufgerufen — siehe [Fehler #2](#f2)
+✅ Dead Exports (`setClaudeSession`, `getClaudeSession`, `clearConversation`) entfernt — siehe [F2](#f2)
 
 ### `src/orchestrator/prompt-generator.ts`
 
@@ -155,7 +155,7 @@ Audit-Logging nach jeder Tool-Execution:
 
 8 Task-Templates: bug_fix, refactor, new_feature, code_review, test_writing, debugging, documentation, freeform
 
-**⚠️ PROBLEM:** Gesamtes Modul wird nie in Production aufgerufen — siehe [Fehler #3](#f3)
+✅ Tool-Scoping verdrahtet: `claude_code` defaultet `allowedTools` auf `toolProfiles.standard` — siehe [F3](#f3)
 
 ---
 
@@ -202,20 +202,13 @@ resolveApproval(nonce, true/false) → Promise wird resolved
 - Nonce: 4 Random Bytes (8-char hex)
 - Pending Map: `Map<nonce, PendingApproval>`
 - Shutdown: `rejectAllPending()` resolved alle mit `false`
+- ✅ Timeout-Support: optionaler `timeoutMs` Parameter, auto-reject nach Ablauf — siehe [F4](#f4)
 
-**⚠️ PROBLEM:** Kein Timeout auf Approval-Promises — siehe [Fehler #4](#f4)
+### ~~`src/approval/execution-guard.ts`~~ — GELÖSCHT
+✅ Logik war bereits in `prepareStep` und `tool-registry.ts` inline — siehe [F5](#f5)
 
-### `src/approval/execution-guard.ts`
-
-**Exports:** `GuardResult` (interface), `checkExecution`
-
-**⚠️ PROBLEM:** Gesamtes Modul wird nie aufgerufen — siehe [Fehler #5](#f5)
-
-### `src/approval/action-registry.ts`
-
-**Exports:** `ActionDefinition` (interface), `registerAction`, `getAction`, `getAllActions`
-
-**⚠️ PROBLEM:** Gesamtes Modul wird nie importiert — siehe [Fehler #6](#f6)
+### ~~`src/approval/action-registry.ts`~~ — GELÖSCHT
+✅ War durch Regex-Patterns in `risk-classifier.ts` ersetzt — siehe [F6](#f6)
 
 ---
 
@@ -231,7 +224,7 @@ resolveApproval(nonce, true/false) → Promise wird resolved
 - `needsApproval` Hook: `classifyDeterministic()` → `true` für L2/L3 oder unbekannt
 - `execute` Wrapper: L3-Block, `trackInflight()`, Error-Handling
 
-**⚠️ PROBLEM:** `getTool`, `getAllTools`, `getToolSchemas` werden nie aufgerufen — siehe [Fehler #7](#f7)
+**Hinweis:** `getTool`, `getAllTools`, `getToolSchemas` sind bewusst beibehalten als Public API — siehe [F7](#f7)
 
 ### `src/tools/claude-code.ts`
 
@@ -252,15 +245,15 @@ resolveApproval(nonce, true/false) → Promise wird resolved
 
 **Streaming Callbacks:** `onText`, `onToolUse`, `onToolResult`
 
-**⚠️ PROBLEM:** Dead Code in `runClaudeProcess()` — `TextDecoderStream` und `readable` Variable werden erstellt aber nie benutzt (Zeilen 290-291) — siehe [Fehler #8](#f8)
+✅ Dead Code (`TextDecoderStream`, `readable`) entfernt — siehe [F8](#f8)
 
 ### `src/tools/filesystem.ts`
 
 4 Tools: `read_file` (L0), `write_file` (L1), `delete_file` (L2), `list_dir` (L0)
 
-**Security:** `confine(path)` → `resolve()` + `startsWith(process.cwd())` gegen Path Traversal
+**Security:** `confine(path)` → `resolve()` + `startsWith(PROJECT_ROOT)` gegen Path Traversal
 
-**⚠️ PROBLEM:** `confine()` nutzt `process.cwd()` das sich theoretisch ändern kann — siehe [Fehler #9](#f9)
+✅ `PROJECT_ROOT` wird einmalig bei Modul-Load erfasst (statisch) — siehe [F9](#f9)
 
 ### `src/tools/shell.ts`
 1 Tool: `shell_exec` (L2) — Windows: `cmd /c`, Unix: `sh -c`, Timeout 30s
@@ -284,7 +277,7 @@ resolveApproval(nonce, true/false) → Promise wird resolved
 - Zod-Validierung der Response (`mcpContentSchema.safeParse()`)
 - Output-Sanitization: Instruction-Patterns filtern, `<mcp_data>` Tags
 
-**⚠️ PROBLEM:** `setAllowedServers()` wird nie aufgerufen — `config.mcp.allowedServers` wird nie angewendet — siehe [Fehler #10](#f10)
+✅ `setAllowedServers()` wird in `index.ts` vor MCP-Verbindungen aufgerufen — siehe [F10](#f10)
 
 ---
 
@@ -328,7 +321,7 @@ Factory: `config.platform` → dynamischer Import → Adapter-Instanz
 - `tool_use` → `> toolName...`
 - `result` → Buffer ersetzen mit Endergebnis
 
-**⚠️ PROBLEM:** `createClaudeCodeStream()` wird nie in Production verwendet — siehe [Fehler #11](#f11)
+✅ Claude Code Streaming via `setStreamCallbacks()` / `clearStreamCallbacks()` in Agent-Loop integriert — siehe [F11](#f11)
 
 ### Adapter-Vergleich
 
@@ -357,7 +350,7 @@ Factory: `config.platform` → dynamischer Import → Adapter-Instanz
 - Jailbreak: "ignore previous instructions", "new system prompt", "act as", "DAN"
 - Bypass: "disregard instructions", "do not follow rules"
 
-**⚠️ PROBLEM:** Image Sanitizer ist nirgends in den Messaging-Pipeline integriert — siehe [Fehler #12](#f12)
+**Hinweis:** Noch nicht in Messaging-Pipeline integriert — wartet auf Bild-Upload-Support — siehe [F12](#f12)
 
 ---
 
@@ -374,8 +367,8 @@ Factory: `config.platform` → dynamischer Import → Adapter-Instanz
 
 **AuditEntry Felder:** timestamp, action, toolName, toolArgs, riskLevel, approved, result, userId, claudeSessionId?, claudeModel?, costUsd?, tokensUsed?, allowedTools?
 
-**⚠️ PROBLEM:** Hash-Chain bricht bei Prozess-Neustart — siehe [Fehler #13](#f13)
-**⚠️ PROBLEM:** Keine Audit-Einträge für abgelehnte/L3-blockierte Tool-Calls — siehe [Fehler #14](#f14)
+✅ Hash-Chain wird bei Neustart via `initLastHash()` wiederhergestellt — siehe [F13](#f13)
+✅ Audit-Einträge für L3-Blocks (`tool_blocked`) und User-Denials (`tool_denied`) — siehe [F14](#f14)
 
 ---
 
@@ -400,7 +393,7 @@ Factory: `config.platform` → dynamischer Import → Adapter-Instanz
 | `messages` | Nachrichtenverlauf | → `conversations.id` |
 | `pendingApprovals` | Approval-Workflow | → `conversations.id` |
 
-**⚠️ PROBLEM:** `pendingApprovals` Tabelle wird nie verwendet — Approvals sind rein in-memory — siehe [Fehler #15](#f15)
+**Hinweis:** `pendingApprovals` Tabelle ist Platzhalter für zukünftige DB-Persistenz (TODO-Kommentar) — siehe [F15](#f15)
 
 ---
 
