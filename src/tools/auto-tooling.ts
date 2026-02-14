@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { registerTool } from "./tool-registry.js";
 import { detectCapabilityGap, formatProposal } from "../auto-tooling/detector.js";
 import { collectContext } from "../auto-tooling/context-collector.js";
@@ -17,36 +18,21 @@ export function setAutoToolingChatId(chatId: string): void {
 registerTool({
   name: "auto_tooling",
   description: "Build a standalone program when no existing tool can handle the task. Detects capability gaps, collects requirements, generates code via Claude Code in isolation, validates the result, and registers it as a cron job or background process.",
-  parameters: {
-    type: "object",
-    properties: {
-      action: {
-        type: "string",
-        enum: ["detect_gap", "build", "validate", "register"],
-        description: "Action to perform",
-      },
-      request: { type: "string", description: "User's original request" },
-      requirements: {
-        type: "array",
-        items: { type: "string" },
-        description: "Clarified requirements",
-      },
-      projectDir: { type: "string", description: "Project directory (for validate/register)" },
-      outputType: {
-        type: "string",
-        enum: ["cron_job", "background_process", "one_shot"],
-        description: "How to register the tool",
-      },
-      schedule: { type: "string", description: "Cron schedule (for cron_job type)" },
-    },
-    required: ["action"],
-  },
-  execute: async (args: Record<string, unknown>) => {
-    const action = args.action as string;
+  parameters: z.object({
+    action: z.enum(["detect_gap", "build", "validate", "register"]).describe("Action to perform"),
+    request: z.string().optional().describe("User's original request"),
+    requirements: z.array(z.string()).optional().describe("Clarified requirements"),
+    projectDir: z.string().optional().describe("Project directory (for validate/register)"),
+    outputType: z.enum(["cron_job", "background_process", "one_shot"]).optional().describe("How to register the tool"),
+    schedule: z.string().optional().describe("Cron schedule (for cron_job type)"),
+  }),
+  source: "native",
+  execute: async (args) => {
+    const action = args.action;
 
     switch (action) {
       case "detect_gap": {
-        const request = (args.request as string) ?? "";
+        const request = args.request ?? "";
         const gap = detectCapabilityGap(request);
         if (gap.hasGap) {
           return formatProposal(gap);
@@ -55,8 +41,8 @@ registerTool({
       }
 
       case "build": {
-        const request = (args.request as string) ?? "";
-        const requirements = (args.requirements as string[]) ?? [];
+        const request = args.request ?? "";
+        const requirements = args.requirements ?? [];
 
         // Collect context
         const context = await collectContext(request, requirements);
@@ -95,7 +81,7 @@ registerTool({
       }
 
       case "validate": {
-        const dir = (args.projectDir as string) ?? "";
+        const dir = args.projectDir ?? "";
         if (!dir) return "Error: projectDir required";
         const validation = await validateBuild(dir);
         const details = validation.checks.map((c) => `${c.passed ? "✓" : "✗"} ${c.name}: ${c.detail}`).join("\n");
@@ -103,9 +89,9 @@ registerTool({
       }
 
       case "register": {
-        const dir = (args.projectDir as string) ?? "";
-        const outputType = (args.outputType as "cron_job" | "background_process" | "one_shot") ?? "one_shot";
-        const schedule = args.schedule as string | undefined;
+        const dir = args.projectDir ?? "";
+        const outputType = args.outputType ?? "one_shot";
+        const schedule = args.schedule;
         const chatId = activeChatId;
         if (!dir) return "Error: projectDir required";
         const reg = registerAutoTool(dir, outputType, chatId, schedule);
