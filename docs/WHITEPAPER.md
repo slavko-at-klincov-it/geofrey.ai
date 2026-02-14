@@ -102,14 +102,9 @@ This is not a policy that can be overridden. It is a structural property of the 
 
 ### Four-Tier Risk Classification
 
-| Level | Action | Examples |
-|-------|--------|----------|
-| **L0** Auto-Approve | Execute immediately | read_file, git status, ls |
-| **L1** Notify | Execute + inform user | write_file (non-config), git add |
-| **L2** Require Approval | **Block until user taps Approve** | delete_file, git commit, npm install, shell_exec |
-| **L3** Block | Refuse always, log attempt | rm -rf, sudo, curl, git push --force |
+Every action is classified L0 (auto-approve) through L3 (block always). 90% of classifications are handled by deterministic pattern matching (zero latency, zero cost). Only genuinely ambiguous cases invoke the LLM.
 
-90% of classifications are handled by deterministic pattern matching (zero latency, zero cost). Only genuinely ambiguous cases invoke the LLM.
+See [ARCHITECTURE.md](ARCHITECTURE.md#risk-classification-4-tier-hybrid) for the full classification table and escalation rules.
 
 ### Claude Code as Intelligent Coding Backend
 
@@ -144,9 +139,8 @@ The orchestrator handles intent classification, risk assessment, and task decomp
 
 - **RAM:** 18GB+ (M-series Mac or equivalent)
 - **Orchestrator:** Qwen3 8B via Ollama (~5GB Q4, ~40 tok/s on Apple Silicon) — $0/month
-- **Configurable:** `ORCHESTRATOR_MODEL` env var accepts any Ollama model
 
-**Coming soon:** [Qwen3-Coder-Next](https://www.marktechpost.com/2026/02/03/qwen-team-releases-qwen3-coder-next-an-open-weight-language-model-designed-specifically-for-coding-agents-and-local-development/) as local code worker — 80B MoE / 3B active parameters, 70.6% SWE-Bench Verified, enabling on-device coding for simple tasks and reducing API costs by ~30-40% (requires 64GB+ RAM, ~52GB Q4).
+See [ARCHITECTURE.md](ARCHITECTURE.md#hardware-requirements) for detailed hardware requirements and the Qwen3-Coder-Next roadmap.
 
 ---
 
