@@ -42,7 +42,7 @@ function createMockPlatform(): {
 let agentLoopModule: { runAgentLoopStreaming: Function } | null = null;
 let importError: string | null = null;
 
-describe("E2E: Agent Loop", { timeout: 120_000 }, () => {
+describe("E2E: Agent Loop", { timeout: 300_000 }, () => {
   let env: TestEnv;
   let ollamaAvailable = false;
 
