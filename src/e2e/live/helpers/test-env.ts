@@ -58,7 +58,7 @@ export async function createTestEnv(overrides?: Partial<Config>): Promise<TestEn
       },
     },
     imageSanitizer: { enabled: true, maxInputSizeBytes: 20_971_520, scanForInjection: true },
-    dashboard: { enabled: false, port: 3001 },
+    dashboard: { enabled: false, port: 3003 },
     search: { provider: "searxng", searxngUrl: "http://localhost:8080" },
     billing: {},
     voice: { sttProvider: "openai" },

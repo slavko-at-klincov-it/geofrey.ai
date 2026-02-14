@@ -74,7 +74,7 @@ export const configSchema = z.object({
   }).default({}),
   dashboard: z.object({
     enabled: z.boolean().default(false),
-    port: z.coerce.number().int().default(3001),
+    port: z.coerce.number().int().default(3003),
     token: z.string().optional(),
   }).default({}),
   search: z.object({

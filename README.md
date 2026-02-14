@@ -140,7 +140,7 @@ MAX_CONSECUTIVE_ERRORS=3
 
 # Web Dashboard (optional)
 # DASHBOARD_ENABLED=true
-# DASHBOARD_PORT=3001
+# DASHBOARD_PORT=3003
 # DASHBOARD_TOKEN=your_secret_token
 
 # Web Search (optional — SearXNG default, Brave alternative)
@@ -211,7 +211,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#risk-classification-4-tier-hybri
 - **Interface**: Browser-based chat UI with approval buttons
 - **Features**: SSE real-time streaming, dark theme, mobile-responsive, audit log viewer
 - **Setup**: Set `PLATFORM=webchat` + `DASHBOARD_ENABLED=true`, optional `DASHBOARD_TOKEN` for auth
-- **Port**: Default 3001 (configurable via `DASHBOARD_PORT`)
+- **Port**: Default 3003 (configurable via `DASHBOARD_PORT`)
 
 ### Slack
 
@@ -328,7 +328,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#hardware-requirements) for detai
 | `IMAGE_SANITIZER_MAX_SIZE` | No | `20971520` | Max input image size in bytes (20MB) |
 | `IMAGE_SANITIZER_SCAN_INJECTION` | No | `true` | Scan metadata for prompt injection patterns |
 | `DASHBOARD_ENABLED` | No | `false` | Enable web dashboard + WebChat adapter |
-| `DASHBOARD_PORT` | No | `3001` | Dashboard HTTP server port |
+| `DASHBOARD_PORT` | No | `3003` | Dashboard HTTP server port |
 | `DASHBOARD_TOKEN` | No | — | Bearer token for dashboard auth (recommended) |
 | `SEARCH_PROVIDER` | No | `searxng` | Web search provider: `searxng` or `brave` |
 | `SEARXNG_URL` | No | `http://localhost:8080` | SearXNG instance URL |

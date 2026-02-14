@@ -57,7 +57,7 @@ services:
     # Expose ports as needed:
     # ports:
     #   - "3000:3000"   # WhatsApp webhook
-    #   - "3001:3001"   # Web dashboard (if DASHBOARD_ENABLED=true)
+    #   - "3003:3003"   # Web dashboard (if DASHBOARD_ENABLED=true)
 
 volumes:
   ollama_data:
@@ -419,7 +419,7 @@ The following environment variables were added in v1.1 for the new Phase 1 featu
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `DASHBOARD_ENABLED` | No | `false` | Enable the web dashboard and WebChat adapter |
-| `DASHBOARD_PORT` | No | `3001` | HTTP server port for the dashboard |
+| `DASHBOARD_PORT` | No | `3003` | HTTP server port for the dashboard |
 | `DASHBOARD_TOKEN` | No | — | Bearer token for authentication (recommended for production) |
 
 To use WebChat as the primary platform, set `PLATFORM=webchat` and `DASHBOARD_ENABLED=true`. The dashboard can also run alongside Telegram/WhatsApp/Signal by only setting `DASHBOARD_ENABLED=true`.
@@ -428,7 +428,7 @@ When exposing the dashboard beyond localhost, always set `DASHBOARD_TOKEN` and u
 
 ```nginx
 location / {
-    proxy_pass http://127.0.0.1:3001;
+    proxy_pass http://127.0.0.1:3003;
     proxy_set_header Host $host;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
