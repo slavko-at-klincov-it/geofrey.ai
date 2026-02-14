@@ -544,6 +544,23 @@ export const de: Record<TranslationKey, string> = {
   "proactive.no.events": "Keine Termine heute.",
   "proactive.no.emails": "Keine neuen E-Mails.",
 
+  // local-ops
+  "localOps.mkdirDone": "Verzeichnis erstellt: {path}",
+  "localOps.copyDone": "Kopiert: {source} → {destination}",
+  "localOps.moveDone": "Verschoben: {source} → {destination}",
+  "localOps.searchReplaceNoMatch": "Keine Treffer für \"{search}\"",
+  "localOps.searchReplaceDone": "{count} Ersetzungen in {path}",
+  "localOps.diffIdentical": "Dateien sind identisch",
+  "localOps.countLines": "{count} Zeilen in {path}",
+  "localOps.diskSpaceFailed": "Speicherplatz konnte nicht ermittelt werden",
+  "localOps.envNotSet": "Umgebungsvariable nicht gesetzt: {name}",
+  "localOps.archiveCreated": "Archiv erstellt: {path} ({size})",
+  "localOps.archiveExtracted": "{count} Dateien extrahiert nach {destination}",
+  "localOps.archivePathEscape": "Pfad im Archiv verlässt Zielverzeichnis: {path}",
+
+  // billing - cost display
+  "billing.costLine": "[Cloud: {cloudTokens} Tokens ({cloudCost}) | Lokal: {localTokens} Tokens ({localCost})]",
+
   // auto-tooling
   "autoTooling.proposal": "Fehlende Fähigkeit: {capability} — Vorschlag: {suggestion}",
   "autoTooling.buildStarted": "Programm wird gebaut in {dir}...",

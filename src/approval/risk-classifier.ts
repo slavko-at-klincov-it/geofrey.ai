@@ -47,6 +47,17 @@ const L0_TOOLS = new Set([
   "memory_read", "memory_search", "memory_store",
   "process_manager:list", "process_manager:check", "process_manager:logs",
   "agent_list",
+  // local-ops: read-only
+  "file_info", "find_files", "tree", "dir_size", "system_info", "disk_space", "env_get",
+  "text_stats", "head", "tail", "diff_files", "sort_lines", "base64", "count_lines",
+]);
+
+const L1_TOOLS = new Set([
+  "mkdir", "copy_file", "search_replace", "archive_create",
+]);
+
+const L2_TOOLS = new Set([
+  "move_file", "archive_extract",
 ]);
 
 const L3_COMMANDS = /\b(sudo|rm\s+-rf|curl|wget|nc|ssh|scp|telnet|eval|exec|alias)\b/;
@@ -351,6 +362,14 @@ export function classifyDeterministic(
 
   if (L0_TOOLS.has(toolName)) {
     return { level: RiskLevel.L0, reason: t("approval.readOnly"), deterministic: true };
+  }
+
+  if (L1_TOOLS.has(toolName)) {
+    return { level: RiskLevel.L1, reason: "Local file operation (reversible)", deterministic: true };
+  }
+
+  if (L2_TOOLS.has(toolName)) {
+    return { level: RiskLevel.L2, reason: "Local file operation (harder to reverse)", deterministic: true };
   }
 
   const command = typeof args.command === "string" ? args.command : "";

@@ -57,6 +57,7 @@ import "./tools/gmail.js";
 import "./tools/calendar.js";
 import "./tools/privacy.js";
 import "./tools/auto-tooling.js";
+import "./local-ops/register.js";
 
 function resolveOwnerChatId(config: ReturnType<typeof loadConfig>): string | null {
   switch (config.platform) {

@@ -524,6 +524,23 @@ export type TranslationKey =
   | "proactive.no.events"
   | "proactive.no.emails"
 
+  // local-ops
+  | "localOps.mkdirDone"
+  | "localOps.copyDone"
+  | "localOps.moveDone"
+  | "localOps.searchReplaceNoMatch"
+  | "localOps.searchReplaceDone"
+  | "localOps.diffIdentical"
+  | "localOps.countLines"
+  | "localOps.diskSpaceFailed"
+  | "localOps.envNotSet"
+  | "localOps.archiveCreated"
+  | "localOps.archiveExtracted"
+  | "localOps.archivePathEscape"
+
+  // billing - cost display
+  | "billing.costLine"
+
   // auto-tooling
   | "autoTooling.proposal"
   | "autoTooling.buildStarted"

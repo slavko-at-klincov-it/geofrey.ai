@@ -127,6 +127,19 @@ src/
 │   ├── calendar.ts          # Calendar tool (auth/list/get/create/update/delete)
 │   ├── privacy.ts           # Privacy rules tool (create/list/delete/export)
 │   └── auto-tooling.ts      # Auto-tooling tool (detect_gap/build/validate/register)
+├── local-ops/
+│   ├── helpers.ts           # confine(), formatSize(), formatDate(), walkDir()
+│   ├── file-ops.ts          # mkdir, copy_file, move_file, file_info, find_files, search_replace
+│   ├── dir-ops.ts           # tree, dir_size
+│   ├── text-ops.ts          # text_stats, head, tail, diff_files, sort_lines, base64, count_lines
+│   ├── system-ops.ts        # system_info, disk_space, env_get
+│   ├── archive-ops.ts       # archive_create, archive_extract (tar.gz)
+│   ├── register.ts          # Tool registration for all 20 local-ops
+│   ├── file-ops.test.ts
+│   ├── dir-ops.test.ts
+│   ├── text-ops.test.ts
+│   ├── system-ops.test.ts
+│   └── archive-ops.test.ts
 ├── auto-tooling/
 │   ├── detector.ts          # Capability gap detection (16 categories, 10 regex patterns)
 │   ├── context-collector.ts # Requirements collection from memory + profile
@@ -154,9 +167,11 @@ src/
 │   ├── pricing.ts           # Model pricing table + cost calculator
 │   ├── usage-logger.ts      # Per-request usage logging + daily aggregates
 │   ├── budget-monitor.ts    # Budget threshold alerts (50/75/90%)
+│   ├── format.ts            # Per-request cost line formatting (cloud/local tokens)
 │   ├── pricing.test.ts
 │   ├── usage-logger.test.ts
-│   └── budget-monitor.test.ts
+│   ├── budget-monitor.test.ts
+│   └── format.test.ts
 ├── browser/
 │   ├── launcher.ts          # Chrome binary discovery, CDP launch/connect/close
 │   ├── snapshot.ts          # Accessibility tree extraction + node search
@@ -336,7 +351,7 @@ src/
 - [x] Integration: Claude Code subprocess driver
 - [x] DB: Drizzle schema + migrations
 - [x] Audit log
-- [x] Unit tests (~1146 tests — node:test runner)
+- [x] Unit tests (~1199 tests — node:test runner)
 - [x] Security: obfuscation-resistant L3 patterns (path variants, script network, base64, chmod +x)
 - [x] Security: MCP output sanitization (DATA boundary tags, instruction filtering)
 - [x] Security: MCP server allowlist (`mcp.allowedServers` config)
@@ -395,6 +410,7 @@ src/
 - [x] Memory System Wiring (autoRecall, startup indexing, structured entries, decision conflict guard, re-index triggers)
 - [x] Privacy Layer v2.1 (privacy_rules DB, image classifier, email pre-processing, output filter, approval flow, profile→anonymizer)
 - [x] Auto-Tooling v2.2 (gap detection, context collection, CLAUDE.md generation, Docker launcher, post-build validation, cron/process registration)
+- [x] Local-First Execution v2.3 (20 native local-ops tools, per-request cost display)
 
 ## Roadmap
 
@@ -455,9 +471,26 @@ Wenn geofrey eine Aufgabe nicht mit bestehenden Tools erfüllen kann, erkennt er
 - [x] Native `auto_tooling` tool: detect_gap, build, validate, register actions
 - [x] `__autotool_run__` routing in scheduler executor
 
+### Completed — Local-First Execution (v2.3)
+
+20 native local-ops tools that handle common OS operations locally (0 cloud tokens), plus per-request cost display.
+
+- [x] Shared helpers: `confine()`, `formatSize()`, `formatDate()`, `walkDir()` in `src/local-ops/helpers.ts`
+- [x] File ops: mkdir, copy_file, move_file, file_info, find_files, search_replace
+- [x] Dir ops: tree, dir_size
+- [x] Text ops: text_stats, head, tail, diff_files, sort_lines, base64, count_lines
+- [x] System ops: system_info, disk_space, env_get
+- [x] Archive ops: archive_create, archive_extract (tar.gz via node:zlib)
+- [x] Tool registration: `src/local-ops/register.ts` registers all 20 tools
+- [x] Risk classifier: 14 tools L0, 4 tools L1, 2 tools L2
+- [x] i18n: 12 new keys under `localOps.*` namespace (de + en)
+- [x] Per-request cost display: `[Cloud: X Tokens (€Y) | Lokal: Z Tokens (€0,00)]`
+- [x] Orchestrator prompt: lists all local-ops, guides when NOT to use claude_code
+- [x] 47 new tests (file-ops, dir-ops, text-ops, system-ops, archive-ops, billing format)
+
 ### Completed (v1.0–v2.0)
 - [x] All core features implemented (see Project Status above)
-- [x] 20+ native tools, 6 messaging platforms, 1146+ tests
+- [x] 40+ native tools, 6 messaging platforms, 1199+ tests
 - [x] Anonymizer foundation (regex + LLM extraction + reversible mapping + streaming de-anonymization)
 
 ## Conventions
@@ -525,3 +558,5 @@ Wenn geofrey eine Aufgabe nicht mit bestehenden Tools erfüllen kann, erkennt er
 | 2026-02-14 | Auto-Tooling: Hybrid CLAUDE.md generation | geofrey writes user prefs deterministically; Claude Code adds tech conventions after scaffolding |
 | 2026-02-14 | Auto-Tooling: 16 capability categories | Covers monitoring, scraping, data-processing, integrations, automation — German + English gap patterns |
 | 2026-02-14 | Auto-Tooling: Standalone programs, not skills | Auto-built tools are independent projects under `.geofrey/projects/`, registered as cron/process |
+| 2026-02-14 | 20 native local-ops tools (v2.3) | Simple OS ops (mkdir, copy, tree, etc.) handled locally — saves cloud tokens. No new intent category needed. |
+| 2026-02-14 | Per-request cost display | `[Cloud: X Tokens (€Y) | Lokal: Z Tokens (€0,00)]` appended after every agent response. Locale-aware (DE/EN). |

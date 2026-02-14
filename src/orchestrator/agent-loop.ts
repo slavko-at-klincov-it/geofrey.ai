@@ -19,6 +19,7 @@ import { autoRecall } from "../memory/recall.js";
 import { getOllamaConfig } from "../memory/embeddings.js";
 import { checkDecisionConflict } from "../memory/guard.js";
 import { appendStructuredEntry } from "../memory/structured.js";
+import { formatCostLine } from "../billing/format.js";
 
 function buildOrchestratorPrompt(): string {
   const respondInstruction = t("orchestrator.respondInstruction", { language: t("orchestrator.language") });
@@ -29,9 +30,12 @@ function buildOrchestratorPrompt(): string {
 ${respondInstruction}
 
 <capabilities>
-You have two modes of operation:
-1. DIRECT TOOLS — read_file, list_dir, search, shell_exec, git_*, write_file, delete_file for simple operations
-2. CLAUDE CODE — claude_code tool for complex coding tasks (multi-file changes, bug fixes, refactoring, features, test writing)
+You have three modes of operation:
+1. LOCAL-OPS TOOLS (free, instant) — mkdir, copy_file, move_file, file_info, find_files, search_replace, tree, dir_size, text_stats, head, tail, diff_files, sort_lines, base64, count_lines, system_info, disk_space, env_get, archive_create, archive_extract
+2. DIRECT TOOLS — read_file, list_dir, search, shell_exec, git_*, write_file, delete_file for simple operations
+3. CLAUDE CODE (cloud tokens, expensive) — claude_code tool for complex coding tasks (multi-file changes, bug fixes, refactoring, features, test writing)
+
+ALWAYS prefer local-ops over shell_exec and claude_code. They cost 0 cloud tokens.
 </capabilities>
 
 <intent_classification>
@@ -43,7 +47,22 @@ AMBIGUOUS → state assumption ("${ambiguousExample}"), proceed unless corrected
 
 <when_to_use_claude_code>
 USE claude_code for: multi-file changes, bug fixes requiring investigation, refactoring, new features, code review, test writing, documentation generation
-DON'T USE for: simple reads, git status/log/diff, single-command operations, listing files
+DON'T USE claude_code for:
+- Creating directories → use mkdir
+- Copying/moving files → use copy_file, move_file
+- File metadata → use file_info
+- Finding files → use find_files
+- Text replacement → use search_replace
+- Directory tree → use tree
+- Directory size → use dir_size
+- Reading file start/end → use head, tail
+- Comparing files → use diff_files
+- Line counts → use count_lines, text_stats
+- System info → use system_info, disk_space
+- Environment variables → use env_get
+- Archives → use archive_create, archive_extract
+- Simple reads → use read_file, list_dir
+- Git status/log/diff → use git_* tools
 </when_to_use_claude_code>
 
 <conversation_phase>
@@ -240,7 +259,13 @@ function buildPrepareStep(config: Config, chatId: ChatId, platform: MessagingPla
   };
 }
 
-function buildOnStepFinish(config: Config, chatId: ChatId, platform: MessagingPlatform) {
+export interface TurnUsage {
+  cloudTokens: number;
+  cloudCostUsd: number;
+  localTokens: number;
+}
+
+function buildOnStepFinish(config: Config, chatId: ChatId, platform: MessagingPlatform, turnUsage?: TurnUsage) {
   return async (stepResult: { toolCalls: Array<{ toolName: string; input: unknown }> }) => {
     for (const tc of stepResult.toolCalls) {
       const args = tc.input as Record<string, unknown>;
@@ -268,8 +293,12 @@ function buildOnStepFinish(config: Config, chatId: ChatId, platform: MessagingPl
           const allowedTools = typeof args.allowedTools === "string" ? args.allowedTools : undefined;
           if (allowedTools) entry.allowedTools = allowedTools;
 
-          // Log Claude Code usage to billing
+          // Log Claude Code usage to billing + accumulate turn usage
           if (claudeResult.costUsd != null && claudeResult.tokensUsed != null) {
+            if (turnUsage) {
+              turnUsage.cloudTokens += claudeResult.tokensUsed;
+              turnUsage.cloudCostUsd += claudeResult.costUsd;
+            }
             try {
               logUsage(config.database.url, {
                 model: claudeResult.model ?? config.claude.model,
@@ -418,6 +447,8 @@ export async function runAgentLoopStreaming(
     onToolUse: (name) => stream.append(`\n> ${name}...`),
   });
 
+  const turnUsage: TurnUsage = { cloudTokens: 0, cloudCostUsd: 0, localTokens: 0 };
+
   try {
     const systemPrompt = agentConfig?.systemPrompt ?? buildOrchestratorPrompt();
     const fullSystemPrompt = memoryContext
@@ -431,17 +462,12 @@ export async function runAgentLoopStreaming(
       tools: aiTools,
       stopWhen: stepCountIs(config.limits.maxAgentSteps),
       prepareStep: buildPrepareStep(config, chatId, platform),
-      onStepFinish: buildOnStepFinish(config, chatId, platform),
+      onStepFinish: buildOnStepFinish(config, chatId, platform, turnUsage),
     });
 
     for await (const chunk of result.textStream) {
       stream.append(chunk);
     }
-
-    await stream.finish();
-
-    const fullText = (await result.text) || t("orchestrator.noResponse");
-    addMessage(effectiveChatId, { role: "assistant", content: fullText });
 
     // Log orchestrator usage to billing
     try {
@@ -449,6 +475,7 @@ export async function runAgentLoopStreaming(
       if (usage) {
         const inputTokens = usage.inputTokens ?? 0;
         const outputTokens = usage.outputTokens ?? 0;
+        turnUsage.localTokens += inputTokens + outputTokens;
         const { calculateCost } = await import("../billing/pricing.js");
         const costUsd = calculateCost(config.ollama.model, inputTokens, outputTokens);
         logUsage(config.database.url, {
@@ -463,6 +490,15 @@ export async function runAgentLoopStreaming(
     } catch {
       // Non-critical: don't break agent loop if billing fails
     }
+
+    // Append per-request cost line
+    const costLine = formatCostLine(turnUsage);
+    if (costLine) stream.append(costLine);
+
+    await stream.finish();
+
+    const fullText = (await result.text) || t("orchestrator.noResponse");
+    addMessage(effectiveChatId, { role: "assistant", content: fullText });
 
     // F17: Reset error counter on success
     consecutiveErrors.delete(chatId);
