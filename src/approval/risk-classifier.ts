@@ -445,6 +445,37 @@ export function tryParseClassification(text: string): { level: RiskLevel; reason
 
 const MAX_LLM_RETRIES = 2;
 
+// --- LLM Classifier Cache ---
+interface CacheEntry {
+  classification: Classification;
+  createdAt: number;
+}
+
+const classifierCache = new Map<string, CacheEntry>();
+const CACHE_TTL_MS = 3_600_000; // 1 hour
+const CACHE_MAX_SIZE = 500;
+
+function buildCacheKey(toolName: string, args: Record<string, unknown>): string {
+  const sortedArgs = Object.keys(args).sort().reduce<Record<string, unknown>>((acc, key) => {
+    acc[key] = args[key];
+    return acc;
+  }, {});
+  return `${toolName}:${JSON.stringify(sortedArgs)}`;
+}
+
+function pruneExpiredEntries(): void {
+  const now = Date.now();
+  for (const [key, entry] of classifierCache) {
+    if (now - entry.createdAt > CACHE_TTL_MS) {
+      classifierCache.delete(key);
+    }
+  }
+}
+
+export function clearClassifierCache(): void {
+  classifierCache.clear();
+}
+
 const SENSITIVE_ARG_KEYS = new Set([
   "secret", "token", "pushToken", "apiKey", "password", "code",
   "accessToken", "refreshToken", "botToken", "appToken", "clientSecret",
@@ -463,6 +494,13 @@ export async function classifyWithLlm(
   args: Record<string, unknown>,
   config: Config,
 ): Promise<Classification> {
+  // Check cache first
+  const cacheKey = buildCacheKey(toolName, args);
+  const cached = classifierCache.get(cacheKey);
+  if (cached && Date.now() - cached.createdAt < CACHE_TTL_MS) {
+    return cached.classification;
+  }
+
   const ollama = createOllama({ baseURL: config.ollama.baseUrl });
   const prompt = `Classify: tool=${toolName}, args=${JSON.stringify(scrubArgsForLlm(args))}`;
 
@@ -479,7 +517,16 @@ export async function classifyWithLlm(
       // Try XML first (preferred for Qwen3), fall back to JSON
       const parsed = tryParseXmlClassification(result.text) ?? tryParseClassification(result.text);
       if (parsed) {
-        return { level: parsed.level, reason: parsed.reason, deterministic: false };
+        const classification: Classification = { level: parsed.level, reason: parsed.reason, deterministic: false };
+        // Store in cache (prune if needed)
+        pruneExpiredEntries();
+        if (classifierCache.size >= CACHE_MAX_SIZE) {
+          // Delete oldest entry
+          const oldestKey = classifierCache.keys().next().value!;
+          classifierCache.delete(oldestKey);
+        }
+        classifierCache.set(cacheKey, { classification, createdAt: Date.now() });
+        return classification;
       }
 
       console.warn(`LLM risk classifier returned unparseable response (attempt ${attempt + 1}): ${result.text.slice(0, 100)}`);

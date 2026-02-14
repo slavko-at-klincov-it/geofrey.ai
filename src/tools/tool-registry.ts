@@ -1,7 +1,7 @@
 import { tool } from "ai";
 import { z, type ZodSchema } from "zod";
 import { classifyDeterministic, RiskLevel } from "../approval/risk-classifier.js";
-import { trackInflight } from "../index.js";
+import { trackInflight } from "../tracking.js";
 import { t } from "../i18n/index.js";
 
 export interface ToolDefinition<T = unknown> {

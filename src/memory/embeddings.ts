@@ -6,6 +6,7 @@ import { readMemory, listMemoryFiles, readDailyNote } from "./store.js";
 export interface OllamaConfig {
   baseUrl: string;
   model: string;
+  embedModel?: string;
 }
 
 let ollamaConfig: OllamaConfig | null = null;
@@ -75,11 +76,12 @@ export function chunkText(text: string, maxTokens: number = DEFAULT_MAX_TOKENS):
 }
 
 export async function generateEmbedding(text: string, config: OllamaConfig): Promise<number[]> {
+  const model = config.embedModel ?? config.model;
   const url = `${config.baseUrl.replace(/\/$/, "")}/api/embed`;
   const response = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ model: config.model, input: text }),
+    body: JSON.stringify({ model, input: text }),
   });
 
   if (!response.ok) {

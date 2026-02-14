@@ -8,5 +8,5 @@ CREATE TABLE IF NOT EXISTS `webhooks` (
   `chat_id` text NOT NULL DEFAULT 'default',
   `created_at` integer NOT NULL
 );
-
+--> statement-breakpoint
 CREATE UNIQUE INDEX IF NOT EXISTS `webhooks_path_unique` ON `webhooks` (`path`);

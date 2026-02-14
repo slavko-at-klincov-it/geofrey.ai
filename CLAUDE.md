@@ -17,6 +17,7 @@ geofrey.ai is NOT a second OpenClaw. It is a fundamentally different architectur
 - **TTS via Cloud APIs (ElevenLabs, etc.)** — paid cloud dependency. If TTS is needed, it must be local (e.g. Piper, Coqui).
 - **Blind data forwarding** — no images, emails, or personal data sent to Claude Code without anonymization. This is the core difference to OpenClaw.
 - **"Just works" at the cost of privacy** — we ask before forwarding, we anonymize by default, we remember the user's decisions.
+- **Mock-only testing** — unit tests with mocks are fine as a first step for fast feedback, but a feature is NOT done until it has a passing E2E test with real infrastructure (Ollama, SQLite, real files). 1248 green unit tests hid 6 critical bugs. Never claim "all green" based on mocked tests alone.
 
 ## Tech Stack
 | Component | Technology |
@@ -492,6 +493,94 @@ Wenn geofrey eine Aufgabe nicht mit bestehenden Tools erfüllen kann, erkennt er
 - [x] 40+ native tools, 6 messaging platforms, 1199+ tests
 - [x] Anonymizer foundation (regex + LLM extraction + reversible mapping + streaming de-anonymization)
 
+## Testing Policy
+
+**Every feature needs two test layers: a unit test for fast feedback, then a mandatory E2E test that proves it actually works.** Unit tests alone are insufficient — the E2E findings (`docs/E2E_FINDINGS.md`) showed that 1248 green unit tests hid 6 critical bugs. A feature is NOT done until the E2E test passes.
+
+### Two-Step Testing Process
+
+When implementing a new feature or fixing a bug:
+
+1. **Step 1: Unit/Integration Test** — fast feedback loop during development
+   - Test the pure logic (regex, parsing, formatting, schemas)
+   - Runs in seconds, no external deps needed
+   - Acceptable to mock external APIs (Telegram, Google) here
+   - Purpose: catch regressions quickly, validate edge cases
+
+2. **Step 2: E2E Test** — **mandatory, non-negotiable proof that it works**
+   - Test the full pipeline as a real user would trigger it
+   - Real Ollama, real SQLite, real files, real user messages
+   - If it can't be tested E2E, the architecture is wrong
+   - A feature without an E2E test is an unfinished feature
+
+**A unit test says "the function works". An E2E test says "the user's problem is solved".** Both are needed. The unit test comes first (fast iteration), the E2E test comes after (proof of reality). Neither replaces the other.
+
+### Test Hierarchy
+
+1. **E2E Tests** (`src/e2e/live/`) — **Quality gate: feature is not done without this**
+   - Simulate real user messages (as if sent via Telegram/WhatsApp)
+   - Use real Ollama (skip gracefully when unavailable)
+   - Use real SQLite databases (temp files, cleaned up after)
+   - Write real files, create real records, send real prompts
+   - Test full pipelines: user message → orchestrator → classifier → tool → response
+   - Run via `pnpm test:e2e`
+
+2. **Integration Tests** (`*.test.ts` alongside source) — Multi-component flows
+   - Use real DB (temp SQLite), real file I/O, real Zod parsing
+   - Mock ONLY external network services (Telegram API, WhatsApp API, Ollama HTTP when testing error paths)
+   - Never mock internal modules — if `anonymize()` calls `detectPatterns()`, test both together
+
+3. **Unit Tests** (`*.test.ts`) — Pure functions, fast feedback
+   - Good for: regex matching, math, parsing, formatting, Zod schemas, edge cases
+   - Fast to run, good for development iteration
+   - But: a green unit test does NOT prove the feature works in production
+
+### Rules for Writing Tests
+
+| Rule | Why |
+|------|-----|
+| **Unit test first, E2E test mandatory after** | Unit test for speed, E2E test for truth. Both required. |
+| **Test data = realistic data** | Use German names, real email formats, actual Telegram message structures — not `"test"`, `"foo"`, `"bar"` |
+| **Create real files and DB records** | `mkdtemp()` + real SQLite + cleanup in `after()`. No in-memory fakes. |
+| **Simulate real user messages** | `"Lösche die Datei config.json"` not `"delete file"` — test the language the user actually speaks |
+| **Test the sad path with real infrastructure** | Wrong Ollama URL → what does the user see? DB locked → what happens? |
+| **Skip gracefully, never fake success** | If Ollama/Docker isn't available, `t.skip()` — never mock the LLM and pretend it works |
+| **Assert user-visible behavior** | "Response contains '4'" not "function returned 4". "User sees error message" not "error was thrown". |
+| **No mock of Ollama for happy path** | If a test needs Ollama and it's not running, skip. A green test with a mocked LLM proves nothing. |
+
+### What Mocks Are Acceptable For
+
+- **Telegram/WhatsApp/Signal API** — we can't send real messages in tests
+- **External HTTP APIs** (Google, GitHub webhooks) — we can't control external services
+- **Time/Date** — for testing cron schedules, TTLs
+- **Filesystem errors** — permission denied, disk full (hard to reproduce)
+
+### What Mocks Are NOT Acceptable For
+
+- **Ollama** (happy path) — use real Ollama or skip the test
+- **SQLite/Drizzle** — always use a real temp database
+- **Internal modules** — never mock `anonymize()`, `classifyRisk()`, `searchMemory()`, etc.
+- **File I/O** — create real temp files, read them back, verify content
+- **The agent loop** — test the actual pipeline, not a simplified version
+
+### Test Fixtures Location
+
+All E2E test data lives in `src/e2e/live/helpers/fixtures.ts`:
+- `DUMMY_PROFILE` — realistic German user profile
+- `DUMMY_EMAILS` — emails with embedded PII, API keys, addresses
+- `DUMMY_SHELL_COMMANDS` — categorized by risk level (L0–L3)
+- `DUMMY_PII_TEXTS` — texts with realistic German PII
+- `DUMMY_GAP_REQUESTS` — auto-tooling use cases (DE+EN)
+
+When adding new features, **add realistic fixtures first**, then write the E2E test, then implement.
+
+### Running Tests
+
+```bash
+pnpm test        # Unit/integration tests (no external deps needed)
+pnpm test:e2e    # E2E tests (needs Ollama, optionally Docker)
+```
+
 ## Conventions
 - Code language: English
 - Commit messages: English
@@ -559,3 +648,4 @@ Wenn geofrey eine Aufgabe nicht mit bestehenden Tools erfüllen kann, erkennt er
 | 2026-02-14 | Auto-Tooling: Standalone programs, not skills | Auto-built tools are independent projects under `.geofrey/projects/`, registered as cron/process |
 | 2026-02-14 | 20 native local-ops tools (v2.3) | Simple OS ops (mkdir, copy, tree, etc.) handled locally — saves cloud tokens. No new intent category needed. |
 | 2026-02-14 | Per-request cost display | `[Cloud: X Tokens (€Y) | Lokal: Z Tokens (€0,00)]` appended after every agent response. Locale-aware (DE/EN). |
+| 2026-02-14 | E2E-first testing policy | 1248 green unit tests hid 6 critical bugs. New rule: every feature gets an E2E test first. No mocking Ollama/SQLite/internal modules. Real data, real files, real user messages. See `docs/E2E_FINDINGS.md`. |

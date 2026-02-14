@@ -36,6 +36,7 @@ export const configSchema = z.object({
   ollama: z.object({
     baseUrl: z.string().url().default("http://localhost:11434"),
     model: z.string().default("qwen3:8b"),
+    embedModel: z.string().default("nomic-embed-text"),
     numCtx: z.coerce.number().int().default(16384),
   }),
   database: z.object({

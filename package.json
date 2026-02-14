@@ -30,7 +30,8 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "lint": "tsc --noEmit",
-    "test": "node --import tsx/esm --test 'src/**/*.test.ts'",
+    "test": "node --import tsx/esm --test $(find src -name '*.test.ts' -not -path '*/e2e/live/*' | sort)",
+    "test:e2e": "node --import tsx/esm --test --test-timeout=120000 'src/e2e/live/**/*.e2e.test.ts'",
     "index": "tsx src/indexer/cli.ts",
     "setup": "tsx src/onboarding/setup.ts",
     "benchmark:classifier": "tsx src/benchmarks/risk-classifier-benchmark.ts",
@@ -64,5 +65,10 @@
     "drizzle-kit": "^0.30.0",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "better-sqlite3"
+    ]
   }
 }

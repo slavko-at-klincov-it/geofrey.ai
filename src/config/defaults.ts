@@ -13,6 +13,7 @@ const pathToEnvVar: Record<string, string> = {
   "signal.botPhone": "SIGNAL_BOT_PHONE",
   "ollama.baseUrl": "OLLAMA_BASE_URL",
   "ollama.model": "ORCHESTRATOR_MODEL",
+  "ollama.embedModel": "EMBEDDING_MODEL",
   "claude.model": "CLAUDE_CODE_MODEL",
   "billing.maxDailyBudgetUsd": "MAX_DAILY_BUDGET_USD",
   "slack.botToken": "SLACK_BOT_TOKEN",
@@ -117,6 +118,7 @@ export function loadConfig(): Config {
       ollama: {
         baseUrl: process.env.OLLAMA_BASE_URL,
         model: process.env.ORCHESTRATOR_MODEL,
+        embedModel: process.env.EMBEDDING_MODEL,
         numCtx: process.env.ORCHESTRATOR_NUM_CTX,
       },
       database: {

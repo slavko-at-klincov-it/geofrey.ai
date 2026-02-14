@@ -34,6 +34,7 @@ import { getProfilePiiTerms } from "./privacy/profile-pii.js";
 import { isProactiveTask, buildProactivePrompt } from "./proactive/handler.js";
 import { setupProactiveJobs } from "./proactive/setup.js";
 import { isAutoToolTask, extractProjectDir } from "./auto-tooling/registrar.js";
+import { waitForInflight } from "./tracking.js";
 
 // Import tools to register them
 import "./tools/filesystem.js";
@@ -71,12 +72,6 @@ function resolveOwnerChatId(config: ReturnType<typeof loadConfig>): string | nul
   }
 }
 
-let inFlightCount = 0;
-
-export function trackInflight(delta: number) {
-  inFlightCount += delta;
-}
-
 async function healthCheckOllama(baseUrl: string): Promise<boolean> {
   const maxRetries = 3;
   const retryDelayMs = 2000;
@@ -101,16 +96,6 @@ async function healthCheckOllama(baseUrl: string): Promise<boolean> {
 
   console.warn(t("app.ollamaNotReachable", { attempts: String(maxRetries) }));
   return false;
-}
-
-async function waitForInflight(timeoutMs: number): Promise<void> {
-  const start = Date.now();
-  while (inFlightCount > 0 && Date.now() - start < timeoutMs) {
-    await new Promise((r) => setTimeout(r, 200));
-  }
-  if (inFlightCount > 0) {
-    console.warn(`${inFlightCount} in-flight operations still running at shutdown`);
-  }
 }
 
 async function main() {
