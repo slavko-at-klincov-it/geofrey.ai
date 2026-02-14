@@ -409,7 +409,7 @@ geofrey.ai addresses the core weaknesses of OpenClaw (formerly Clawdbot/Moltbot)
 | **Privacy** | No anonymization | Regex + LLM anonymizer, image classifier, output filter |
 | **Onboarding** | Simple 4-step wizard | Interactive wizard with auto-detection, OCR, validation |
 
-See [docs/OPENCLAW_GAP_ANALYSIS.md](docs/OPENCLAW_GAP_ANALYSIS.md) for the detailed feature-by-feature comparison.
+See [docs/OPENCLAW_GAP_ANALYSIS.md](docs/OPENCLAW_GAP_ANALYSIS.md) for the detailed feature-by-feature comparison and [docs/OPENCLAW_COMPETITIVE_ANALYSIS.md](docs/OPENCLAW_COMPETITIVE_ANALYSIS.md) for community pain points, real-world costs, and use cases.
 
 ---
 
@@ -419,6 +419,8 @@ See [docs/OPENCLAW_GAP_ANALYSIS.md](docs/OPENCLAW_GAP_ANALYSIS.md) for the detai
 - [Deployment](docs/DEPLOYMENT.md) — Docker, systemd, PM2, production tips
 - [Orchestrator Prompts](docs/ORCHESTRATOR_PROMPT.md) — 4 focused prompts for Qwen3
 - [Whitepaper](docs/WHITEPAPER.md) — Security analysis, cost comparison, market opportunity
+- [OpenClaw Gap Analysis](docs/OPENCLAW_GAP_ANALYSIS.md) — Feature-by-feature comparison
+- [OpenClaw Competitive Analysis](docs/OPENCLAW_COMPETITIVE_ANALYSIS.md) — Community pain points, costs, use cases
 - [Changelog](CHANGELOG.md) — Version history
 
 ---
