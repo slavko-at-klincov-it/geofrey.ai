@@ -46,6 +46,14 @@
 │                    TOOL EXECUTORS                                 │
 │                                                                  │
 │  ┌──────────────────────────────────────────────────────────┐    │
+│  │ 20 Local-Ops Tools (0 cloud tokens, instant execution)  │    │
+│  │  File: mkdir, copy, move, info, find, search_replace    │    │
+│  │  Dir: tree, dir_size · Text: stats, head, tail, diff,   │    │
+│  │  sort, base64, count · System: info, disk, env          │    │
+│  │  Archive: create, extract (tar.gz)                      │    │
+│  └──────────────────────────────────────────────────────────┘    │
+│                                                                  │
+│  ┌──────────────────────────────────────────────────────────┐    │
 │  │ Claude Code CLI (stream-json, sessions, tool scoping)   │    │
 │  │  Prompt Optimizer → --allowedTools → --session-id       │    │
 │  │  Streaming callbacks → Telegram live updates            │    │
@@ -135,9 +143,9 @@ Risk classification uses a **two-layer approach**:
 
 | Level | Name | Behavior | Examples |
 |-------|------|----------|----------|
-| **L0** | AUTO_APPROVE | Execute immediately, no notification | `read_file`, `list_dir`, `search`, `git status/log/diff`, `web_search`, `web_fetch`, `memory_read/search`, `process_manager:list/check/logs`, `webhook:list/test`, `companion:list`, `smart_home:discover/list`, `gmail:list/read`, `calendar:list/get/calendars` |
-| **L1** | NOTIFY | Execute, then inform user | `write_file` (non-config, in project), `git add`, `git stash`, `git branch`, `npm test`, `npm run lint` |
-| **L2** | REQUIRE_APPROVAL | **Block until user approves via Telegram/WhatsApp/Signal** | `delete_file`, `git commit`, `git merge`, `git rebase`, `npm install`, `shell_exec`, `mkdir`, `mv`, `cp` |
+| **L0** | AUTO_APPROVE | Execute immediately, no notification | `read_file`, `list_dir`, `search`, `git status/log/diff`, `web_search`, `web_fetch`, `memory_read/search`, `process_manager:list/check/logs`, `webhook:list/test`, `companion:list`, `smart_home:discover/list`, `gmail:list/read`, `calendar:list/get/calendars`, `file_info`, `find_files`, `tree`, `dir_size`, `system_info`, `disk_space`, `env_get`, `text_stats`, `head`, `tail`, `diff_files`, `sort_lines`, `base64`, `count_lines` |
+| **L1** | NOTIFY | Execute, then inform user | `write_file` (non-config, in project), `git add`, `git stash`, `git branch`, `npm test`, `npm run lint`, `mkdir`, `copy_file`, `search_replace`, `archive_create` |
+| **L2** | REQUIRE_APPROVAL | **Block until user approves via Telegram/WhatsApp/Signal** | `delete_file`, `git commit`, `git merge`, `git rebase`, `npm install`, `shell_exec`, `move_file`, `archive_extract` |
 | **L3** | BLOCK | Refuse always, log attempt | `git push --force`, `git reset --hard`, `rm -rf`, `sudo`, `curl`, `wget`, `nc`, `ssh`, `eval` |
 
 ### Escalation Rules
@@ -347,6 +355,59 @@ cron tool (create/list/delete)  ──→  scheduler (30s tick loop)
 - **Persistence:** `cron_jobs` table (SQLite via Drizzle) — survives restarts
 - **Retry:** Exponential backoff with configurable `max_retries` (default 5)
 - **Graceful shutdown:** Stops tick loop, no orphaned jobs
+
+## Local-Ops Tools (v2.3)
+
+20 native tools executed locally via Node.js APIs — zero cloud tokens, instant execution. The orchestrator naturally selects these over `claude_code` for simple OS operations.
+
+```
+User: "Zeig mir die Verzeichnisstruktur"
+         │
+    Orchestrator selects: tree tool (L0, local)
+         │
+    treeOp(dir, { maxDepth: 3 })  →  Node.js fs.readdir (recursive)
+         │
+    Result: Unicode tree + cost line [Cloud: 0 | Lokal: 847 Tokens]
+```
+
+### Tool Categories
+
+| Category | Tools | Risk | Node.js API |
+|----------|-------|------|-------------|
+| **File** | mkdir, copy_file, move_file, file_info, find_files, search_replace | L0-L2 | fs.mkdir, fs.copyFile, fs.rename, fs.stat, readdir+match, readFile+regex+writeFile |
+| **Directory** | tree, dir_size | L0 | readdir recursive + box-drawing chars |
+| **Text** | text_stats, head, tail, diff_files, sort_lines, base64, count_lines | L0 | readFile + string ops |
+| **System** | system_info, disk_space, env_get | L0 | os module, execSync df/wmic, process.env |
+| **Archive** | archive_create, archive_extract | L1-L2 | node:zlib (gzip/gunzip) + custom POSIX tar |
+
+### Path Confinement
+
+All local-ops paths pass through `confine()` which resolves via `node:path.resolve()` and rejects anything outside `process.cwd()`. Same security model as existing filesystem tools.
+
+### Registration
+
+`src/local-ops/register.ts` imports all `*-ops` modules and calls `registerTool()` for each, with Zod parameter schemas and `.describe()` annotations for LLM understanding. Loaded at startup via `import "./local-ops/register.js"` in `index.ts`.
+
+## Per-Request Cost Display (v2.3)
+
+Every response shows cloud vs. local token usage with cost.
+
+```
+Agent loop → TurnUsage accumulator tracks:
+                 │
+                 ├── cloudTokens   (from Claude Code via onStepFinish)
+                 ├── cloudCostUsd  (from usage logger)
+                 └── localTokens   (from orchestrator streamText)
+                 │
+            formatCostLine(turnUsage)
+                 │
+                 ▼
+            [Cloud: 1.247 Tokens (€0,02) | Lokal: 847 Tokens (€0,00)]
+```
+
+- **Locale-aware:** DE uses `€` with comma decimals, EN uses `$` with dot decimals
+- **Appended after response:** cost line added to stream before `stream.finish()`
+- **Zero overhead when no tokens:** returns empty string if both cloud and local are 0
 
 ## Cost Tracking / Billing (v1.1)
 
@@ -640,8 +701,8 @@ geofrey.ai/
 │   │   ├── index.ts             # t(), setLocale(), getLocale()
 │   │   ├── keys.ts              # TranslationKey union type
 │   │   └── locales/
-│   │       ├── de.ts            # German translations (~430 keys)
-│   │       └── en.ts            # English translations (~430 keys)
+│   │       ├── de.ts            # German translations (~445 keys)
+│   │       └── en.ts            # English translations (~445 keys)
 │   ├── messaging/
 │   │   ├── platform.ts          # MessagingPlatform + ImageAttachment + VoiceAttachment interfaces
 │   │   ├── create-platform.ts   # Async factory: config → adapter
@@ -677,6 +738,14 @@ geofrey.ai/
 │   │   ├── smart-home.ts        # Smart home tool (discover/list/control/scene)
 │   │   ├── gmail.ts             # Gmail tool (auth/list/read/send/label/delete)
 │   │   └── calendar.ts          # Calendar tool (auth/list/get/create/update/delete)
+│   ├── local-ops/
+│   │   ├── helpers.ts            # confine(), formatSize(), formatDate(), walkDir()
+│   │   ├── file-ops.ts           # mkdir, copy_file, move_file, file_info, find_files, search_replace
+│   │   ├── dir-ops.ts            # tree, dir_size
+│   │   ├── text-ops.ts           # text_stats, head, tail, diff_files, sort_lines, base64, count_lines
+│   │   ├── system-ops.ts         # system_info, disk_space, env_get
+│   │   ├── archive-ops.ts        # archive_create (tar.gz), archive_extract
+│   │   └── register.ts           # Registers all 20 tools via tool-registry
 │   ├── audit/
 │   │   └── audit-log.ts         # Append-only hash-chained JSONL log
 │   ├── memory/
@@ -689,7 +758,8 @@ geofrey.ai/
 │   ├── billing/
 │   │   ├── pricing.ts           # Model pricing table + cost calculator
 │   │   ├── usage-logger.ts      # Per-request usage logging + daily aggregates
-│   │   └── budget-monitor.ts    # Budget threshold alerts (50/75/90%)
+│   │   ├── budget-monitor.ts    # Budget threshold alerts (50/75/90%)
+│   │   └── format.ts            # Per-request cost line (Cloud vs. Lokal)
 │   ├── browser/
 │   │   ├── launcher.ts          # Chrome discovery, CDP launch/connect/close
 │   │   ├── snapshot.ts          # Accessibility tree extraction + node search
@@ -822,7 +892,7 @@ On SIGTERM/SIGINT:
 | Principle | Implementation |
 |-----------|---------------|
 | **Nothing leaves unreviewed** | Privacy layer anonymizes all data before cloud APIs. Credentials + biometrie never forwarded. |
-| **Local-first inference** | Qwen3 8B orchestrator runs locally. Qwen3-VL-2B for image classification (on-demand load/process/unload). |
+| **Local-first inference** | Qwen3 8B orchestrator runs locally. Qwen3-VL-2B for image classification (on-demand load/process/unload). 20 local-ops tools for OS operations (0 cloud tokens). |
 | **Structural blocking** | Promise-based approval gate — no code path around it, no bypass mode |
 | **Aggressive opt-out** | Unknown data is anonymized by default. User must explicitly whitelist. |
 | **Learn and remember** | Privacy decisions stored in SQLite + MD. Ask once, never again. |

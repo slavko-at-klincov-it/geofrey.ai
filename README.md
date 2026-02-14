@@ -21,6 +21,8 @@ geofrey.ai runs a local LLM (Qwen3 8B via Ollama) as an intelligent orchestrator
 - **Structural approval blocking** — Promise-based gate with no code path around it
 - **Multi-platform messaging** — Telegram (inline buttons), WhatsApp (interactive buttons), Signal (text-based)
 - **Claude Code integration** — local LLM routes coding tasks to Claude Code CLI with risk-scoped tool profiles
+- **20 native local-ops tools** — mkdir, copy, move, find, tree, diff, sort, head/tail, base64, archive, system info — all handled locally (0 cloud tokens, instant execution)
+- **Per-request cost display** — every response shows cloud vs. local token usage with cost in EUR/USD
 - **MCP ecosystem access** — 10K+ community tool servers wrapped by risk classifier
 - **Hash-chained audit log** — tamper-evident JSONL with SHA-256 chain, tracks cost/tokens/model/session
 - **Prompt injection defense** — 3-layer isolation (user input, tool output, model response) + image metadata sanitization
@@ -157,9 +159,9 @@ User (Telegram/WhatsApp/Signal) → Local Orchestrator (Qwen3 8B) → Risk Class
                         ↕                                ↓
                   Approval Gate ◄── L2: Promise blocks until user approves
                         ↓
-                  Tool Executors (Claude Code, shell, filesystem, git, MCP)
+                  Tool Executors (20 local-ops, Claude Code, shell, filesystem, git, MCP)
                         ↓
-                  Audit Log (hash-chained JSONL)
+                  Audit Log (hash-chained JSONL) + Cost Display [Cloud: X | Lokal: Y]
 ```
 
 ### Core Components
@@ -167,6 +169,8 @@ User (Telegram/WhatsApp/Signal) → Local Orchestrator (Qwen3 8B) → Risk Class
 - **Local Orchestrator** — Qwen3 8B via Ollama classifies intent, manages conversation, optimizes prompts
 - **Risk Classifier** — Hybrid deterministic (regex) + LLM for ambiguous cases
 - **Approval Gate** — Promise-based blocking mechanism, no code path to execute without user approval
+- **20 Local-Ops Tools** — File, directory, text, system, and archive operations executed locally (0 cloud tokens)
+- **Per-Request Cost Display** — Every response shows `[Cloud: X Tokens (€Y) | Lokal: Z Tokens (€0,00)]`
 - **Claude Code Driver** — Subprocess manager with streaming, session tracking, tool scoping
 - **Messaging Adapters** — Platform-specific implementations (grammY for Telegram, Cloud API for WhatsApp, signal-cli for Signal, SSE for WebChat, @slack/bolt for Slack, discord.js for Discord)
 - **Audit Log** — Append-only JSONL with SHA-256 hash chain for tamper detection
@@ -236,7 +240,7 @@ See `docs/ARCHITECTURE.md` for full technical details.
 # Run in development mode with auto-reload
 pnpm dev
 
-# Run tests (node:test runner, 1143 tests across 130+ suites)
+# Run tests (node:test runner, 1199 tests across 140+ suites)
 pnpm test
 
 # Type check
@@ -259,11 +263,12 @@ src/
 ├── approval/                # Risk classifier, approval gate
 ├── messaging/               # Platform adapters, image handler (Telegram, WhatsApp, Signal, WebChat, Slack, Discord)
 ├── tools/                   # Tool executors (Claude Code, shell, filesystem, git, MCP, web, memory, cron, browser, skill)
+├── local-ops/               # 20 native local-ops tools (file, dir, text, system, archive) — 0 cloud tokens
 ├── security/                # Image metadata sanitizer, injection scanning
 ├── audit/                   # Hash-chained JSONL audit log
 ├── memory/                  # Persistent memory (MEMORY.md, embeddings, recall)
 ├── automation/              # Cron parser + job scheduler
-├── billing/                 # Cost tracking, pricing, budget alerts
+├── billing/                 # Cost tracking, pricing, budget alerts, per-request cost display
 ├── browser/                 # Chrome DevTools Protocol (launcher, snapshot, actions)
 ├── skills/                  # SKILL.md format, registry, injector
 ├── voice/                   # STT transcriber (Whisper) + ffmpeg audio converter
@@ -476,6 +481,14 @@ src/
 │   ├── cron.ts               # Cron job management (create/list/delete)
 │   ├── browser.ts            # Browser automation (9 CDP actions)
 │   └── skill.ts              # Skill management (list/install/enable/disable/generate)
+├── local-ops/
+│   ├── helpers.ts            # confine(), formatSize(), formatDate(), walkDir()
+│   ├── file-ops.ts           # mkdir, copy_file, move_file, file_info, find_files, search_replace
+│   ├── dir-ops.ts            # tree, dir_size
+│   ├── text-ops.ts           # text_stats, head, tail, diff_files, sort_lines, base64, count_lines
+│   ├── system-ops.ts         # system_info, disk_space, env_get
+│   ├── archive-ops.ts        # archive_create (tar.gz), archive_extract
+│   └── register.ts           # Registers all 20 tools via tool-registry
 ├── memory/
 │   ├── store.ts              # MEMORY.md read/write/append + daily notes
 │   ├── embeddings.ts         # Ollama embeddings + cosine similarity search
@@ -486,7 +499,8 @@ src/
 ├── billing/
 │   ├── pricing.ts            # Model pricing table + cost calculator
 │   ├── usage-logger.ts       # Per-request usage logging + daily aggregates
-│   └── budget-monitor.ts     # Budget threshold alerts (50/75/90%)
+│   ├── budget-monitor.ts     # Budget threshold alerts (50/75/90%)
+│   └── format.ts             # Per-request cost line formatting (Cloud vs. Lokal)
 ├── browser/                  # Chrome DevTools Protocol (launcher, snapshot, actions)
 ├── skills/                   # SKILL.md format, registry, injector
 ├── voice/                    # STT transcriber (Whisper) + ffmpeg converter
@@ -570,7 +584,7 @@ All MCP tool calls are automatically routed through the risk classifier. The MCP
 pnpm dev          # Run with hot reload (tsx watch)
 pnpm build        # TypeScript compilation
 pnpm lint         # Type check (tsc --noEmit)
-pnpm test         # 1143 tests across 130+ suites
+pnpm test         # 1199 tests across 140+ suites
 pnpm setup        # Interactive setup wizard
 pnpm index        # Generate project map (.geofrey/project-map.json)
 pnpm start        # Run compiled output
@@ -581,7 +595,7 @@ pnpm db:generate  # Generate Drizzle migrations
 
 ## Project Status
 
-**1143 tests passing** across 130+ suites (543 unit + 32 E2E integration).
+**1199 tests passing** across 140+ suites (543 unit + 47 local-ops + 32 E2E integration).
 
 - [x] Local LLM orchestrator (Qwen3 8B)
 - [x] Hybrid risk classification (deterministic + LLM, XML output)
@@ -615,6 +629,7 @@ pnpm db:generate  # Generate Drizzle migrations
 - [x] Slack + Discord adapters (Socket Mode / Gateway Intents)
 - [x] Voice messages / STT (OpenAI Whisper API + local whisper.cpp, ffmpeg conversion)
 - [x] Session compaction (auto-compaction at 75% context, Ollama summarization, memory flush)
+- [x] Local-First Execution v2.3 (20 native local-ops tools, per-request cost display)
 
 ---
 
@@ -630,6 +645,8 @@ OpenClaw (ehemals Clawdbot/Moltbot) ist die bekannteste Open-Source AI-Agent-Pla
 | Hintergrund-Monitoring | 4.320+ API-Calls/Monat (Screenshots, Polling) | 0 (event-driven, kein Polling) | **Keine versteckten Kosten** |
 | System-Prompt | 10.000+ Tokens, bei jedem Call neu gesendet | Einmal lokal geladen | **Kein Token-Overhead** |
 | Code-Aufgaben | Jede Aktion über Cloud-API | Nur komplexe Tasks via Claude Code CLI | **70-90% weniger API-Kosten** |
+| OS-Operationen | Cloud-API für mkdir, copy, find, etc. | 20 native Local-Ops (Node.js APIs, 0 Cloud-Tokens) | **Einfache Aufgaben kosten $0** |
+| Kosten-Transparenz | Keine Echtzeit-Anzeige | Per-Request-Kostenanzeige (Cloud vs. Lokal) | **Volle Transparenz pro Nachricht** |
 
 **Warum das wichtig ist:** OpenClaw-Nutzer berichten von $200-600/Monat (bis zu $3.600 bei Power-Usern). geofrey.ai verlagert die häufige, günstige Arbeit (Intent-Klassifikation, Risikobewertung, Nutzer-Kommunikation) auf ein lokales Modell. Cloud-APIs werden nur für komplexe Code-Aufgaben genutzt, die lokale Modelle nicht leisten können.
 
@@ -736,7 +753,7 @@ OpenClaw (ehemals Clawdbot/Moltbot) ist die bekannteste Open-Source AI-Agent-Pla
 
 | Bereich | OpenClaw-Problem | geofrey.ai-Lösung |
 |---------|-----------------|-------------------|
-| **Kosten** | $200-600/Monat Cloud-API | $0 lokaler Orchestrator + selektive API |
+| **Kosten** | $200-600/Monat Cloud-API | $0 lokaler Orchestrator + 20 Local-Ops + selektive API |
 | **Sicherheit** | 42K exponierte Instanzen, 2 CVEs | Kein Web-UI, kein WebSocket, kein öffentlicher Port |
 | **Approvals** | Fire-and-Forget (Issue #2402) | Promise-basiertes strukturelles Blocking |
 | **Klassifikation** | Single LLM Call | Hybrid: Deterministic (90%) + LLM (10%) |

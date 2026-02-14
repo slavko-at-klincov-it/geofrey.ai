@@ -260,7 +260,9 @@ The 8B orchestrator must stay fast. Strategy: deterministic code handles the bul
 
 Target: 90%+ of privacy decisions are deterministic (zero LLM latency).
 
-## What Already Exists
+## Implementation Status
+
+All privacy layer components are implemented (v2.1).
 
 | Component | Status | Location |
 |-----------|--------|----------|
@@ -271,17 +273,13 @@ Target: 90%+ of privacy decisions are deterministic (zero LLM latency).
 | Claude Code integration | Done | `src/anonymizer/anonymizer.ts` |
 | Image EXIF stripping | Done | `src/security/image-sanitizer.ts` |
 | Config schema | Done | `src/config/schema.ts` (anonymizer section) |
-| Tests | Done | 31 tests passing |
-
-## What Needs to Be Built
-
-| Component | Description |
-|-----------|-------------|
-| Privacy Memory (SQLite table) | `privacy_rules` table in Drizzle schema |
-| Privacy Memory (MD export) | Read/write `PRIVACY_RULES.md` (global + per-project) |
-| Approval flow for new rules | "Soll ich X anonymisieren? Global oder nur hier?" |
-| Image classifier integration | Qwen3-VL-2B on-demand load/process/unload via Ollama |
-| Image routing logic | Category → OCR-only / describe / block |
-| Email pre-processing | Anonymize email content before Claude Code |
-| Hard block enforcement | Credentials + biometrie bypass prevention |
-| Rule lookup in anonymizer | Check privacy_rules DB before LLM pass |
+| Privacy Memory (SQLite table) | Done | `src/privacy/rules-store.ts` (`privacy_rules` table) |
+| Privacy Memory (MD export) | Done | `src/privacy/rules-store.ts` (CRUD + export) |
+| Approval flow for new rules | Done | `src/privacy/privacy-approval.ts` |
+| Image classifier (Qwen3-VL-2B) | Done | `src/privacy/image-classifier.ts` (on-demand load/process/unload) |
+| Email pre-processing | Done | `src/privacy/email-preprocessor.ts` |
+| Hard block enforcement | Done | `src/privacy/output-filter.ts` (credential redaction) |
+| Rule lookup in anonymizer | Done | `src/privacy/rules-store.ts` (check before LLM pass) |
+| Profile PII → Anonymizer | Done | `src/privacy/profile-pii.ts` (name + VIP-emails at startup) |
+| Privacy tool | Done | `src/tools/privacy.ts` (create/list/delete/export rules) |
+| Tests | Done | 31+ tests passing |

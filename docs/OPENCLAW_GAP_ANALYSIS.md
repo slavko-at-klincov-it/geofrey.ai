@@ -1,6 +1,6 @@
 # OpenClaw Gap Analysis — Was Geofrey noch fehlt
 
-> Stand: 2026-02-13
+> Stand: 2026-02-14
 > Quellen: https://openclaw.ai, https://github.com/openclaw/openclaw, OpenClaw Docs
 
 ## Legende
@@ -60,6 +60,7 @@
 |------|----------|---------|--------|
 | Shell/Exec | ✅ | ✅ shell.ts | ✅ |
 | Filesystem (read/write) | ✅ | ✅ filesystem.ts | ✅ |
+| Local-Ops (20 native Tools) | — | ✅ mkdir, copy, move, find, tree, diff, sort, head/tail, base64, archive, system info (0 Cloud-Tokens) | ✅ |
 | Git | ✅ | ✅ git.ts | ✅ |
 | Content Search | ✅ | ✅ search.ts | ✅ |
 | Claude Code | — (eigenes Modell) | ✅ claude-code.ts | ✅ |
@@ -217,7 +218,8 @@
 
 | Feature | OpenClaw | Geofrey | Status |
 |---------|----------|---------|--------|
-| Per-Response Kosten-Tracking | ✅ | ✅ Per-request logging + daily aggregates | ✅ |
+| Per-Response Kosten-Tracking | ✅ | ✅ Per-request logging + daily aggregates + per-request cost display | ✅ |
+| Per-Request Cost Display | — | ✅ `[Cloud: X Tokens (€Y) \| Lokal: Z Tokens (€0,00)]` | ✅ |
 | `/usage` Befehle (off/tokens/full) | ✅ | — | ❌ |
 | Budget-Limits & Alerts | ✅ ClawWatcher (50/75/90%) | ✅ MAX_DAILY_BUDGET_USD (50/75/90% alerts) | ✅ |
 | Token-Metriken | ✅ | ✅ Input/output tokens per request | ✅ |
@@ -267,6 +269,8 @@
 5. **Local-First Orchestrator** — Qwen3 8B als Sicherheitsschicht, OpenClaw sendet alles direkt an Cloud-APIs
 6. **Hybrid Risk Classification** — Deterministic (90%) + LLM (10%), kein Single Point of Failure
 7. **Claude Code Integration** — Dedizierter Coding-Agent mit Session-Management und Streaming
-8. **Kosten** — Lokaler Orchestrator spart 80-90% der API-Kosten vs. OpenClaw ($5-200/mo vs. $200-600/mo)
-9. **Filesystem Confinement** — `confine()` verhindert Path Traversal, OpenClaw hat das nicht
-10. **Obfuscation-resistant Blocking** — L3-Patterns erkennen Pfad-Varianten, Base64, chmod+x Chains
+8. **Kosten** — Lokaler Orchestrator + 20 Local-Ops spart 80-90% der API-Kosten vs. OpenClaw ($5-200/mo vs. $200-600/mo)
+9. **Local-Ops** — 20 native Node.js-Tools für einfache OS-Operationen (mkdir, copy, find, diff, sort, archive) — 0 Cloud-Tokens, sofortige Ausführung
+10. **Per-Request Cost Display** — Jede Antwort zeigt Cloud- vs. Lokal-Tokenverbrauch mit Kosten
+11. **Filesystem Confinement** — `confine()` verhindert Path Traversal, OpenClaw hat das nicht
+12. **Obfuscation-resistant Blocking** — L3-Patterns erkennen Pfad-Varianten, Base64, chmod+x Chains

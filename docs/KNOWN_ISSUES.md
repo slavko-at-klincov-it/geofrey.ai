@@ -1,11 +1,11 @@
 # Known Issues
 
-Last updated: 2026-02-13 (Post-Phase 4 Implementation)
+Last updated: 2026-02-14 (Post-v2.3 Implementation)
 
 ## MEDIUM
 
-### ~45% Source Files Without Unit Tests
-- **Description**: ~55 of ~120 non-test source files lack dedicated tests. Critical untested files include `agent-loop.ts`, `claude-code.ts`, `tool-registry.ts`, tool wrappers (`tools/*.ts`), and newer Phase 3/4 files (`tools/tts.ts`, `tools/companion.ts`, `tools/smart-home.ts`, `tools/gmail.ts`, `tools/calendar.ts`).
+### ~40% Source Files Without Unit Tests
+- **Description**: ~55 of ~130 non-test source files lack dedicated tests. Critical untested files include `agent-loop.ts`, `claude-code.ts`, `tool-registry.ts`, tool wrappers (`tools/*.ts`), and newer Phase 3/4 files (`tools/tts.ts`, `tools/companion.ts`, `tools/smart-home.ts`, `tools/gmail.ts`, `tools/calendar.ts`). Note: all 20 local-ops tools and billing/format.ts have comprehensive tests (47 tests).
 - **Impact**: Regression risk. Core agent loop, tool execution paths, and newer integrations are not regression-protected.
 
 ## LOW

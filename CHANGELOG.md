@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 2.3.0 - 2026-02-14 (unreleased)
+
+Local-First Execution — 20 native local-ops tools so Qwen3 handles simple OS operations directly (0 cloud tokens), plus per-request cost display.
+
+### Added
+
+#### Local-Ops Tools (20 tools, 0 cloud tokens)
+- Shared helpers (`src/local-ops/helpers.ts`) — `confine()` path confinement, `formatSize()`, `formatDate()`, `walkDir()` async generator
+- File operations (`src/local-ops/file-ops.ts`) — mkdir, copy_file, move_file, file_info, find_files, search_replace
+- Directory operations (`src/local-ops/dir-ops.ts`) — tree (Unicode box-drawing, depth/entry limits), dir_size
+- Text operations (`src/local-ops/text-ops.ts`) — text_stats, head, tail, diff_files, sort_lines (alphabetic/numeric/reverse), base64 (encode/decode), count_lines
+- System operations (`src/local-ops/system-ops.ts`) — system_info (os module), disk_space (df/wmic), env_get (sensitive value redaction)
+- Archive operations (`src/local-ops/archive-ops.ts`) — archive_create (tar.gz via node:zlib), archive_extract (POSIX tar + gunzip)
+- Tool registration (`src/local-ops/register.ts`) — registers all 20 tools with Zod parameter schemas
+
+#### Per-Request Cost Display
+- Cost line formatter (`src/billing/format.ts`) — `formatCostLine()` with locale-aware formatting (DE: €, EN: $)
+- `TurnUsage` accumulator in agent loop — tracks cloud tokens, cloud cost, local tokens per request
+- Cost line appended after every response: `[Cloud: 1.247 Tokens (€0,02) | Lokal: 847 Tokens (€0,00)]`
+
+#### Risk Classification Updates
+- 14 new tools added to L0 (AUTO_APPROVE): file_info, find_files, tree, dir_size, system_info, disk_space, env_get, text_stats, head, tail, diff_files, sort_lines, base64, count_lines
+- 4 new tools added to L1 (NOTIFY): mkdir, copy_file, search_replace, archive_create
+- 2 new tools added to L2 (REQUIRE_APPROVAL): move_file, archive_extract
+
+#### Config & Infrastructure
+- 13 new i18n keys under `localOps.*` + `billing.costLine` namespaces (German + English)
+- Updated orchestrator prompt: `<capabilities>` lists 3 modes (local-ops free/instant, direct tools, claude_code expensive)
+- `<when_to_use_claude_code>` guidance expanded with explicit tool-to-local-op mapping
+- 47 new tests across 6 test files (1199 total, 0 failures)
+
 ## 2.0.0 - 2026-02-13 (unreleased)
 
 Phase 4 — Ecosystem release. All 5 roadmap features implemented. Full OpenClaw feature parity achieved.

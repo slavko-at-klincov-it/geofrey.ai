@@ -134,9 +134,11 @@ This architecture means the local LLM handles the cheap, frequent work (intent c
 | 100 tasks/day | ~$150-400/month | $0 orchestrator + selective API for code tasks |
 | Monitoring | 4,320 API calls/month (background) | 0 (event-driven, no polling) |
 | System prompt | 10K tokens resent per call | Local model, loaded once |
+| OS operations (mkdir, find, etc.) | Cloud API calls | 20 native local-ops (Node.js, $0) |
+| Cost transparency | None per-request | Per-request cost display (Cloud vs. Local) |
 | **Total (moderate use)** | **$200-600/month** | **$0-30/month** (only complex code tasks use API) |
 
-The orchestrator handles intent classification, risk assessment, and task decomposition locally. Cloud APIs are only used for complex code generation tasks that exceed local model capabilities — reducing API costs by an estimated 70-90%.
+The orchestrator handles intent classification, risk assessment, and task decomposition locally. 20 native local-ops tools (mkdir, copy, find, tree, diff, sort, base64, archive, etc.) handle simple OS operations at zero cost via Node.js APIs. Cloud APIs are only used for complex code generation tasks that exceed local model capabilities — reducing API costs by an estimated 70-90%.
 
 ### Hardware Requirements
 
@@ -289,7 +291,9 @@ Target users:
 | OWASP Agentic coverage | Partial | N/A | N/A | **Full** |
 | Open source | Yes | No | No | **Yes** |
 | Data sovereignty | Cloud-dependent | Cloud | Cloud | **100% local** |
-| Test coverage | Some | N/A | N/A | **298 tests, 65 suites** |
+| Local-ops tools | No | No | No | **20 tools (0 cloud tokens)** |
+| Per-request cost display | No | No | No | **Yes** (Cloud vs. Local) |
+| Test coverage | Some | N/A | N/A | **1199 tests, 140+ suites** |
 | Image metadata defense | None | N/A | N/A | **EXIF/XMP/IPTC stripping + injection scan** |
 
 ---
@@ -297,56 +301,35 @@ Target users:
 ## Roadmap
 
 ### Phase 1 — Foundation (Complete)
-- [x] Local LLM orchestrator (Qwen3 8B via Ollama)
-- [x] 4-tier risk classification (hybrid deterministic + LLM)
-- [x] Structural approval gate (Promise-based blocking)
-- [x] Multi-platform messaging (Telegram, WhatsApp, Signal) with approval UI + live streaming
-- [x] Tool executors (shell, filesystem, git)
-- [x] MCP client integration (allowlist, output sanitization)
-- [x] Hash-chained audit log
-- [x] SQLite persistence
-- [x] 298 tests (266 unit + 32 E2E integration) across 65 suites
+- [x] Local LLM orchestrator, 4-tier risk classification, structural approval gate
+- [x] Multi-platform messaging (Telegram, WhatsApp, Signal), tool executors, MCP, audit log
 
-### Phase 1.5 — Claude Code Integration + Security Hardening (Complete)
-- [x] XML-based LLM classifier output (more reliable with small models, JSON fallback)
-- [x] Shlex-style command decomposition (prevents chained command bypass)
-- [x] Claude Code CLI driver rewrite (stream-json, sessions, tool scoping)
-- [x] Prompt optimizer (8 templates, risk-scoped tool profiles)
-- [x] 4-way intent classification (QUESTION / SIMPLE_TASK / CODING_TASK / AMBIGUOUS)
-- [x] Claude Code live streaming to all messaging platforms
-- [x] Session tracking + audit log extension (cost, tokens, model, session ID)
-- [x] i18n: German + English with typed `t()` function (`LOCALE` config, setup wizard language selection)
+### Phase 1.5–1.75 — Integration + Production (Complete)
+- [x] Claude Code CLI driver, prompt optimizer, 4-way intent classification, live streaming
+- [x] Docker, deployment guide, CLI entry point, CI/CD, i18n
 
-### Phase 1.75 — Production Readiness (Complete)
-- [x] End-to-end integration test suite (32 tests)
-- [x] Ollama error handling (3 retries, user-friendly connection errors)
-- [x] Human-readable startup config errors (Zod → env var mapping)
-- [x] Docker support (multi-stage Dockerfile + docker-compose.yml with Ollama + GPU)
-- [x] Deployment guide (Docker, systemd, PM2, production tips)
-- [x] npm CLI entry point (`geofrey` / `geofrey setup`)
-- [x] GitHub Actions CI (Node 22, pnpm, lint + test)
-- [x] CHANGELOG.md + MIT LICENSE
-- [x] ~~v1.0.0 release~~ (deleted due to bugs)
+### Phase 2 — Power Features (Complete)
+- [x] Web Dashboard + WebChat, persistent memory, web search/fetch, cron/scheduler, cost tracking
+- [x] Browser automation (CDP), skill system, Slack + Discord, voice/STT, session compaction
 
-### Phase 2 — Hardening (Next)
-- [x] Image metadata sanitization (EXIF/XMP/IPTC stripping + prompt injection scanning)
-- [ ] Token budget enforcement
-- [ ] Approval timeout with configurable policy
-- [ ] Rate limiting for tool execution
+### Phase 3 — Differenzierung (Complete)
+- [x] Docker sandbox per session, webhook triggers, process management
 
-### Phase 3 — Expansion
-- [ ] Additional messaging platforms (Discord, Slack)
-- [ ] Web dashboard (read-only audit viewer, no control plane)
-- [ ] Tiered model routing (local for simple, API for complex)
-- [ ] Multi-user support with role-based permissions
-- [ ] Plugin system for custom tool definitions
+### Phase 4 — Ecosystem (Complete)
+- [x] Multi-agent routing, skill marketplace, companion apps, smart home, Gmail/Calendar
 
-### Phase 4 — Enterprise
+### Phase 5 — Privacy & Automation (Complete)
+- [x] Privacy Layer v2.1 (privacy rules, image classifier, email anonymization, output filter)
+- [x] Auto-Tooling v2.2 (gap detection, Docker-based Claude Code builds, post-build validation)
+- [x] Local-First Execution v2.3 (20 native local-ops tools, per-request cost display)
+
+### Current: 1199 tests across 140+ suites, 40+ native tools, 6 messaging platforms
+
+### Next — Enterprise
 - [ ] SOC 2 compliance documentation
 - [ ] Audit log export (SIEM integration)
 - [ ] Policy-as-code (Rego/OPA for custom risk rules)
 - [ ] On-premise deployment package
-- [ ] SLA-backed support tier
 
 ---
 
