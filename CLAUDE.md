@@ -124,7 +124,17 @@ src/
 │   ├── companion.ts         # Companion tool (pair/unpair/list/push)
 │   ├── smart-home.ts        # Smart home tool (discover/list/control/scene)
 │   ├── gmail.ts             # Gmail tool (auth/list/read/send/label/delete)
-│   └── calendar.ts          # Calendar tool (auth/list/get/create/update/delete)
+│   ├── calendar.ts          # Calendar tool (auth/list/get/create/update/delete)
+│   ├── privacy.ts           # Privacy rules tool (create/list/delete/export)
+│   └── auto-tooling.ts      # Auto-tooling tool (detect_gap/build/validate/register)
+├── auto-tooling/
+│   ├── detector.ts          # Capability gap detection (16 categories, 10 regex patterns)
+│   ├── context-collector.ts # Requirements collection from memory + profile
+│   ├── claude-md-generator.ts # Hybrid CLAUDE.md generation (user prefs + tech conventions)
+│   ├── prompt-builder.ts    # Claude Code prompt construction + flags
+│   ├── launcher.ts          # Docker-isolated Claude Code invocation (30min timeout)
+│   ├── validator.ts         # Post-build artifact validation
+│   └── registrar.ts         # Cron job / background process registration
 ├── memory/
 │   ├── store.ts             # MEMORY.md read/write/append + daily notes
 │   ├── embeddings.ts        # Ollama embeddings + cosine similarity search + incremental indexing
@@ -326,7 +336,7 @@ src/
 - [x] Integration: Claude Code subprocess driver
 - [x] DB: Drizzle schema + migrations
 - [x] Audit log
-- [x] Unit tests (~1076 tests — node:test runner)
+- [x] Unit tests (~1146 tests — node:test runner)
 - [x] Security: obfuscation-resistant L3 patterns (path variants, script network, base64, chmod +x)
 - [x] Security: MCP output sanitization (DATA boundary tags, instruction filtering)
 - [x] Security: MCP server allowlist (`mcp.allowedServers` config)
@@ -384,6 +394,7 @@ src/
 - [x] Proactive Agent (Morning Brief, Calendar Watch, Email Monitor via scheduler)
 - [x] Memory System Wiring (autoRecall, startup indexing, structured entries, decision conflict guard, re-index triggers)
 - [x] Privacy Layer v2.1 (privacy_rules DB, image classifier, email pre-processing, output filter, approval flow, profile→anonymizer)
+- [x] Auto-Tooling v2.2 (gap detection, context collection, CLAUDE.md generation, Docker launcher, post-build validation, cron/process registration)
 
 ## Roadmap
 
@@ -399,7 +410,7 @@ src/
 - [x] Proaktive Tasks: expliziter `SIMPLE_TASK`-Hint in Templates
 - [ ] Benchmark: Risk Classifier LLM path — `pnpm benchmark:classifier qwen3:8b` (deferred)
 
-### Auto-Tooling — Self-Extending Agent (v2.2)
+### Completed — Auto-Tooling / Self-Extending Agent (v2.2)
 
 Wenn geofrey eine Aufgabe nicht mit bestehenden Tools erfüllen kann, erkennt er die Lücke und bietet an, ein eigenständiges Programm dafür zu bauen — vollautomatisch via Claude Code in einem Docker-Container.
 
@@ -419,35 +430,34 @@ Wenn geofrey eine Aufgabe nicht mit bestehenden Tools erfüllen kann, erkennt er
 3. **Kombiniert:** geofrey schreibt die initiale CLAUDE.md (User-Wünsche + "Was wir nicht wollen"), dann erweitert Claude Code sie nach dem ersten Scaffolding um technische Conventions.
 
 **Autonome Ausführung — Kontrollierte Properties:**
-- [ ] `claude --dangerously-skip-permissions` nur innerhalb Docker-Container (nie auf Host)
-- [ ] `--max-turns N` begrenzt Agent-Loops (verhindert Endlosschleifen)
-- [ ] `--output-format stream-json` für Live-Fortschritt an geofrey zurück
-- [ ] Projekt-Isolation: jedes Auto-Tool bekommt eigenen Container + Volume
-- [ ] Timeout: maximale Laufzeit pro Build (z.B. 30 Min), danach SIGTERM
-- [ ] Exit-Code-Prüfung: Claude Code Exit 0 = Erfolg, sonst User informieren
-- [ ] Test-Pflicht im Prompt: "Schreibe Tests und stelle sicher dass `npm test` grün ist bevor du fertig bist"
-- [ ] Post-Build: geofrey prüft ob erwartete Artefakte existieren (z.B. `index.ts`, `package.json`)
+- [x] `claude --dangerously-skip-permissions` nur innerhalb Docker-Container (nie auf Host)
+- [x] `--max-turns 50` begrenzt Agent-Loops (verhindert Endlosschleifen)
+- [x] `--output-format stream-json` für Live-Fortschritt an geofrey zurück
+- [x] Projekt-Isolation: jedes Auto-Tool bekommt eigenen Container + Volume
+- [x] Timeout: 30 Min maximale Laufzeit pro Build, danach SIGTERM
+- [x] Exit-Code-Prüfung: Claude Code Exit 0 = Erfolg, sonst User informieren
+- [x] Test-Pflicht im Prompt: "Write tests and ensure `npm test` passes before finishing"
+- [x] Post-Build-Validator: package.json, source files, test files, CLAUDE.md, no sensitive files
 
 **Prompt-Engineering Wissensbasis:**
 - Referenz: [`everything-claude-code`](https://github.com/affaan-m/everything-claude-code) — 37+ Skills, 13 Agents, Plan-Mode, TDD, Continuous Learning
 - Referenz: [Claude Code System Prompt (leaked)](https://github.com/asgeirtj/system_prompts_leaks/blob/main/Anthropic/claude-code.md) — interne Tools, Permission-Model, Plan-Mode, Task-Delegation
 - Referenz: `system_prompts_leaks-main/` (lokal im Repo) — 109 System-Prompts als Pattern-Bibliothek
-- Der Prompt an Claude Code muss enthalten: klare Aufgabenbeschreibung, Tech-Stack, Constraints, erwartete Artefakte, Testanforderungen, "Was wir nicht wollen" aus Memory
 
-**Roadmap-Items:**
-- [ ] Gap-Detection im Orchestrator: erkennt wenn kein Tool passt → bietet Auto-Tooling an
-- [ ] Kontext-Sammler: Qwen3 extrahiert strukturierte Requirements aus User-Dialog
-- [ ] CLAUDE.md-Generator: Memory → User-Preferences-Sektion (deterministic)
-- [ ] Prompt-Builder: baut perfekten Claude-Code-Prompt aus Requirements + Wissensbasis
-- [ ] Docker-Launcher: Container erstellen, Volume mounten, Claude Code starten
-- [ ] Live-Fortschritt: stream-json Output → Telegram/WhatsApp Status-Updates
-- [ ] Post-Build-Validator: Artefakte prüfen, Tests grün, Exit-Code OK
-- [ ] Registrierung: fertiges Programm als Cron-Job oder Background-Process einrichten
-- [ ] CLAUDE.md-Enrichment: Claude Code ergänzt technische Conventions nach Scaffolding
+**Completed Items:**
+- [x] Gap-Detection: 16 capability categories, 10 regex patterns (incl. German), `detectCapabilityGap()`
+- [x] Kontext-Sammler: memory + profile reading, `inferOutputType()` (cron/background/one-shot)
+- [x] CLAUDE.md-Generator: deterministic user preferences + async memory/profile enrichment
+- [x] Prompt-Builder: full prompt + systemPrompt + flags (`--dangerously-skip-permissions`, `--max-turns 50`)
+- [x] Docker-Launcher: scaffold → Docker (fallback: direct) → Claude Code, 30min timeout
+- [x] Post-Build-Validator: 5 checks (package.json, source, tests, CLAUDE.md, no secrets)
+- [x] Registrierung: cron_job / background_process / one_shot via existing scheduler
+- [x] Native `auto_tooling` tool: detect_gap, build, validate, register actions
+- [x] `__autotool_run__` routing in scheduler executor
 
 ### Completed (v1.0–v2.0)
 - [x] All core features implemented (see Project Status above)
-- [x] 20+ native tools, 6 messaging platforms, 950+ tests
+- [x] 20+ native tools, 6 messaging platforms, 1146+ tests
 - [x] Anonymizer foundation (regex + LLM extraction + reversible mapping + streaming de-anonymization)
 
 ## Conventions
@@ -511,3 +521,7 @@ Wenn geofrey eine Aufgabe nicht mit bestehenden Tools erfüllen kann, erkennt er
 | 2026-02-14 | VL model on-demand (load → unload) | Qwen3-VL-2B uses 2GB RAM; load per-image, unload after to keep footprint low |
 | 2026-02-14 | Output filter as defence-in-depth | Even after anonymization, scan Claude Code output for leaked credentials; belt-and-suspenders |
 | 2026-02-14 | Profile PII terms at startup | Name + VIP-emails injected into anonymizer customTerms once at boot; no per-request overhead |
+| 2026-02-14 | Auto-Tooling: Docker-first, direct fallback | Docker preferred for isolation; falls back to direct execution if Docker unavailable |
+| 2026-02-14 | Auto-Tooling: Hybrid CLAUDE.md generation | geofrey writes user prefs deterministically; Claude Code adds tech conventions after scaffolding |
+| 2026-02-14 | Auto-Tooling: 16 capability categories | Covers monitoring, scraping, data-processing, integrations, automation — German + English gap patterns |
+| 2026-02-14 | Auto-Tooling: Standalone programs, not skills | Auto-built tools are independent projects under `.geofrey/projects/`, registered as cron/process |

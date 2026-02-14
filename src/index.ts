@@ -33,6 +33,7 @@ import { loadProfile } from "./profile/store.js";
 import { getProfilePiiTerms } from "./privacy/profile-pii.js";
 import { isProactiveTask, buildProactivePrompt } from "./proactive/handler.js";
 import { setupProactiveJobs } from "./proactive/setup.js";
+import { isAutoToolTask, extractProjectDir } from "./auto-tooling/registrar.js";
 
 // Import tools to register them
 import "./tools/filesystem.js";
@@ -55,6 +56,7 @@ import "./tools/smart-home.js";
 import "./tools/gmail.js";
 import "./tools/calendar.js";
 import "./tools/privacy.js";
+import "./tools/auto-tooling.js";
 
 function resolveOwnerChatId(config: ReturnType<typeof loadConfig>): string | null {
   switch (config.platform) {
@@ -403,6 +405,11 @@ async function main() {
       if (isProactiveTask(task)) {
         const prompt = await buildProactivePrompt(task);
         if (prompt) await routeMessage(chatId, prompt);
+        return;
+      }
+      if (isAutoToolTask(task)) {
+        const dir = extractProjectDir(task);
+        await routeMessage(chatId, `Auto-Tool ausführen: cd "${dir}" && npm start`);
         return;
       }
       await routeMessage(chatId, task);

@@ -522,4 +522,13 @@ export type TranslationKey =
   | "proactive.email.alert"
   | "proactive.email.vip"
   | "proactive.no.events"
-  | "proactive.no.emails";
+  | "proactive.no.emails"
+
+  // auto-tooling
+  | "autoTooling.proposal"
+  | "autoTooling.buildStarted"
+  | "autoTooling.buildComplete"
+  | "autoTooling.buildFailed"
+  | "autoTooling.registered"
+  | "autoTooling.validationPassed"
+  | "autoTooling.validationFailed";

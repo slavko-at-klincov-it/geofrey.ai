@@ -543,4 +543,13 @@ export const en: Record<TranslationKey, string> = {
   "proactive.email.vip": "VIP email from {sender}",
   "proactive.no.events": "No events today.",
   "proactive.no.emails": "No new emails.",
+
+  // auto-tooling
+  "autoTooling.proposal": "Missing capability: {capability} — Suggestion: {suggestion}",
+  "autoTooling.buildStarted": "Building program in {dir}...",
+  "autoTooling.buildComplete": "Program built successfully ({duration}s).",
+  "autoTooling.buildFailed": "Build failed: {error}",
+  "autoTooling.registered": "Registered as {type}: {detail}",
+  "autoTooling.validationPassed": "Validation passed: {summary}",
+  "autoTooling.validationFailed": "Validation failed: {summary}",
 } satisfies Record<TranslationKey, string>;
