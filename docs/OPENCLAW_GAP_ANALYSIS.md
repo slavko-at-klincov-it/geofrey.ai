@@ -74,11 +74,12 @@
 | Webhooks | ✅ HTTP-Endpoint-Triggers | ✅ HTTP server, HMAC auth, rate limiting, GitHub/Stripe/generic templates | ✅ |
 | Gmail Integration | ✅ Pub/Sub, Echtzeit | ✅ Google OAuth2 + Gmail API | ✅ |
 | Notifications | ✅ Push an paired Devices | ✅ APNS + FCM push | ✅ |
+| Auto-Tooling (Self-Extension) | — | ✅ Gap detection → Docker-isolated Claude Code build → cron/process registration | ✅ |
 | Upload | ✅ Web-Upload | — | ❌ |
 | Camera/Location/Screen | ✅ Via paired Devices | — | ❌ |
 | Discord/Slack Actions | ✅ Native Plattform-Automation | — | ❌ |
 
-**Status:** Alle Kern-Tools implementiert. Nur Upload, Camera/Location/Screen und native Discord/Slack Actions fehlen noch.
+**Status:** Alle Kern-Tools implementiert. Auto-Tooling ist einzigartig — kein vergleichbares Feature bei OpenClaw.
 
 ---
 
@@ -123,13 +124,15 @@
 | Persistent Memory (MEMORY.md) | ✅ Entscheidungen, Präferenzen, Fakten | ✅ MEMORY.md + Ollama embeddings | ✅ |
 | Daily Notes (memory/YYYY-MM-DD.md) | ✅ Laufender Kontext | ✅ Daily notes support | ✅ |
 | Semantic Memory Search | ✅ Vektor-Index, ~400 Token Chunks | ✅ Cosine similarity, ~400 token chunks | ✅ |
-| Auto-Recall | ✅ Automatisch relevante Erinnerungen laden | ✅ Threshold 0.7, top-K results | ✅ |
+| Auto-Recall | ✅ Automatisch relevante Erinnerungen laden | ✅ Threshold 0.7, top-K results, category boosting | ✅ |
+| Structured Memory Entries | — | ✅ Kategorisierte Einträge (wants/doesnt-want/preferences/decisions) | ✅ |
+| Decision Conflict Guard | — | ✅ Semantische Konflikterkennung vor dem Speichern | ✅ |
 | Session Compaction | ✅ Ältere Konversation zusammenfassen | ✅ Ollama summarization, /compact command | ✅ |
 | Pre-Compaction Memory Flush | ✅ Vor Kompaktierung wichtiges speichern | ✅ flushToMemory() extracts key facts | ✅ |
 | Session Pruning | ✅ In-Memory Trimming alter Tool-Ergebnisse | ✅ pruneToolResults() + pruneOldMessages() | ✅ |
 | Context Window Management | ✅ Per-Model Tracking, Auto-Overflow | ✅ Token counting, auto-compact at 75% | ✅ |
 
-**Status:** Vollständige Feature-Parität mit OpenClaw bei Memory & Wissensmanagement.
+**Status:** Feature-Parität plus Vorsprung bei Structured Memory und Decision Conflict Guard (beides fehlt bei OpenClaw).
 
 ---
 
@@ -201,6 +204,10 @@
 | MCP Server Allowlist | — (nicht dokumentiert) | ✅ | ✅ |
 | MCP Response Validation (Zod) | — (nicht dokumentiert) | ✅ | ✅ |
 | Image Metadata Sanitization | — (nicht dokumentiert) | ✅ EXIF/XMP/IPTC + Injection Scan | ✅ |
+| Privacy Rules DB | — | ✅ SQLite CRUD, per-entity allow/anonymize/block Entscheidungen | ✅ |
+| Image Privacy Classification | — | ✅ Qwen3-VL-2B lokal (Gesichter → block, Dokumente → OCR-only) | ✅ |
+| Email Anonymization | — | ✅ Headers + Body anonymisiert vor Claude Code | ✅ |
+| Output Credential Filter | — | ✅ Post-Response Redaction geleakter Secrets | ✅ |
 | Filesystem Confinement | — (nicht dokumentiert) | ✅ confine() | ✅ |
 | Docker Sandbox (per Session) | ✅ Isolierte Container | ✅ Container lifecycle, session pool, volume mounting | ✅ |
 | Safe Binaries Allowlist | ✅ | — (über L0-Patterns) | ⚠️ |
@@ -210,7 +217,7 @@
 | DM Pairing Codes | ✅ | — (Owner-only) | ⚠️ |
 | Gateway Auth (Password/OAuth) | ✅ | — (kein Gateway) | ❌ |
 
-**Status:** Docker Sandbox implementiert. Geofrey ist bei Sicherheit insgesamt stärker als OpenClaw (Prompt Injection, MCP Security, Image Sanitization, Filesystem Confinement).
+**Status:** Docker Sandbox implementiert. Geofrey ist bei Sicherheit & Privacy deutlich stärker als OpenClaw (Privacy Layer, Prompt Injection, MCP Security, Image Classification, Email Anonymization, Output Filter).
 
 ---
 
@@ -258,6 +265,13 @@
 19. ~~**Smart Home Integration**~~
 20. ~~**Gmail/Calendar Automation**~~
 
+### Phase 5 — Privacy & Autonomie (v2.1–v2.3) ✅
+21. ~~**Privacy Layer** — Anonymization, Image Classification, Email Pre-Processing, Output Filter~~
+22. ~~**Auto-Tooling** — Self-extending Agent baut eigenständige Programme via Claude Code in Docker~~
+23. ~~**Local-First Execution** — 20 native Local-Ops Tools, Per-Request Cost Display~~
+24. ~~**Proactive Agent** — Morning Brief, Calendar Watch, Email Monitor~~
+25. ~~**Memory Wiring** — autoRecall, Structured Entries, Conflict Guard~~
+
 ---
 
 ## Wo Geofrey BESSER ist als OpenClaw
@@ -274,3 +288,9 @@
 10. **Per-Request Cost Display** — Jede Antwort zeigt Cloud- vs. Lokal-Tokenverbrauch mit Kosten
 11. **Filesystem Confinement** — `confine()` verhindert Path Traversal, OpenClaw hat das nicht
 12. **Obfuscation-resistant Blocking** — L3-Patterns erkennen Pfad-Varianten, Base64, chmod+x Chains
+13. **Privacy Layer (Anonymization)** — Privacy Rules DB mit per-entity allow/anonymize/block, automatische PII-Erkennung, Email-Anonymisierung, Output-Filter für geleakte Credentials. OpenClaw sendet alle Daten ungefiltert an Cloud-APIs.
+14. **Vision-based Image Classification** — Qwen3-VL-2B klassifiziert Bilder lokal (Gesichter → block, Dokumente → OCR-only, Screenshots → describe). Gesichtsfotos verlassen nie den Rechner. OpenClaw hat keine Image-Privacy-Controls.
+15. **Auto-Tooling (Self-Extending Agent)** — Erkennt Capability-Gaps, baut eigenständige Programme in Docker-isoliertem Claude Code, registriert als Cron-Job oder Background-Process. OpenClaw hat kein vergleichbares Self-Extension-Feature.
+16. **Proactive Agent** — Morning Brief, Calendar Watch, Email Monitor — alle privacy-gefiltert über den lokalen Orchestrator. OpenClaw hat keine dokumentierten proaktiven Features.
+17. **Decision Conflict Guard** — Erkennt widersprüchliche Entscheidungen vor dem Speichern neuer Erinnerungen. Verhindert stille Präferenz-Drift über Zeit.
+18. **Structured Memory** — Kategorisierte Einträge (wants/doesnt-want/preferences/decisions) statt flacher Text. Ermöglicht deterministische CLAUDE.md-Generierung für Auto-Tooling.
