@@ -1,5 +1,7 @@
 # geofrey.ai
 
+> **Status: Active Development** — Core architecture and 40+ tools are implemented with 1199 tests passing. Not yet released — expect breaking changes. Contributions and feedback welcome.
+
 **Privacy-first AI agent — your data stays on your machine.**
 
 geofrey.ai is an open-source personal AI agent with a local LLM orchestrator that controls what data leaves your computer. Nothing goes to cloud APIs unreviewed, unanonymized, or without your explicit approval.
