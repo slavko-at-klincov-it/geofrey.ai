@@ -9,6 +9,7 @@ export async function createPlatform(
 
   switch (platformName) {
     case "telegram": {
+      if (!config.telegram) throw new Error("Telegram config missing");
       const { createTelegramPlatform } = await import("./adapters/telegram.js");
       return createTelegramPlatform(config.telegram, callbacks);
     }

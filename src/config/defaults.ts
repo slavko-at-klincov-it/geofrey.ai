@@ -85,10 +85,10 @@ export function loadConfig(): Config {
     return configSchema.parse({
       locale: process.env.LOCALE,
       platform: process.env.PLATFORM,
-      telegram: {
+      telegram: process.env.TELEGRAM_BOT_TOKEN ? {
         botToken: process.env.TELEGRAM_BOT_TOKEN,
         ownerId: process.env.TELEGRAM_OWNER_ID,
-      },
+      } : undefined,
       whatsapp: process.env.WHATSAPP_PHONE_NUMBER_ID ? {
         phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID,
         accessToken: process.env.WHATSAPP_ACCESS_TOKEN,

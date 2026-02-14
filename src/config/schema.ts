@@ -11,7 +11,7 @@ export const configSchema = z.object({
   telegram: z.object({
     botToken: z.string().min(1),
     ownerId: z.coerce.number().int().positive(),
-  }),
+  }).optional(),
   whatsapp: z.object({
     phoneNumberId: z.string().min(1),
     accessToken: z.string().min(1),
@@ -153,6 +153,9 @@ export const configSchema = z.object({
     allowedServers: z.array(z.string()).default([]),
   }),
 }).refine((data) => {
+  if (data.platform === "telegram" && !data.telegram) {
+    return false;
+  }
   if (data.platform === "whatsapp" && !data.whatsapp) {
     return false;
   }

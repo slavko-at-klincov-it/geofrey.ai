@@ -39,8 +39,8 @@ describe("configSchema", () => {
       mcp: { allowedServers: [] },
     };
     const result = configSchema.parse(full);
-    assert.equal(result.telegram.botToken, "123:ABC");
-    assert.equal(result.telegram.ownerId, 42);
+    assert.equal(result.telegram?.botToken, "123:ABC");
+    assert.equal(result.telegram?.ownerId, 42);
     assert.equal(result.claude.maxBudgetUsd, 5);
     assert.deepEqual(result.claude.defaultDirs, ["/home/user/project"]);
   });
@@ -113,7 +113,7 @@ describe("configSchema", () => {
       ...minimal,
       telegram: { botToken: "123:ABC", ownerId: "42" },
     });
-    assert.equal(result.telegram.ownerId, 42);
+    assert.equal(result.telegram?.ownerId, 42);
   });
 
   it("rejects invalid URL for ollama baseUrl", () => {

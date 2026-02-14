@@ -62,7 +62,7 @@ import "./local-ops/register.js";
 
 function resolveOwnerChatId(config: ReturnType<typeof loadConfig>): string | null {
   switch (config.platform) {
-    case "telegram": return String(config.telegram.ownerId);
+    case "telegram": return config.telegram ? String(config.telegram.ownerId) : null;
     case "whatsapp": return config.whatsapp?.ownerPhone ?? null;
     case "signal": return config.signal?.ownerPhone ?? null;
     case "slack": return config.slack?.channelId ?? null;
