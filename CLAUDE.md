@@ -65,7 +65,6 @@ User (Telegram) → Orchestrator (Qwen3 8B) → Hybrid Risk Classifier (L0-L3)
 | `docs/ARCHITECTURE.md` | Full architecture with diagrams |
 | `docs/ORCHESTRATOR_PROMPT.md` | System prompts for Qwen3 orchestrator (3 focused prompts) |
 | `src/` | Source code (TypeScript) |
-| `system_prompts_leaks-main/` | Reference: 109 leaked system prompts |
 | `src/onboarding/check.ts` | Claude Code startup check + onboarding messages |
 
 ## Project Structure
@@ -458,7 +457,7 @@ Wenn geofrey eine Aufgabe nicht mit bestehenden Tools erfüllen kann, erkennt er
 **Prompt-Engineering Wissensbasis:**
 - Referenz: [`everything-claude-code`](https://github.com/affaan-m/everything-claude-code) — 37+ Skills, 13 Agents, Plan-Mode, TDD, Continuous Learning
 - Referenz: [Claude Code System Prompt (leaked)](https://github.com/asgeirtj/system_prompts_leaks/blob/main/Anthropic/claude-code.md) — interne Tools, Permission-Model, Plan-Mode, Task-Delegation
-- Referenz: `system_prompts_leaks-main/` (lokal im Repo) — 109 System-Prompts als Pattern-Bibliothek
+- Referenz: [`system_prompts_leaks`](https://github.com/asgeirtj/system_prompts_leaks) — 109 System-Prompts als Pattern-Bibliothek (patterns already extracted into prompt-builder.ts)
 
 **Completed Items:**
 - [x] Gap-Detection: 16 capability categories, 10 regex patterns (incl. German), `detectCapabilityGap()`
