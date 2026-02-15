@@ -2,7 +2,7 @@ import { streamText, stepCountIs, type ModelMessage } from "ai";
 import { createOllama } from "ai-sdk-ollama";
 import type { Config } from "../config/schema.js";
 import type { MessagingPlatform, ChatId } from "../messaging/platform.js";
-import { getAiSdkTools } from "../tools/tool-registry.js";
+
 import { createApproval } from "../approval/approval-gate.js";
 import { classifyRisk, classifyDeterministic, RiskLevel } from "../approval/risk-classifier.js";
 import { t } from "../i18n/index.js";
@@ -426,6 +426,7 @@ export async function runAgentLoopStreaming(
   }
 
   const ollama = createOllama({ baseURL: config.ollama.baseUrl });
+  const { getAiSdkTools } = await import("../tools/tool-registry.js");
   const aiTools = agentConfig?.allowedTools?.length
     ? getAiSdkTools(agentConfig.allowedTools)
     : getAiSdkTools();

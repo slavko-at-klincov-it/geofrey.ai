@@ -153,6 +153,12 @@ export function createWebChatPlatform(
       return;
     }
 
+    // Health check (no auth required)
+    if (pathname === "/health" && req.method === "GET") {
+      sendJson(res, 200, { status: "ok", uptime: Math.floor((Date.now() - startTime) / 1000) });
+      return;
+    }
+
     // API routes require auth + rate limiting
     if (pathname.startsWith("/api/")) {
       if (!checkAuth(req)) {

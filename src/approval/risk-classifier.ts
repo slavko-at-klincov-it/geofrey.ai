@@ -494,15 +494,18 @@ export async function classifyWithLlm(
   args: Record<string, unknown>,
   config: Config,
 ): Promise<Classification> {
+  // Scrub sensitive values before building cache key — prevents API keys,
+  // tokens, and passwords from being stored in memory as cache keys.
+  const scrubbedArgs = scrubArgsForLlm(args);
   // Check cache first
-  const cacheKey = buildCacheKey(toolName, args);
+  const cacheKey = buildCacheKey(toolName, scrubbedArgs);
   const cached = classifierCache.get(cacheKey);
   if (cached && Date.now() - cached.createdAt < CACHE_TTL_MS) {
     return cached.classification;
   }
 
   const ollama = createOllama({ baseURL: config.ollama.baseUrl });
-  const prompt = `Classify: tool=${toolName}, args=${JSON.stringify(scrubArgsForLlm(args))}`;
+  const prompt = `Classify: tool=${toolName}, args=${JSON.stringify(scrubbedArgs)}`;
 
   for (let attempt = 0; attempt < MAX_LLM_RETRIES; attempt++) {
     try {

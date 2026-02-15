@@ -1,5 +1,8 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import type { IncomingMessage } from "node:http";
+import { eq } from "drizzle-orm";
+import { webhooks as webhooksTable } from "../db/schema.js";
+import type { getDb } from "../db/client.js";
 
 export interface WebhookEntry {
   id: string;
@@ -28,17 +31,55 @@ export interface WebhookRouter {
   listAll(): WebhookEntry[];
 }
 
-export function createWebhookRouter(rateLimit = DEFAULT_RATE_LIMIT): WebhookRouter {
+type Db = ReturnType<typeof getDb>;
+
+export function createWebhookRouter(rateLimit = DEFAULT_RATE_LIMIT, db?: Db): WebhookRouter {
   const webhooks = new Map<string, WebhookEntry>();
   const rateLimits = new Map<string, RateEntry>();
 
   function register(webhook: WebhookEntry): void {
     webhooks.set(webhook.id, webhook);
+    if (db) {
+      try {
+        db.insert(webhooksTable)
+          .values({
+            id: webhook.id,
+            name: webhook.name,
+            path: webhook.path,
+            secret: webhook.secret,
+            template: webhook.template,
+            enabled: webhook.enabled,
+            chatId: webhook.chatId,
+            createdAt: new Date(),
+          })
+          .onConflictDoUpdate({
+            target: webhooksTable.id,
+            set: {
+              name: webhook.name,
+              path: webhook.path,
+              secret: webhook.secret,
+              template: webhook.template,
+              enabled: webhook.enabled,
+              chatId: webhook.chatId,
+            },
+          })
+          .run();
+      } catch (_) {
+        // DB persistence is fire-and-forget
+      }
+    }
   }
 
   function unregister(id: string): void {
     webhooks.delete(id);
     rateLimits.delete(id);
+    if (db) {
+      try {
+        db.delete(webhooksTable).where(eq(webhooksTable.id, id)).run();
+      } catch (_) {
+        // DB persistence is fire-and-forget
+      }
+    }
   }
 
   function match(path: string): WebhookEntry | undefined {
@@ -102,4 +143,17 @@ export function createWebhookRouter(rateLimit = DEFAULT_RATE_LIMIT): WebhookRout
   }
 
   return { register, unregister, match, authenticate, checkRateLimit, listAll };
+}
+
+export function loadWebhooksFromDb(db: Db): WebhookEntry[] {
+  const rows = db.select().from(webhooksTable).where(eq(webhooksTable.enabled, true)).all();
+  return rows.map((row) => ({
+    id: row.id,
+    name: row.name,
+    path: row.path,
+    secret: row.secret,
+    template: row.template,
+    enabled: row.enabled,
+    chatId: row.chatId,
+  }));
 }

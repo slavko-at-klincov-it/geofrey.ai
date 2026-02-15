@@ -1,6 +1,9 @@
 import { createServer, type Server } from "node:http";
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { dirname } from "node:path";
+import { eq } from "drizzle-orm";
+import { googleTokens } from "../../db/schema.js";
+import type { getDb } from "../../db/client.js";
 
 export interface GoogleAuthConfig {
   clientId: string;
@@ -24,6 +27,18 @@ export function setGoogleConfig(config: GoogleAuthConfig): void {
 
 export function getGoogleConfig(): GoogleAuthConfig | null {
   return googleConfig;
+}
+
+// Optional DB layer — preferred when set, file-based cache as fallback
+let tokenDb: ReturnType<typeof getDb> | null = null;
+
+/**
+ * Inject a Drizzle DB instance for token persistence.
+ * When set, tokens are read from / written to the `google_tokens` table.
+ * File-based cache remains as fallback.
+ */
+export function setGoogleTokenDb(dbInstance: typeof tokenDb): void {
+  tokenDb = dbInstance;
 }
 
 const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
@@ -130,6 +145,31 @@ export async function refreshToken(token: string): Promise<TokenSet> {
 }
 
 function saveTokenCache(tokenSet: TokenSet): void {
+  // Write to DB if available (preferred)
+  if (tokenDb) {
+    try {
+      tokenDb.insert(googleTokens).values({
+        id: "default",
+        accessToken: tokenSet.accessToken,
+        refreshToken: tokenSet.refreshToken,
+        expiresAt: new Date(tokenSet.expiresAt),
+        scopes: tokenSet.scopes,
+        createdAt: new Date(),
+      }).onConflictDoUpdate({
+        target: googleTokens.id,
+        set: {
+          accessToken: tokenSet.accessToken,
+          refreshToken: tokenSet.refreshToken,
+          expiresAt: new Date(tokenSet.expiresAt),
+          scopes: tokenSet.scopes,
+        },
+      }).run();
+    } catch {
+      // Non-critical: DB token save failure, file fallback below
+    }
+  }
+
+  // File-based fallback (always attempted if config is set)
   if (!googleConfig) return;
   try {
     const dir = dirname(googleConfig.tokenCachePath);
@@ -141,6 +181,24 @@ function saveTokenCache(tokenSet: TokenSet): void {
 }
 
 function loadTokenCache(): TokenSet | null {
+  // Try DB first if available (preferred)
+  if (tokenDb) {
+    try {
+      const row = tokenDb.select().from(googleTokens).where(eq(googleTokens.id, "default")).get();
+      if (row) {
+        return {
+          accessToken: row.accessToken,
+          refreshToken: row.refreshToken ?? "",
+          expiresAt: row.expiresAt ? row.expiresAt.getTime() : 0,
+          scopes: row.scopes,
+        };
+      }
+    } catch {
+      // DB read failed, fall through to file-based cache
+    }
+  }
+
+  // File-based fallback
   if (!googleConfig) return null;
   try {
     if (!existsSync(googleConfig.tokenCachePath)) return null;

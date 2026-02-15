@@ -32,10 +32,9 @@ export const cronJobs = sqliteTable("cron_jobs", {
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
 });
 
-// TODO: Not yet wired — approvals are in-memory only (approval-gate.ts uses Map<nonce, resolver>).
-// To wire: In approval-gate.ts, INSERT on requestApproval(), UPDATE on resolveApproval().
-// On startup, load pending rows and re-create Promise resolvers for each.
-// Prerequisite: approval-gate.ts needs access to the Drizzle db instance (currently it doesn't import db).
+// Wired: approval-gate.ts INSERTs on createApproval(), UPDATEs on resolveApproval()/rejectAllPending().
+// DB layer is fire-and-forget (audit trail + crash recovery visibility). In-memory Map + Promise stays primary.
+// Call setApprovalDb(db) after getDb() to enable persistence.
 export const pendingApprovals = sqliteTable("pending_approvals", {
   id: text("id").primaryKey(),
   conversationId: text("conversation_id")
@@ -63,10 +62,8 @@ export const usageLog = sqliteTable("usage_log", {
   chatId: text("chat_id").notNull(),
 });
 
-// TODO: Not yet wired — webhook configs are in-memory only (webhooks/router.ts uses Map<path, entry>).
-// To wire: In router.ts addRoute(), INSERT to DB. In removeRoute(), DELETE from DB.
-// On startup in index.ts, SELECT all enabled webhooks and call addRoute() for each.
-// Prerequisite: router.ts needs access to the Drizzle db instance (currently it doesn't import db).
+// Wired: router.ts syncs register/unregister to DB when db param is provided.
+// On startup, loadWebhooksFromDb() restores enabled webhooks into the in-memory Map.
 export const webhooks = sqliteTable("webhooks", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
@@ -87,11 +84,8 @@ export const memoryChunks = sqliteTable("memory_chunks", {
   createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
 });
 
-// TODO: Not yet wired — Google auth currently uses file-based token cache (google/auth.ts writes JSON).
-// To wire: In auth.ts, replace readFileSync/writeFileSync token cache with DB INSERT/SELECT.
-// On exchangeCode(), INSERT token set. On refreshToken(), UPDATE. On getValidToken(), SELECT.
-// Prerequisite: auth.ts needs access to the Drizzle db instance (currently uses config.tokenCachePath).
-// Benefit: tokens survive data dir changes, multi-instance sharing, atomic writes.
+// Wired via setGoogleTokenDb() in src/integrations/google/auth.ts.
+// DB is preferred when set; file-based cache (config.tokenCachePath) remains as fallback.
 export const googleTokens = sqliteTable("google_tokens", {
   id: text("id").primaryKey(),
   accessToken: text("access_token").notNull(),

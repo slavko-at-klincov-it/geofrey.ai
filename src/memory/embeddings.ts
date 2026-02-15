@@ -76,7 +76,7 @@ export function chunkText(text: string, maxTokens: number = DEFAULT_MAX_TOKENS):
 }
 
 export async function generateEmbedding(text: string, config: OllamaConfig): Promise<number[]> {
-  const model = config.embedModel ?? config.model;
+  const model = config.embedModel ?? "nomic-embed-text";
   const url = `${config.baseUrl.replace(/\/$/, "")}/api/embed`;
   const response = await fetch(url, {
     method: "POST",

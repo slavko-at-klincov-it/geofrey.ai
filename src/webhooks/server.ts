@@ -99,6 +99,12 @@ export function startWebhookServer(options: WebhookServerOptions): WebhookServer
   const { port, router, handler } = options;
 
   const server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
+    // Health check (no auth required)
+    if (req.url === "/health" && req.method === "GET") {
+      respond(res, 200, { status: "ok" });
+      return;
+    }
+
     if (req.method !== "POST") {
       respond(res, 404, { error: "Not found" });
       return;
