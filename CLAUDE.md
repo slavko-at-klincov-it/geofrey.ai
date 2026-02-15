@@ -180,6 +180,7 @@ pnpm test:e2e    # E2E tests (needs Ollama)
 | `docs/ARCHITECTURE.md` | Full architecture with diagrams |
 | `docs/ORCHESTRATOR_PROMPT.md` | System prompts for Qwen3 orchestrator |
 | `docs/PRIVACY_LAYER.md` | Privacy layer design |
+| `docs/OPENCLAW_GAP_ANALYSIS.md` | **Feature comparison OpenClaw vs geofrey — update when new features are implemented** |
 | `docs/DECISIONS.md` | Key decisions log (55+ entries with reasoning) |
 | `docs/E2E_FINDINGS.md` | E2E test findings — 6 critical bugs unit tests missed |
 | `docs/DEPLOYMENT.md` | Docker, systemd, PM2 deployment guide |
