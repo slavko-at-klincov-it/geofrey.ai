@@ -182,6 +182,5 @@ pnpm test:e2e    # E2E tests (needs Ollama)
 | `docs/PRIVACY_LAYER.md` | Privacy layer design |
 | `docs/DECISIONS.md` | Key decisions log (55+ entries with reasoning) |
 | `docs/E2E_FINDINGS.md` | E2E test findings — 6 critical bugs unit tests missed |
-| `docs/KNOWN_ISSUES.md` | Active known issues |
 | `docs/DEPLOYMENT.md` | Docker, systemd, PM2 deployment guide |
 | `docs/WHITEPAPER.md` | Project whitepaper |
