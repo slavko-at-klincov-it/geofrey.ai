@@ -14,6 +14,7 @@ import {
   conversations,
 } from "../../db/schema.js";
 import { eq } from "drizzle-orm";
+import { RiskLevel } from "../../approval/risk-classifier.js";
 
 // ─── pending_approvals ──────────────────────────────────────────────────────
 
@@ -48,7 +49,7 @@ describe("E2E: pending_approvals DB wiring", { timeout: 30_000 }, () => {
     const { nonce, promise } = createApproval(
       "shell",
       { command: "rm -rf /tmp/testdata" },
-      { level: "L2" as const, reason: "Destructive shell command", toolName: "shell" },
+      { level: RiskLevel.L2, reason: "Destructive shell command", deterministic: true },
       undefined,
       convId,
     );
@@ -99,7 +100,7 @@ describe("E2E: pending_approvals DB wiring", { timeout: 30_000 }, () => {
     const { nonce, promise } = createApproval(
       "git",
       { command: "push --force" },
-      { level: "L2" as const, reason: "Force push", toolName: "git" },
+      { level: RiskLevel.L2, reason: "Force push", deterministic: true },
       undefined,
       convId,
     );
@@ -128,7 +129,7 @@ describe("E2E: pending_approvals DB wiring", { timeout: 30_000 }, () => {
     const { nonce, promise } = createApproval(
       "filesystem",
       { path: "/etc/passwd" },
-      { level: "L2" as const, reason: "Sensitive file access", toolName: "filesystem" },
+      { level: RiskLevel.L2, reason: "Sensitive file access", deterministic: true },
       200, // 200ms timeout
       convId,
     );
@@ -161,14 +162,14 @@ describe("E2E: pending_approvals DB wiring", { timeout: 30_000 }, () => {
     const a1 = createApproval(
       "shell",
       { command: "apt install something" },
-      { level: "L2" as const, reason: "Package install", toolName: "shell" },
+      { level: RiskLevel.L2, reason: "Package install", deterministic: true },
       undefined,
       convId,
     );
     const a2 = createApproval(
       "git",
       { command: "commit -m 'test'" },
-      { level: "L2" as const, reason: "Git commit", toolName: "git" },
+      { level: RiskLevel.L2, reason: "Git commit", deterministic: true },
       undefined,
       convId,
     );
@@ -211,7 +212,7 @@ describe("E2E: pending_approvals DB wiring", { timeout: 30_000 }, () => {
     const { nonce, promise } = createApproval(
       "shell",
       { command: "echo hello" },
-      { level: "L1" as const, reason: "Simple echo", toolName: "shell" },
+      { level: RiskLevel.L1, reason: "Simple echo", deterministic: true },
     );
 
     // In-memory approval should still work even if DB write failed
