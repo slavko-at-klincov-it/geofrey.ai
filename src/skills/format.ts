@@ -1,5 +1,9 @@
 import { z } from "zod";
 
+function objectWithDefaults<T extends z.ZodTypeAny>(schema: T) {
+  return z.preprocess((v) => v ?? {}, schema);
+}
+
 export const skillPermissionsSchema = z.object({
   filesystem: z.enum(["none", "read", "write"]).default("none"),
   network: z.enum(["none", "local", "full"]).default("none"),
@@ -14,7 +18,7 @@ export const skillFrontmatterSchema = z.object({
   version: z.string().default("1.0.0"),
   author: z.string().optional(),
   dependencies: z.array(z.string()).default([]),
-  permissions: skillPermissionsSchema.default({}),
+  permissions: objectWithDefaults(skillPermissionsSchema),
   install: z.string().optional(),
 });
 

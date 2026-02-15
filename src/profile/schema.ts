@@ -1,5 +1,9 @@
 import { z } from "zod";
 
+function objectWithDefaults<T extends z.ZodTypeAny>(schema: T) {
+  return z.preprocess((v) => v ?? {}, schema);
+}
+
 const calendarConfigSchema = z.discriminatedUnion("provider", [
   z.object({ provider: z.literal("google"), calendarId: z.string().default("primary") }),
   z.object({ provider: z.literal("caldav"), url: z.string().url() }),
@@ -52,9 +56,9 @@ export const profileSchema = z.object({
   calendarApp: calendarConfigSchema.default({ provider: "none" }),
   notesApp: notesConfigSchema.default({ provider: "none" }),
   taskApp: taskConfigSchema.default({ provider: "none" }),
-  morningBrief: morningBriefSchema.default({}),
-  calendarWatch: calendarWatchSchema.default({}),
-  emailMonitor: emailMonitorSchema.default({}),
+  morningBrief: objectWithDefaults(morningBriefSchema),
+  calendarWatch: objectWithDefaults(calendarWatchSchema),
+  emailMonitor: objectWithDefaults(emailMonitorSchema),
 });
 
 export type Profile = z.infer<typeof profileSchema>;
