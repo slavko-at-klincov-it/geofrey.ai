@@ -1,6 +1,6 @@
 # geofrey.ai
 
-> **Status: Active Development** — Core architecture and 40+ tools are implemented with 1199 tests passing. Not yet released — expect breaking changes. Contributions and feedback welcome.
+> **Status: Active Development** — Core architecture with 40+ tools, 6 messaging platforms, and 1337 tests passing. Not yet released — expect breaking changes. Contributions and feedback welcome.
 
 **Privacy-first AI agent — your data stays on your machine.**
 
@@ -21,7 +21,7 @@ geofrey.ai runs a local LLM (Qwen3 8B via Ollama) as an intelligent orchestrator
 - **4-tier risk classification (L0-L3)** — auto-approve reads, notify on safe writes, require approval for dangerous actions, block destructive commands
 - **Hybrid classifier** — deterministic patterns handle 90% of cases instantly, LLM fallback for ambiguous commands
 - **Structural approval blocking** — Promise-based gate with no code path around it
-- **Multi-platform messaging** — Telegram (inline buttons), WhatsApp (interactive buttons), Signal (text-based)
+- **Multi-platform messaging** — Telegram (inline buttons), WhatsApp (Twilio), Signal (text-based), Slack (Block Kit), Discord (Buttons), WebChat (SSE)
 - **Claude Code integration** — local LLM routes coding tasks to Claude Code CLI with risk-scoped tool profiles
 - **20 native local-ops tools** — mkdir, copy, move, find, tree, diff, sort, head/tail, base64, archive, system info — all handled locally (0 cloud tokens, instant execution)
 - **Per-request cost display** — every response shows cloud vs. local token usage with cost in EUR/USD
@@ -44,6 +44,21 @@ geofrey.ai runs a local LLM (Qwen3 8B via Ollama) as an intelligent orchestrator
 - **Slack + Discord** — @slack/bolt (Socket Mode, Block Kit buttons) + discord.js (Gateway Intents, Button components)
 - **Voice messages / STT** — OpenAI Whisper API + local whisper.cpp, ffmpeg audio conversion, all platforms
 - **Session compaction** — auto-compaction at 75% context usage, Ollama summarization, pre-compaction memory flush
+- **Docker sandbox** — per-session isolated Docker containers for Claude Code execution with volume mounting and health checks
+- **Webhook triggers** — HTTP server with HMAC auth, rate limiting, GitHub/Stripe/generic templates, DB persistence
+- **Process management** — background process spawning, kill, logs, SIGTERM→SIGKILL escalation
+- **Multi-agent routing** — Hub-and-Spoke architecture with skill/intent/explicit routing, per-agent session isolation
+- **Skill marketplace** — curated repository with SHA-256 hash verification, 5 built-in templates
+- **Companion apps backend** — WebSocket server with 6-digit pairing, APNS/FCM push notifications
+- **Smart home** — Philips Hue API v2, HomeAssistant REST, Sonos HTTP, SSDP/nUPnP discovery
+- **Gmail/Calendar** — Google OAuth2 with auto-refresh, Gmail API, Google Calendar CRUD, DB-backed token storage
+- **User profile system** — JSON-based profile with system prompt injection, calendar/notes/tasks/proactive preferences
+- **Proactive agent** — morning brief, calendar watch, email monitor via scheduler cron jobs
+- **Privacy layer v2** — privacy rules DB, image classifier (Qwen3-VL-2B), email pre-processing, output credential filter
+- **Auto-tooling** — capability gap detection, Docker-isolated Claude Code builds, post-build validation, cron/process registration
+- **Structured logging** — JSON-line logger with level filtering, context merging, `LOG_LEVEL` env control
+- **DB persistence** — approval audit trail, webhook configs, Google tokens persisted to SQLite (fire-and-forget, in-memory stays primary)
+- **Health endpoints** — `/health` on webchat and webhook servers, Docker healthcheck support
 - **Graceful shutdown** — cleans up child processes, browsers, flushes audit log, rejects pending approvals
 
 ## Quick Start
@@ -196,9 +211,8 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#risk-classification-4-tier-hybri
 ### WhatsApp
 
 - **Interface**: Interactive buttons (max 3 per message)
-- **Features**: Webhook-based, official Cloud API, HMAC-SHA256 signature validation
-- **Setup**: Business phone number ID, permanent access token, webhook verification token
-- **Note**: Enable "Advanced Chat Privacy" in WhatsApp settings for the bot chat (client-side setting)
+- **Features**: Twilio WhatsApp API, webhook-based, signature validation
+- **Setup**: Twilio Account SID, Auth Token, WhatsApp-enabled phone number
 
 ### Signal
 
@@ -231,8 +245,11 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#risk-classification-4-tier-hybri
 # Run in development mode with auto-reload
 pnpm dev
 
-# Run tests (node:test runner, 1199 tests across 140+ suites)
+# Run tests (node:test runner, 1337 tests across 360+ suites)
 pnpm test
+
+# Run E2E tests (requires Ollama, optionally Docker)
+pnpm test:e2e
 
 # Type check
 pnpm lint
@@ -251,22 +268,35 @@ pnpm db:migrate   # Apply migrations
 src/
 ├── index.ts                 # Entry point + graceful shutdown
 ├── orchestrator/            # Qwen3 agent loop, conversation, prompt generator, compaction
-├── approval/                # Risk classifier, approval gate
+├── approval/                # Risk classifier, approval gate (DB-backed audit trail)
 ├── messaging/               # Platform adapters, image handler (Telegram, WhatsApp, Signal, WebChat, Slack, Discord)
-├── tools/                   # Tool executors (Claude Code, shell, filesystem, git, MCP, web, memory, cron, browser, skill)
+├── tools/                   # Tool executors (Claude Code, shell, filesystem, git, MCP, web, memory, cron, browser, skill, webhook, process, agents, smart-home, gmail, calendar, privacy, auto-tooling, companion)
 ├── local-ops/               # 20 native local-ops tools (file, dir, text, system, archive) — 0 cloud tokens
+├── logging/                 # Structured JSON logger with level filtering
 ├── security/                # Image metadata sanitizer, injection scanning
 ├── audit/                   # Hash-chained JSONL audit log
-├── memory/                  # Persistent memory (MEMORY.md, embeddings, recall)
+├── memory/                  # Persistent memory (MEMORY.md, embeddings, recall, structured entries, conflict guard)
 ├── automation/              # Cron parser + job scheduler
 ├── billing/                 # Cost tracking, pricing, budget alerts, per-request cost display
 ├── browser/                 # Chrome DevTools Protocol (launcher, snapshot, actions)
-├── skills/                  # SKILL.md format, registry, injector
+├── skills/                  # SKILL.md format, registry, injector, marketplace
 ├── voice/                   # STT transcriber (Whisper) + ffmpeg audio converter
+├── sandbox/                 # Docker container lifecycle, session pool, volume mounting
+├── webhooks/                # HTTP webhook server, HMAC auth, rate limiting, DB persistence
+├── process/                 # Background process spawn/kill/logs
+├── agents/                  # Multi-agent hub, session manager, inter-agent communication
+├── companion/               # WebSocket server, 6-digit pairing, APNS/FCM push
+├── integrations/            # Smart home (Hue, HomeAssistant, Sonos), Google (OAuth2, Gmail, Calendar)
+├── privacy/                 # Privacy rules DB, image classifier, email preprocessor, output filter
+├── profile/                 # User profile schema, persistence, system prompt injection
+├── proactive/               # Morning brief, calendar watch, email monitor
+├── auto-tooling/            # Capability gap detection, Docker-isolated builds, validation
+├── indexer/                 # Project structure indexer (AST parsing)
 ├── dashboard/               # Web dashboard static files (HTML + CSS + JS)
-├── db/                      # SQLite + Drizzle ORM
+├── db/                      # SQLite + Drizzle ORM (conversations, approvals, webhooks, tokens, usage, memory)
 ├── i18n/                    # German + English translations
-├── onboarding/              # Interactive setup wizard
+├── e2e/                     # End-to-end integration tests (25+ test suites)
+├── onboarding/              # Interactive setup wizard (prerequisites, platform, profile, integrations)
 └── config/                  # Zod config validation
 ```
 
@@ -309,10 +339,10 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#hardware-requirements) for detai
 | `PLATFORM` | No | `telegram` | Messaging platform: `telegram`, `whatsapp`, `signal`, `webchat`, `slack`, or `discord` |
 | `TELEGRAM_BOT_TOKEN` | Telegram | — | Bot token from @BotFather |
 | `TELEGRAM_OWNER_ID` | Telegram | — | Your Telegram user ID |
-| `WHATSAPP_PHONE_NUMBER_ID` | WhatsApp | — | Business phone number ID |
-| `WHATSAPP_ACCESS_TOKEN` | WhatsApp | — | Permanent access token |
-| `WHATSAPP_VERIFY_TOKEN` | WhatsApp | — | Webhook verification token |
-| `WHATSAPP_OWNER_PHONE` | WhatsApp | — | Owner phone number (e.g. `491234567890`) |
+| `TWILIO_ACCOUNT_SID` | WhatsApp | — | Twilio Account SID |
+| `TWILIO_AUTH_TOKEN` | WhatsApp | — | Twilio Auth Token |
+| `TWILIO_WHATSAPP_NUMBER` | WhatsApp | — | Twilio WhatsApp-enabled number (e.g. `whatsapp:+14155238886`) |
+| `WHATSAPP_OWNER_PHONE` | WhatsApp | — | Owner phone number (e.g. `+491234567890`) |
 | `WHATSAPP_WEBHOOK_PORT` | No | `3000` | Webhook server port |
 | `SIGNAL_CLI_SOCKET` | No | `/var/run/signal-cli/socket` | signal-cli JSON-RPC socket path |
 | `SIGNAL_OWNER_PHONE` | Signal | — | Owner phone (e.g. `+491234567890`) |
@@ -392,7 +422,7 @@ All MCP tool calls are automatically routed through the risk classifier. The MCP
 
 ## Project Status
 
-**1199 tests passing** across 140+ suites. 40+ native tools, 6 messaging platforms, 20 local-ops tools. See [CLAUDE.md](CLAUDE.md) for the full project status checklist and roadmap.
+**1337 tests passing** across 360+ suites. 40+ native tools, 6 messaging platforms, 20 local-ops tools, 25+ E2E test suites. See [CLAUDE.md](CLAUDE.md) for the full project status checklist and roadmap.
 
 ---
 
