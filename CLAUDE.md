@@ -137,7 +137,7 @@ src/
 
 ## Testing Policy
 
-**Two-step process:** Unit test first (fast feedback), then mandatory E2E test (proof it works). See `docs/E2E_FINDINGS.md` for why.
+**Two-step process:** Unit test first (fast feedback), then mandatory E2E test (proof it works).
 
 ### Test Hierarchy
 1. **E2E Tests** (`src/e2e/live/`) — Full pipeline with real Ollama, real SQLite, real files. Run via `pnpm test:e2e`
@@ -180,8 +180,7 @@ pnpm test:e2e    # E2E tests (needs Ollama)
 | `docs/ARCHITECTURE.md` | Full architecture with diagrams |
 | `docs/ORCHESTRATOR_PROMPT.md` | System prompts for Qwen3 orchestrator |
 | `docs/PRIVACY_LAYER.md` | Privacy layer design |
-| `docs/OPENCLAW_GAP_ANALYSIS.md` | **Feature comparison OpenClaw vs geofrey — update when new features are implemented** |
+| `docs/OpenClaw_Comparison.html` | **Feature comparison OpenClaw vs geofrey — update when new features are implemented** |
 | `docs/DECISIONS.md` | Key decisions log (55+ entries with reasoning) |
-| `docs/E2E_FINDINGS.md` | E2E test findings — 6 critical bugs unit tests missed |
 | `docs/DEPLOYMENT.md` | Docker, systemd, PM2 deployment guide |
 | `docs/WHITEPAPER.md` | Project whitepaper |

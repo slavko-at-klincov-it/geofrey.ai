@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Feature Comparison: OpenClaw vs geofrey</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --border: #30363d;
+    --text: #e6edf3;
+    --text-muted: #8b949e;
+    --accent-green: #3fb950;
+    --accent-red: #f85149;
+    --accent-yellow: #d29922;
+    --accent-blue: #58a6ff;
+    --cat-bg: #1c2333;
+    --hover: #1c2128;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 2rem;
+    line-height: 1.5;
+  }
+
+  header {
+    max-width: 1060px;
+    margin: 0 auto 2rem;
+    text-align: center;
+  }
+
+  h1 { font-size: 1.75rem; font-weight: 600; margin-bottom: 0.5rem; }
+
+  .subtitle { color: var(--text-muted); font-size: 0.85rem; margin-bottom: 0.25rem; }
+
+  .sources {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+  }
+
+  .sources a { color: var(--accent-blue); text-decoration: none; }
+  .sources a:hover { text-decoration: underline; }
+
+  .totals {
+    display: flex;
+    justify-content: center;
+    gap: 2rem;
+    margin: 1.5rem 0;
+  }
+
+  .total-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1rem 2rem;
+    text-align: center;
+    min-width: 180px;
+  }
+
+  .total-card .name {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.25rem;
+  }
+
+  .total-card .number { font-size: 2.5rem; font-weight: 700; }
+  .total-card .label { font-size: 0.75rem; color: var(--text-muted); }
+  .total-card.openclaw .number { color: var(--text-muted); }
+  .total-card.geofrey .number { color: var(--accent-green); }
+
+  .table-wrap {
+    max-width: 1060px;
+    margin: 0 auto;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+
+  thead th {
+    background: var(--surface);
+    padding: 0.75rem 1rem;
+    text-align: left;
+    font-weight: 600;
+    border-bottom: 2px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+
+  thead th:nth-child(3),
+  thead th:nth-child(4) { text-align: center; width: 140px; }
+
+  tbody td { padding: 0.5rem 1rem; border-bottom: 1px solid var(--border); }
+  tbody tr:hover { background: var(--hover); }
+
+  tbody td:nth-child(3),
+  tbody td:nth-child(4) { text-align: center; font-size: 1rem; }
+
+  tr.category-row td {
+    background: var(--cat-bg);
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--accent-blue);
+    padding: 0.6rem 1rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  tr.category-row td:nth-child(3),
+  tr.category-row td:nth-child(4) {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    font-weight: 600;
+  }
+
+  .yes { color: var(--accent-green); }
+  .no { color: var(--accent-red); }
+  .partial { color: var(--accent-yellow); }
+  .note { font-size: 0.75rem; color: var(--text-muted); display: block; margin-top: 1px; }
+
+  tr.info-row td {
+    background: var(--surface);
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    font-style: italic;
+    padding: 0.4rem 1rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .summary {
+    max-width: 1060px;
+    margin: 2rem auto 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+  }
+
+  .summary-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.25rem;
+  }
+
+  .summary-card h3 { font-size: 0.9rem; margin-bottom: 0.75rem; }
+  .summary-card.geofrey h3 { color: var(--accent-green); }
+  .summary-card.openclaw h3 { color: var(--text-muted); }
+  .summary-card ul { list-style: none; padding: 0; }
+  .summary-card li { padding: 0.3rem 0; font-size: 0.85rem; color: var(--text-muted); }
+  .summary-card li strong { color: var(--text); }
+
+  @media (max-width: 640px) {
+    body { padding: 1rem; }
+    .totals { flex-direction: column; align-items: center; }
+    .summary { grid-template-columns: 1fr; }
+    thead th, tbody td { padding: 0.4rem 0.5rem; font-size: 0.8rem; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Feature Comparison: OpenClaw vs geofrey</h1>
+  <div class="subtitle">Stand: 2026-02-15</div>
+  <div class="sources">Quellen: <a href="https://openclaw.ai/">openclaw.ai</a> &middot; <a href="https://github.com/openclaw/openclaw">GitHub</a> &middot; YouTube Community Reviews</div>
+</header>
+
+<div class="totals">
+  <div class="total-card openclaw">
+    <div class="name">OpenClaw</div>
+    <div class="number">89</div>
+    <div class="label">Features</div>
+  </div>
+  <div class="total-card geofrey">
+    <div class="name">geofrey</div>
+    <div class="number">69</div>
+    <div class="label">Features</div>
+  </div>
+</div>
+
+<div class="table-wrap">
+<table>
+<thead>
+  <tr>
+    <th>#</th>
+    <th>Feature</th>
+    <th>OpenClaw</th>
+    <th>geofrey</th>
+  </tr>
+</thead>
+<tbody>
+
+<!-- UI & CLIENT -->
+<tr class="category-row"><td></td><td>UI & Client</td><td>6</td><td>3</td></tr>
+<tr><td>1</td><td>Web-Dashboard (Control UI)</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td></tr>
+<tr><td>2</td><td>WebChat</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td></tr>
+<tr><td>3</td><td>Live Canvas (A2UI)</td><td class="yes">&#10003;</td><td class="no">&#10005;</td></tr>
+<tr><td>4</td><td>Companion Apps (macOS/iOS/Android)</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td></tr>
+<tr><td>5</td><td>CLI Commands (/status, /compact, /usage, etc.)</td><td class="yes">&#10003;</td><td class="no">&#10005;</td></tr>
+<tr><td>6</td><td>Doctor Diagnostik &amp; Auto-Repair</td><td class="yes">&#10003;</td><td class="no">&#10005;</td></tr>
+
+<!-- MESSAGING PLATFORMS -->
+<tr class="category-row"><td></td><td>Messaging Platforms</td><td>10</td><td>6</td></tr>
+<tr><td>7</td><td>Telegram</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td></tr>
+<tr><td>8</td><td>WhatsApp</td><td class="partial">&#9888;<span class="note">Baileys (Ban-Risiko)</span></td><td class="yes">&#10003;<span class="note">Cloud API (offiziell)</span></td></tr>
+<tr><td>9</td><td>Signal</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td></tr>
+<tr><td>10</td><td>Slack</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td></tr>
+<tr><td>11</td><td>Discord</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td></tr>
+<tr><td>12</td><td>WebChat (built-in)</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td></tr>
+<tr><td>13</td><td>Google Chat</td><td class="yes">&#10003;</td><td class="no">&#10005;</td></tr>
+<tr><td>14</td><td>Microsoft Teams</td><td class="yes">&#10003;</td><td class="no">&#10005;</td></tr>
+<tr><td>15</td><td>Matrix</td><td class="yes">&#10003;</td><td class="no">&#10005;</td></tr>
+<tr><td>16</td><td>iMessage (BlueBubbles + legacy)</td><td class="yes">&#10003;</td><td class="no">&#10005;</td></tr>
+<tr><td>17</td><td>Zalo</td><td class="yes">&#10003;</td><td class="no">&#10005;</td></tr>
+
+<!-- MESSAGING FEATURES -->
+<tr class="category-row"><td></td><td>Messaging Features</td><td>5</td><td>0</td></tr>
+<tr><td>18</td><td>Typing Indicators</td><td class="yes">&#10003;</td><td class="no">&#10005;</td></tr>
+<tr><td>19</td><td>Presence Tracking</td><td class="yes">&#10003;</td><td class="no">&#10005;</td></tr>
+<tr><td>20</td><td>Group Routing (activation modes)</td><td class="yes">&#10003;</td><td class="no">&#10005;</td></tr>
+<tr><td>21</td><td>Channel Policies / Allowlisting</td><td class="yes">&#10003;</td><td class="no">&#10005;</td></tr>
+<tr><td>22</td><td>DM Pairing Codes</td><td class="yes">&#10003;</td><td class="no">&#10005;</td></tr>
+
+<!-- CORE TOOLS -->
+<tr class="category-row"><td></td><td>Core Tools</td><td>14</td><td>16</td></tr>
+<tr><td>23</td><td>Shell/Exec</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td></tr>
+<tr><td>24</td><td>Filesystem (CRUD)</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td></tr>
+<tr><td>25</td><td>Local-Ops (20 native Tools)</td><td class="no">&#10005;</td><td class="yes">&#10003;</td></tr>
+<tr><td>26</td><td>Git</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td></tr>
+<tr><td>27</td><td>Content Search</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td></tr>
+<tr><td>28</td><td>Claude Code Integration</td><td class="no">&#10005;</td><td class="yes">&#10003;</td></tr>
+<tr><td>29</td><td>MCP Client (native)</td><td class="partial">&#9888;<span class="note">Community</span></td><td class="yes">&#10003;</td></tr>
+<tr><td>30</td><td>Browser Automation (CDP)</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td></tr>
+<tr><td>31</td><td>Web Search</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td></tr>
+<tr><td>32</td><td>Web Fetch</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td></tr>
+<tr><td>33</td><td>Image Understanding</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td></tr>
+<tr><td>34</td><td>Process Management</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td></tr>
+<tr><td>35</td><td>Cron/Scheduler</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td></tr>
+<tr><td>36</td><td>Webhooks</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td></tr>
+<tr><td>37</td><td>Push Notifications</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td></tr>
+<tr><td>38</td><td>Auto-Tooling (Self-Extension)</td><td class="no">&#10005;</td><td class="yes">&#10003;</td></tr>
+<tr><td>39</td><td>Phone Calling (Twilio)</td><td class="yes">&#10003;</td><td class="no">&#10005;</td></tr>
+
+<!-- DEVICE CAPABILITIES -->
+<tr class="category-row"><td></td><td>Device Capabilities</td><td>4</td><td>0</td></tr>
+<tr><td>40</td><td>Camera Snap/Clip</td><td class="yes">&#10003;</td><td class="no">&#10005;</td></tr>
+<tr><td>41</td><td>Screen Recording</td><td class="yes">&#10003;</td><td class="no">&#10005;</td></tr>
+<tr><td>42</td><td>Location Services</td><td class="yes">&#10003;</td><td class="no">&#10005;</td></tr>
+<tr><td>43</td><td>SMS (Android)</td><td class="yes">&#10003;</td><td class="no">&#10005;</td></tr>
+
+<!-- VOICE & AUDIO -->
+<tr class="category-row"><td></td><td>Voice &amp; Audio</td><td>5</td><td>2</td></tr>
+<tr><td>44</td><td>STT (Whisper)</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td></tr>
+<tr><td>45</td><td>TTS (ElevenLabs)</td><td class="yes">&#10003;</td><td class="no">&#10005;<span class="note">local-only wenn nötig</span></td></tr>
+<tr><td>46</td><td>Voice Wake Word</td><td class="yes">&#10003;</td><td class="no">&#10005;</td></tr>
+<tr><td>47</td><td>Talk Mode (continuous)</td><td class="yes">&#10003;</td><td class="no">&#10005;</td></tr>
+<tr><td>48</td><td>Voice Messages</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td></tr>
+
+<!-- MEMORY -->
+<tr class="category-row"><td></td><td>Memory</td><td>6</td><td>8</td></tr>
+<tr><td>49</td><td>Conversation Persistence</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td></tr>
+<tr><td>50</td><td>Persistent Memory</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td></tr>
+<tr><td>51</td><td>Semantic Search</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td></tr>
+<tr><td>52</td><td>Auto-Recall</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td></tr>
+<tr><td>53</td><td>Structured Memory</td><td class="no">&#10005;</td><td class="yes">&#10003;</td></tr>
+<tr><td>54</td><td>Decision Conflict Guard</td><td class="no">&#10005;</td><td class="yes">&#10003;</td></tr>
+<tr><td>55</td><td>Session Compaction</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td></tr>
+<tr><td>56</td><td>Context Window Management</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td></tr>
+
+<!-- MULTI-AGENT -->
+<tr class="category-row"><td></td><td>Multi-Agent</td><td>4</td><td>4</td></tr>
+<tr><td>57</td><td>Hub-and-Spoke Routing</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td></tr>
+<tr><td>58</td><td>Agent-to-Agent Communication</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td></tr>
+<tr><td>59</td><td>Per-Agent Isolation</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td></tr>
+<tr><td>60</td><td>Per-Agent Model/Tools</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td></tr>
+
+<!-- PROACTIVE -->
+<tr class="category-row"><td></td><td>Proactive</td><td>3</td><td>3</td></tr>
+<tr><td>61</td><td>Proactive Outreach / Heartbeat</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td></tr>
+<tr><td>62</td><td>Morning Brief</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td></tr>
+<tr><td>63</td><td>Calendar / Email Watch</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td></tr>
+
+<!-- SKILLS & EXTENSIONS -->
+<tr class="category-row"><td></td><td>Skills &amp; Extensions</td><td>5</td><td>5</td></tr>
+<tr><td>64</td><td>Skill Marketplace</td><td class="yes">&#10003;<span class="note">ClawHub (700+)</span></td><td class="yes">&#10003;<span class="note">Curated, SHA-256</span></td></tr>
+<tr><td>65</td><td>Skill Format</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td></tr>
+<tr><td>66</td><td>Skill Auto-Generation</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td></tr>
+<tr><td>67</td><td>Skill Permissions</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td></tr>
+<tr><td>68</td><td>Smart Home (Hue/HA/Sonos)</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td></tr>
+
+<!-- 3RD-PARTY INTEGRATIONS -->
+<tr class="category-row"><td></td><td>3rd-Party Integrations</td><td>9</td><td>2</td></tr>
+<tr><td>69</td><td>Gmail</td><td class="yes">&#10003;<span class="note">Pub/Sub Echtzeit</span></td><td class="yes">&#10003;<span class="note">OAuth2 + API</span></td></tr>
+<tr><td>70</td><td>Google Calendar</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td></tr>
+<tr><td>71</td><td>GitHub</td><td class="yes">&#10003;</td><td class="no">&#10005;</td></tr>
+<tr><td>72</td><td>Spotify</td><td class="yes">&#10003;</td><td class="no">&#10005;</td></tr>
+<tr><td>73</td><td>Obsidian</td><td class="yes">&#10003;</td><td class="no">&#10005;</td></tr>
+<tr><td>74</td><td>Twitter/X</td><td class="yes">&#10003;</td><td class="no">&#10005;</td></tr>
+<tr><td>75</td><td>Todoist</td><td class="yes">&#10003;</td><td class="no">&#10005;</td></tr>
+<tr><td>76</td><td>WHOOP</td><td class="yes">&#10003;</td><td class="no">&#10005;</td></tr>
+<tr><td>77</td><td>Sentry</td><td class="yes">&#10003;</td><td class="no">&#10005;</td></tr>
+<tr class="info-row"><td></td><td colspan="3">OpenClaw hat 50+ Integrations via ClawHub Skills (WordPress, Cloudflare, Hetzner, Lemonade, Google Cloud Console, etc.)</td></tr>
+
+<!-- SECURITY & PRIVACY -->
+<tr class="category-row"><td></td><td>Security &amp; Privacy</td><td>2</td><td>13</td></tr>
+<tr><td>78</td><td>Risk Classification (L0&ndash;L3)</td><td class="no">&#10005;</td><td class="yes">&#10003;</td></tr>
+<tr><td>79</td><td>Hybrid Classification (Regex+LLM)</td><td class="no">&#10005;</td><td class="yes">&#10003;</td></tr>
+<tr><td>80</td><td>Approval System (blocking gate)</td><td class="no">&#10005;</td><td class="yes">&#10003;</td></tr>
+<tr><td>81</td><td>Command Decomposition (shlex)</td><td class="no">&#10005;</td><td class="yes">&#10003;</td></tr>
+<tr><td>82</td><td>Prompt Injection Defense (3-Layer)</td><td class="no">&#10005;</td><td class="yes">&#10003;</td></tr>
+<tr><td>83</td><td>MCP Security (sanitize/allowlist/validate)</td><td class="no">&#10005;</td><td class="yes">&#10003;</td></tr>
+<tr><td>84</td><td>Image Metadata Sanitization</td><td class="no">&#10005;</td><td class="yes">&#10003;</td></tr>
+<tr><td>85</td><td>Privacy Rules DB</td><td class="no">&#10005;</td><td class="yes">&#10003;</td></tr>
+<tr><td>86</td><td>Image Privacy Classification (VL)</td><td class="no">&#10005;</td><td class="yes">&#10003;</td></tr>
+<tr><td>87</td><td>Email Anonymization</td><td class="no">&#10005;</td><td class="yes">&#10003;</td></tr>
+<tr><td>88</td><td>Output Credential Filter</td><td class="no">&#10005;</td><td class="yes">&#10003;</td></tr>
+<tr><td>89</td><td>Filesystem Confinement</td><td class="no">&#10005;</td><td class="yes">&#10003;</td></tr>
+<tr><td>90</td><td>Docker Sandbox / Session Isolation</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td></tr>
+<tr><td>91</td><td>Elevated Bash Control / Allowlisting</td><td class="yes">&#10003;</td><td class="no">&#10005;</td></tr>
+
+<!-- MULTI-MODEL -->
+<tr class="category-row"><td></td><td>Multi-Model</td><td>6</td><td>2</td></tr>
+<tr><td>92</td><td>Anthropic Claude</td><td class="yes">&#10003;</td><td class="yes">&#10003;<span class="note">via Claude Code</span></td></tr>
+<tr><td>93</td><td>Ollama (local)</td><td class="yes">&#10003;</td><td class="yes">&#10003;<span class="note">Orchestrator</span></td></tr>
+<tr><td>94</td><td>OpenAI GPT</td><td class="yes">&#10003;</td><td class="no">&#10005;</td></tr>
+<tr><td>95</td><td>Google Gemini</td><td class="yes">&#10003;</td><td class="no">&#10005;</td></tr>
+<tr><td>96</td><td>DeepSeek / MiniMax</td><td class="yes">&#10003;</td><td class="no">&#10005;</td></tr>
+<tr><td>97</td><td>Model Failover / Rotation</td><td class="yes">&#10003;</td><td class="no">&#10005;</td></tr>
+
+<!-- COST & MONITORING -->
+<tr class="category-row"><td></td><td>Cost &amp; Monitoring</td><td>3</td><td>3</td></tr>
+<tr><td>98</td><td>Cost Tracking</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td></tr>
+<tr><td>99</td><td>Budget Alerts</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td></tr>
+<tr><td>100</td><td>Per-Request Cost Display</td><td class="no">&#10005;</td><td class="yes">&#10003;</td></tr>
+<tr><td>101</td><td>Monitoring Dashboard</td><td class="yes">&#10003;</td><td class="no">&#10005;</td></tr>
+
+<!-- DEPLOYMENT -->
+<tr class="category-row"><td></td><td>Deployment</td><td>8</td><td>2</td></tr>
+<tr><td>102</td><td>Docker / Compose</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td></tr>
+<tr><td>103</td><td>systemd / PM2</td><td class="yes">&#10003;</td><td class="yes">&#10003;</td></tr>
+<tr><td>104</td><td>launchd (macOS)</td><td class="yes">&#10003;</td><td class="no">&#10005;</td></tr>
+<tr><td>105</td><td>Tailscale Serve / Funnel</td><td class="yes">&#10003;</td><td class="no">&#10005;</td></tr>
+<tr><td>106</td><td>SSH Tunneling</td><td class="yes">&#10003;</td><td class="no">&#10005;</td></tr>
+<tr><td>107</td><td>Cloud Templates (DO/AWS/Hetzner)</td><td class="yes">&#10003;</td><td class="no">&#10005;</td></tr>
+<tr><td>108</td><td>Nix Package Manager</td><td class="yes">&#10003;</td><td class="no">&#10005;</td></tr>
+<tr><td>109</td><td>Release Channels (stable/beta/dev)</td><td class="yes">&#10003;</td><td class="no">&#10005;</td></tr>
+
+</tbody>
+</table>
+</div>
+
+<div class="summary">
+  <div class="summary-card geofrey">
+    <h3>Wo geofrey starker ist</h3>
+    <ul>
+      <li><strong>Security &amp; Privacy</strong> (13 vs 2) &mdash; Privacy Layer, Approval Gates, Anonymization, Image Classification, Prompt Injection Defense, Output Filter. OpenClaw hat laut Community &ldquo;zero guardrails&rdquo;.</li>
+      <li><strong>Memory</strong> (8 vs 6) &mdash; Structured Memory, Decision Conflict Guard. OpenClaw verliert Kontext bei Compaction (Memory Flush default OFF).</li>
+      <li><strong>Core Tools</strong> (16 vs 14) &mdash; Local-Ops (20 native, 0 Cloud-Tokens), Claude Code Integration, Auto-Tooling (Self-Extension), nativer MCP Client.</li>
+      <li><strong>Kosten</strong> &mdash; Lokaler Orchestrator + Local-Ops spart 80-90% vs. OpenClaw ($5-20/Mo vs. $200-600/Mo).</li>
+      <li><strong>WhatsApp</strong> &mdash; Offizielle Cloud API vs. Baileys (Ban-Risiko bei OpenClaw).</li>
+    </ul>
+  </div>
+  <div class="summary-card openclaw">
+    <h3>Wo OpenClaw starker ist</h3>
+    <ul>
+      <li><strong>Messaging</strong> (10+5 vs 6+0) &mdash; Google Chat, Teams, Matrix, iMessage, Zalo + Typing, Presence, Group Routing, DM Pairing</li>
+      <li><strong>3rd-Party Integrations</strong> (9+ vs 2) &mdash; GitHub, Spotify, Obsidian, Twitter/X, Todoist, WHOOP, Sentry + 40 weitere via ClawHub</li>
+      <li><strong>Deployment</strong> (8 vs 2) &mdash; Tailscale, SSH, Cloud Templates, Nix, Release Channels, launchd</li>
+      <li><strong>Multi-Model</strong> (6 vs 2) &mdash; OpenAI, Gemini, DeepSeek, MiniMax, Model Failover</li>
+      <li><strong>Voice</strong> (5 vs 2) &mdash; TTS, Voice Wake, Talk Mode</li>
+      <li><strong>Device</strong> (4 vs 0) &mdash; Camera, Screen Recording, Location, SMS via Companion Apps</li>
+      <li><strong>UI</strong> (6 vs 3) &mdash; Live Canvas, CLI Commands, Doctor Diagnostik</li>
+    </ul>
+  </div>
+</div>
+
+</body>
+</html>
