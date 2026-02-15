@@ -59,15 +59,6 @@ User (Telegram) → Orchestrator (Qwen3 8B) → Hybrid Risk Classifier (L0-L3)
 | L2 | REQUIRE_APPROVAL | **Block until user taps Approve** (deletes, commits, installs) |
 | L3 | BLOCK | Refuse always (rm -rf, sudo, curl\|sh, push --force) |
 
-## Key Files
-| File | Purpose |
-|------|---------|
-| `CLAUDE.md` | Project context (this file, auto-loaded) |
-| `docs/ARCHITECTURE.md` | Full architecture with diagrams |
-| `docs/ORCHESTRATOR_PROMPT.md` | System prompts for Qwen3 orchestrator (3 focused prompts) |
-| `src/` | Source code (TypeScript) |
-| `src/onboarding/check.ts` | Claude Code startup check + onboarding messages |
-
 ## Project Structure
 ```
 src/
@@ -76,13 +67,7 @@ src/
 │   ├── agent-loop.ts        # Vercel AI SDK ToolLoopAgent wrapper
 │   ├── conversation.ts      # Multi-turn conversation manager
 │   ├── prompt-generator.ts  # Task templates for downstream models
-│   └── compaction/
-│       ├── token-counter.ts # Token estimation + context usage tracking
-│       ├── compactor.ts     # Ollama-based summarization + memory flush
-│       ├── pruner.ts        # Tool result truncation + old message splitting
-│       ├── token-counter.test.ts
-│       ├── compactor.test.ts
-│       └── pruner.test.ts
+│   └── compaction/          # Token counting, summarization, pruning
 ├── approval/
 │   ├── risk-classifier.ts   # Hybrid: deterministic patterns + LLM fallback
 │   └── approval-gate.ts     # Promise-based blocking gate (nonce IDs)
@@ -90,18 +75,8 @@ src/
 │   ├── platform.ts          # MessagingPlatform interface + types
 │   ├── create-platform.ts   # Async factory: config → adapter
 │   ├── streamer.ts          # Platform-agnostic token streaming
-│   ├── image-handler.ts     # Image processing pipeline (sanitize → OCR → store → describe)
-│   ├── image-handler.test.ts
-│   └── adapters/
-│       ├── telegram.ts      # grammY bot + approval UI (inline buttons)
-│       ├── whatsapp.ts      # WhatsApp Business API (Cloud API, webhook)
-│       ├── signal.ts        # signal-cli JSON-RPC (text-based approvals)
-│       ├── webchat.ts       # WebChat adapter (SSE streaming, REST API)
-│       ├── webchat.test.ts
-│       ├── slack.ts         # Slack adapter (@slack/bolt Socket Mode, Block Kit buttons)
-│       ├── slack.test.ts
-│       ├── discord.ts       # Discord adapter (discord.js Gateway Intents, Button components)
-│       └── discord.test.ts
+│   ├── image-handler.ts     # Image processing pipeline
+│   └── adapters/            # telegram, whatsapp, signal, webchat, slack, discord
 ├── tools/
 │   ├── tool-registry.ts     # Tool schema + handler registry (native + MCP)
 │   ├── mcp-client.ts        # MCP server discovery + tool wrapping
@@ -111,474 +86,83 @@ src/
 │   ├── git.ts               # Git operations
 │   ├── web-search.ts        # SearXNG + Brave Search providers
 │   ├── web-fetch.ts         # URL fetch + HTML→Markdown converter
-│   ├── memory.ts            # memory_read, memory_write, memory_search tools
-│   ├── cron.ts              # Cron job management tool (create/list/delete)
-│   ├── browser.ts           # Browser automation tool (9 CDP actions)
-│   ├── skill.ts             # Skill management tool (list/install/enable/disable/generate)
-│   ├── webhook.ts           # Webhook management tool (create/list/delete/test)
-│   ├── process.ts           # Process management tool (spawn/list/check/kill/logs)
-│   ├── agents.ts            # Agent management tool (list/send/history)
-│   ├── search.ts            # Recursive content search (regex, max 20 results)
-│   ├── project-map.ts       # Project structure queries (.geofrey/project-map.json)
-│   ├── tts.ts               # TTS tool (speak, list_voices)
-│   ├── companion.ts         # Companion tool (pair/unpair/list/push)
-│   ├── smart-home.ts        # Smart home tool (discover/list/control/scene)
-│   ├── gmail.ts             # Gmail tool (auth/list/read/send/label/delete)
-│   ├── calendar.ts          # Calendar tool (auth/list/get/create/update/delete)
-│   ├── privacy.ts           # Privacy rules tool (create/list/delete/export)
-│   └── auto-tooling.ts      # Auto-tooling tool (detect_gap/build/validate/register)
-├── local-ops/
-│   ├── helpers.ts           # confine(), formatSize(), formatDate(), walkDir()
-│   ├── file-ops.ts          # mkdir, copy_file, move_file, file_info, find_files, search_replace
-│   ├── dir-ops.ts           # tree, dir_size
-│   ├── text-ops.ts          # text_stats, head, tail, diff_files, sort_lines, base64, count_lines
-│   ├── system-ops.ts        # system_info, disk_space, env_get
-│   ├── archive-ops.ts       # archive_create, archive_extract (tar.gz)
-│   ├── register.ts          # Tool registration for all 20 local-ops
-│   ├── file-ops.test.ts
-│   ├── dir-ops.test.ts
-│   ├── text-ops.test.ts
-│   ├── system-ops.test.ts
-│   └── archive-ops.test.ts
-├── auto-tooling/
-│   ├── detector.ts          # Capability gap detection (16 categories, 10 regex patterns)
-│   ├── context-collector.ts # Requirements collection from memory + profile
-│   ├── claude-md-generator.ts # Hybrid CLAUDE.md generation (user prefs + tech conventions)
-│   ├── prompt-builder.ts    # Claude Code prompt construction + flags
-│   ├── launcher.ts          # Docker-isolated Claude Code invocation (30min timeout)
-│   ├── validator.ts         # Post-build artifact validation
-│   └── registrar.ts         # Cron job / background process registration
-├── memory/
-│   ├── store.ts             # MEMORY.md read/write/append + daily notes
-│   ├── embeddings.ts        # Ollama embeddings + cosine similarity search + incremental indexing
-│   ├── recall.ts            # Auto-recall (semantic search + threshold + category boosting)
-│   ├── structured.ts        # Categorized memory entries (parse/format/append to sections)
-│   ├── guard.ts             # Decision conflict detection (semantic search + negation)
-│   ├── store.test.ts
-│   ├── embeddings.test.ts
-│   ├── structured.test.ts
-│   └── guard.test.ts
-├── automation/
-│   ├── cron-parser.ts       # 5-field cron expression parser + next-run
-│   ├── scheduler.ts         # Job scheduler (30s tick, retry backoff)
-│   ├── cron-parser.test.ts
-│   └── scheduler.test.ts
-├── billing/
-│   ├── pricing.ts           # Model pricing table + cost calculator
-│   ├── usage-logger.ts      # Per-request usage logging + daily aggregates
-│   ├── budget-monitor.ts    # Budget threshold alerts (50/75/90%)
-│   ├── format.ts            # Per-request cost line formatting (cloud/local tokens)
-│   ├── pricing.test.ts
-│   ├── usage-logger.test.ts
-│   ├── budget-monitor.test.ts
-│   └── format.test.ts
-├── browser/
-│   ├── launcher.ts          # Chrome binary discovery, CDP launch/connect/close
-│   ├── snapshot.ts          # Accessibility tree extraction + node search
-│   ├── actions.ts           # Navigate, click, fill, screenshot, evaluate, waitForSelector
-│   ├── launcher.test.ts
-│   ├── snapshot.test.ts
-│   └── actions.test.ts
-├── skills/
-│   ├── format.ts            # SKILL.md YAML frontmatter parser + serializer
-│   ├── registry.ts          # Skill discovery, loading, enable/disable, generate
-│   ├── injector.ts          # buildSkillContext() for system prompt injection
-│   ├── marketplace.ts       # Marketplace fetch, search, install, templates
-│   ├── verification.ts      # SHA-256 hash verification
-│   ├── templates.ts         # 5 built-in skill templates
-│   ├── format.test.ts
-│   └── registry.test.ts
-├── voice/
-│   ├── transcriber.ts       # OpenAI Whisper API + local whisper.cpp
-│   ├── converter.ts         # ffmpeg audio → WAV 16kHz mono conversion
-│   ├── synthesizer.ts       # ElevenLabs TTS (LRU cache, text splitting)
-│   ├── transcriber.test.ts
-│   ├── converter.test.ts
-│   └── synthesizer.test.ts
-├── sandbox/
-│   ├── container.ts         # Docker container lifecycle (create/exec/destroy)
-│   ├── session-pool.ts      # Per-session container pool management
-│   ├── volume-mount.ts      # Safe volume mounting + path validation
-│   ├── container.test.ts
-│   ├── session-pool.test.ts
-│   └── volume-mount.test.ts
-├── webhooks/
-│   ├── router.ts            # Route registry + HMAC auth + rate limiting
-│   ├── handler.ts           # Event templates (GitHub/Stripe/generic)
-│   ├── server.ts            # HTTP webhook server
-│   ├── router.test.ts
-│   ├── handler.test.ts
-│   └── server.test.ts
-├── process/
-│   ├── manager.ts           # Background process spawn/kill/logs
-│   └── manager.test.ts
-├── agents/
-│   ├── agent-config.ts      # AgentConfig type + Zod schema, specialist templates
-│   ├── hub.ts               # Hub-and-Spoke router (skill/intent/explicit routing)
-│   ├── session-manager.ts   # Per-agent chat namespacing
-│   ├── communication.ts     # Inter-agent message passing
-│   ├── agent-config.test.ts
-│   ├── hub.test.ts
-│   ├── session-manager.test.ts
-│   └── communication.test.ts
-├── companion/
-│   ├── device-registry.ts   # In-memory device store (CRUD)
-│   ├── pairing.ts           # 6-digit pairing codes (5min TTL)
-│   ├── push.ts              # APNS (node:http2) + FCM push notifications
-│   ├── ws-server.ts         # WebSocket server (ws) with heartbeat
-│   ├── device-registry.test.ts
-│   ├── pairing.test.ts
-│   ├── push.test.ts
-│   └── ws-server.test.ts
-├── integrations/
-│   ├── hue.ts               # Philips Hue API v2 client
-│   ├── homeassistant.ts     # HomeAssistant REST API client
-│   ├── sonos.ts             # Sonos HTTP API client
-│   ├── discovery.ts         # SSDP/nUPnP device discovery
-│   ├── hue.test.ts
-│   ├── homeassistant.test.ts
-│   ├── sonos.test.ts
-│   ├── discovery.test.ts
-│   └── google/
-│       ├── auth.ts          # Google OAuth2 (token cache, auto-refresh)
-│       ├── gmail.ts         # Gmail API (list, read, send, label, delete)
-│       ├── calendar.ts      # Google Calendar API (CRUD events)
-│       ├── auth.test.ts
-│       ├── gmail.test.ts
-│       └── calendar.test.ts
-├── privacy/
-│   ├── rules-store.ts       # Privacy rules CRUD (Drizzle ORM, SQLite)
-│   ├── profile-pii.ts       # Extract PII terms from user profile
-│   ├── image-classifier.ts  # Qwen3-VL-2B on-demand image classification
-│   ├── email-preprocessor.ts # Email anonymization before Claude Code
-│   ├── output-filter.ts     # Credential redaction in Claude Code output
-│   ├── privacy-approval.ts  # Privacy decision flow + rule creation
-│   ├── rules-store.test.ts
-│   ├── rules-integration.test.ts
-│   ├── profile-pii.test.ts
-│   ├── image-classifier.test.ts
-│   ├── email-preprocessor.test.ts
-│   ├── output-filter.test.ts
-│   └── privacy-approval.test.ts
-├── profile/
-│   ├── schema.ts            # Zod user profile schema (calendar/notes/tasks/proactive)
-│   ├── store.ts             # JSON persistence (.geofrey/profile.json) + caching
-│   ├── inject.ts            # XML profile context for system prompt injection
-│   ├── schema.test.ts
-│   ├── store.test.ts
-│   └── inject.test.ts
-├── proactive/
-│   ├── collector.ts         # Data collection (calendar events, emails, memory)
-│   ├── templates.ts         # Prompt templates (morning brief, reminders, alerts)
-│   ├── dedup.ts             # Calendar reminder deduplication (24h TTL)
-│   ├── handler.ts           # Proactive job dispatcher (__proactive_ prefix routing)
-│   ├── setup.ts             # Cron job creation from profile settings
-│   ├── collector.test.ts
-│   ├── templates.test.ts
-│   ├── dedup.test.ts
-│   ├── handler.test.ts
-│   └── setup.test.ts
-├── indexer/
-│   ├── cli.ts               # CLI entry point (geofrey index / pnpm index)
-│   ├── index.ts             # Incremental project indexer (AST parsing)
-│   ├── parser.ts            # TypeScript Compiler API → exports/imports
-│   ├── summary.ts           # File categorization + summary generation
-│   └── index.test.ts        # Indexer tests
-├── e2e/
-│   └── agent-flow.test.ts   # End-to-end integration tests
-├── dashboard/
-│   └── public/
-│       ├── index.html       # Single-page chat UI
-│       ├── style.css        # Dark theme, responsive
-│       └── app.js           # SSE client + markdown rendering
-├── security/
-│   ├── image-sanitizer.ts   # EXIF/XMP/IPTC stripping + injection scanning
-│   └── image-sanitizer.test.ts
-├── audit/
-│   └── audit-log.ts         # Hash-chained JSONL
-├── db/
-│   ├── client.ts            # better-sqlite3 + Drizzle setup
-│   └── schema.ts            # Drizzle table definitions
-├── onboarding/
-│   ├── check.ts             # Claude Code startup check + onboarding messages
-│   ├── setup.ts             # CLI entry point (pnpm setup)
-│   ├── wizard.ts            # Interactive setup wizard orchestrator
-│   ├── steps/
-│   │   ├── prerequisites.ts # Node/Ollama/Claude Code checks
-│   │   ├── platform.ts      # Platform selection
-│   │   ├── telegram.ts      # Bot token + auto-ID detection
-│   │   ├── whatsapp.ts      # WhatsApp Business setup
-│   │   ├── signal.ts        # Signal setup
-│   │   ├── slack.ts         # Slack setup (bot token, app token, channel)
-│   │   ├── discord.ts       # Discord setup (bot token, channel)
-│   │   ├── claude-auth.ts   # Claude Code authentication
-│   │   ├── profile.ts      # User profile collection (name, timezone, style)
-│   │   ├── integrations.ts # Calendar/Notes/Tasks app selection + OAuth
-│   │   ├── proactive.ts    # Morning brief, calendar watch, email monitor setup
-│   │   └── summary.ts       # Config review + .env generation + profile save
-│   └── utils/
-│       ├── ui.ts            # chalk/ora formatting
-│       ├── prompt.ts        # German prompt wrappers (@inquirer/prompts)
-│       ├── validate.ts      # Token/credential validators
-│       ├── clipboard.ts     # clipboardy wrapper
-│       └── ocr.ts           # tesseract.js OCR pipeline
-├── i18n/
-│   ├── index.ts             # t(), setLocale(), getLocale()
-│   ├── keys.ts              # TranslationKey union type
-│   ├── index.test.ts        # i18n tests
-│   └── locales/
-│       ├── de.ts            # German translations
-│       └── en.ts            # English translations
-└── config/
-    ├── defaults.ts          # Default settings
-    └── schema.ts            # Zod config validation
+│   ├── memory.ts            # memory_read, memory_write, memory_search
+│   ├── cron.ts              # Cron job management
+│   ├── browser.ts           # Browser automation (9 CDP actions)
+│   ├── skill.ts             # Skill management
+│   ├── webhook.ts           # Webhook management
+│   ├── process.ts           # Process management
+│   ├── agents.ts            # Agent management
+│   ├── search.ts            # Recursive content search
+│   ├── project-map.ts       # Project structure queries
+│   ├── tts.ts               # TTS tool
+│   ├── companion.ts         # Companion device pairing + push
+│   ├── smart-home.ts        # Smart home control
+│   ├── gmail.ts             # Gmail tool
+│   ├── calendar.ts          # Calendar tool
+│   ├── privacy.ts           # Privacy rules tool
+│   └── auto-tooling.ts      # Auto-tooling (gap detect/build/validate/register)
+├── local-ops/               # 20 native local tools (file, dir, text, system, archive ops)
+├── auto-tooling/            # Gap detection, context collection, Docker launcher, validation
+├── memory/                  # MEMORY.md store, embeddings, recall, structured entries, guard
+├── automation/              # Cron parser, scheduler (30s tick, retry backoff)
+├── billing/                 # Pricing, usage logging, budget alerts, cost formatting
+├── browser/                 # Chrome CDP launcher, accessibility snapshots, actions
+├── skills/                  # SKILL.md parser, registry, injector, marketplace, templates
+├── voice/                   # Whisper STT, ffmpeg converter, TTS synthesizer
+├── sandbox/                 # Docker container lifecycle, session pool, volume mounts
+├── webhooks/                # Route registry, HMAC auth, HTTP server
+├── process/                 # Background process spawn/kill/logs
+├── agents/                  # Agent config, Hub-and-Spoke router, session manager
+├── companion/               # Device registry, 6-digit pairing, APNS/FCM push, WebSocket
+├── integrations/            # Hue, HomeAssistant, Sonos, SSDP discovery, Google OAuth/Gmail/Calendar
+├── privacy/                 # Rules store, PII extraction, image classifier, email/output filters
+├── profile/                 # Zod schema, JSON persistence, system prompt injection
+├── proactive/               # Data collector, prompt templates, dedup, handler, setup
+├── indexer/                 # CLI entry, incremental project indexer, TS parser
+├── e2e/                     # End-to-end integration tests
+├── dashboard/public/        # Chat UI (HTML/CSS/JS, dark theme, SSE)
+├── security/                # Image sanitizer (EXIF/XMP/IPTC stripping)
+├── audit/                   # Hash-chained JSONL audit log
+├── db/                      # better-sqlite3 + Drizzle setup + schema
+├── onboarding/              # Setup wizard, platform steps, validation utils
+├── i18n/                    # t(), setLocale(), typed keys, de + en locales
+└── config/                  # Defaults + Zod config validation
 ```
-
-## Project Status
-- [x] Project initialized
-- [x] Research: local LLM options → **Qwen3 8B default** (configurable via `ORCHESTRATOR_MODEL`)
-- [x] Research: OpenClaw architecture analysis
-- [x] Research: system prompts knowledge base
-- [x] Architecture design → `docs/ARCHITECTURE.md`
-- [x] Orchestrator system prompt → `docs/ORCHESTRATOR_PROMPT.md`
-- [x] Review: Architecture, prompt, tech stack, competition (4-agent review)
-- [x] Project scaffolding (package.json, tsconfig, etc.)
-- [x] Core: Vercel AI SDK + Ollama integration + agent loop
-- [x] Core: Hybrid risk classifier + approval gate
-- [x] Core: Telegram bot (grammY) + approval UI
-- [x] Core: Tool executors (shell, filesystem, git)
-- [x] Core: MCP client + tool wrapping
-- [x] Integration: Claude Code subprocess driver
-- [x] DB: Drizzle schema + migrations
-- [x] Audit log
-- [x] Unit tests (~1199 tests — node:test runner)
-- [x] Security: obfuscation-resistant L3 patterns (path variants, script network, base64, chmod +x)
-- [x] Security: MCP output sanitization (DATA boundary tags, instruction filtering)
-- [x] Security: MCP server allowlist (`mcp.allowedServers` config)
-- [x] Security: XML-based LLM classifier output (more reliable with Qwen3 8B, JSON fallback)
-- [x] Security: shlex-style command decomposition (prevents chained command bypass)
-- [x] Fix: Claude Code output token limit retry + raised cap
-- [x] Claude Code CLI driver rewrite (stream-json, sessions, tool scoping, streaming callbacks)
-- [x] Config expansion (toolProfiles, sessionTtl, outputFormat, defaultDirs, mcpConfigPath)
-- [x] Orchestrator prompt upgrade (4-way intent: QUESTION/SIMPLE_TASK/CODING_TASK/AMBIGUOUS)
-- [x] Prompt generator upgrade (8 templates, buildClaudeCodePrompt, scopeToolsForRisk)
-- [x] Claude Code streaming integration (live Telegram updates)
-- [x] Session tracking + audit log extension
-- [x] Multi-platform messaging (Telegram + WhatsApp + Signal)
-- [x] Onboarding: ANTHROPIC_API_KEY support + Claude Code startup check
-- [x] Interactive setup wizard (`pnpm setup`) — auto-detection, OCR, clipboard, validation
-- [x] Windows compatibility (shell executor, Signal named pipes, OCR, detached processes)
-- [x] Security: filesystem directory confinement (reject paths outside cwd)
-- [x] Security: MCP response validation (Zod schema instead of unsafe type assertions)
-- [x] Signal adapter graceful shutdown (reject pending JSON-RPC requests)
-- [x] DB schema versioning (`schema_version` table for future migrations)
-- [x] i18n: German + English with `t()` function, typed keys, `LOCALE` config
-- [x] Security: image metadata sanitizer (EXIF/XMP/IPTC stripping, injection scanning, sharp)
-- [x] E2E integration tests (32 tests — agent flow, audit, approval, streaming)
-- [x] Ollama error handling (3 retries, user-friendly connection errors)
-- [x] Human-readable startup config errors (Zod → env var mapping)
-- [x] Docker support (Dockerfile, docker-compose.yml with Ollama + GPU)
-- [x] Deployment guide (Docker, systemd, PM2)
-- [x] npm CLI entry point (`geofrey` / `geofrey setup`)
-- [x] CHANGELOG.md
-- [x] ~~v1.0.0 release~~ (deleted due to bugs)
-- [x] ~~v1.0.1 release~~ (deleted due to bugs)
-- [x] Image upload support (Telegram/WhatsApp/Signal → sanitize → OCR → text description to orchestrator)
-- [x] OpenClaw gap analysis → `docs/OPENCLAW_GAP_ANALYSIS.md`
-- [x] Web-Dashboard + WebChat (SSE streaming, REST API, Bearer auth, dark theme UI)
-- [x] Persistent Memory (MEMORY.md store, Ollama embeddings, cosine similarity search)
-- [x] Web Search + Web Fetch (SearXNG + Brave Search, HTML→Markdown converter)
-- [x] Cron/Scheduler (5-field cron parser, persistent jobs, exponential retry backoff)
-- [x] Cost Tracking (per-request logging, daily aggregates, budget threshold alerts)
-- [x] Browser Automation (Chrome DevTools Protocol, accessibility tree snapshots, CDP actions)
-- [x] Skill System (SKILL.md YAML frontmatter, registry, permissions manifest, auto-generation)
-- [x] Slack + Discord Adapters (@slack/bolt Socket Mode, discord.js Gateway Intents)
-- [x] Voice Messages STT (OpenAI Whisper API + local whisper.cpp, ffmpeg audio conversion)
-- [x] Session Compaction (token counting, auto-compaction at 75% context, pre-compaction memory flush)
-- [x] Docker Sandbox per Session (container lifecycle, session pool, volume mounting, health checks)
-- [x] Webhook Triggers (HTTP server, HMAC auth, rate limiting, GitHub/Stripe/generic templates)
-- [x] Process Management Tool (spawn, kill, logs, SIGTERM→SIGKILL escalation)
-- [x] TTS via ElevenLabs (speech synthesis, LRU cache, text splitting)
-- [x] Multi-Agent Routing (Hub-and-Spoke, 3 routing strategies, per-agent session isolation)
-- [x] Skill Marketplace (curated repository, SHA-256 hash verification, 5 built-in templates)
-- [x] Companion Apps Backend (WebSocket server, 6-digit pairing, APNS/FCM push)
-- [x] Smart Home Integration (Philips Hue API v2, HomeAssistant REST, Sonos HTTP, SSDP/mDNS discovery)
-- [x] Gmail/Calendar Automation (Google OAuth2, Gmail API, Google Calendar API)
-- [x] User Profile System (Zod schema, JSON persistence, system prompt injection)
-- [x] Extended Onboarding (profile, integrations, proactive wizard steps)
-- [x] Proactive Agent (Morning Brief, Calendar Watch, Email Monitor via scheduler)
-- [x] Memory System Wiring (autoRecall, startup indexing, structured entries, decision conflict guard, re-index triggers)
-- [x] Privacy Layer v2.1 (privacy_rules DB, image classifier, email pre-processing, output filter, approval flow, profile→anonymizer)
-- [x] Auto-Tooling v2.2 (gap detection, context collection, CLAUDE.md generation, Docker launcher, post-build validation, cron/process registration)
-- [x] Local-First Execution v2.3 (20 native local-ops tools, per-request cost display)
 
 ## Roadmap
 
-### Completed — Privacy Layer (v2.1)
-- [x] Privacy Memory: `privacy_rules` SQLite table + MD export + CRUD tool
-- [x] Approval flow: "Soll ich X anonymisieren? Global oder nur hier?"
-- [x] Image classifier: Qwen3-VL-2B on-demand (load → process → unload)
-- [x] Image routing: category → OCR-only / describe / block (faces → block)
-- [x] Email pre-processing: anonymize headers/body before Claude Code
-- [x] Hard block enforcement: output filter redacts leaked credentials
-- [x] Rule lookup in anonymizer: check privacy_rules DB before LLM pass (allow/anonymize/block)
-- [x] Profile → Anonymizer: Name, VIP-Emails als custom PII-Patterns beim Startup
-- [x] Proaktive Tasks: expliziter `SIMPLE_TASK`-Hint in Templates
-- [ ] Benchmark: Risk Classifier LLM path — `pnpm benchmark:classifier qwen3:8b` (deferred)
-
-### Completed — Auto-Tooling / Self-Extending Agent (v2.2)
-
-Wenn geofrey eine Aufgabe nicht mit bestehenden Tools erfüllen kann, erkennt er die Lücke und bietet an, ein eigenständiges Programm dafür zu bauen — vollautomatisch via Claude Code in einem Docker-Container.
-
-**Flow:**
-1. Orchestrator erkennt Capability-Gap → fragt User: "Soll ich ein Programm dafür entwickeln?"
-2. User bestätigt → Qwen3 sammelt Kontext (Was? Welche APIs? Welche Constraints?)
-3. Anonymizer entfernt PII aus dem Kontext
-4. Docker-Container → neuer Projektordner unter `.geofrey/projects/{slug}/`
-5. CLAUDE.md wird generiert (Hybrid: geofrey + Claude Code, siehe unten)
-6. `claude --dangerously-skip-permissions` im Container mit perfektem Prompt
-7. Fertiges Programm → Cron-Job / Background-Process registrieren
-8. User sieht nur: "Dein Programm läuft jetzt alle 30 Minuten."
-
-**CLAUDE.md-Generierung (Hybrid-Ansatz):**
-1. **geofrey generiert User-Preferences-Sektion direkt** — liest strukturierte Memory-Sektionen (wants, doesnt-want, preferences, decisions), baut daraus deterministische Abschnitte. Kein Token-Overhead, reproduzierbar.
-2. **Claude Code ergänzt Projekt-spezifische Sektion** — Conventions, Architecture, Tech-Stack-Patterns. Claude Code kennt den Code-Kontext und kann projektspezifische Rules ableiten.
-3. **Kombiniert:** geofrey schreibt die initiale CLAUDE.md (User-Wünsche + "Was wir nicht wollen"), dann erweitert Claude Code sie nach dem ersten Scaffolding um technische Conventions.
-
-**Autonome Ausführung — Kontrollierte Properties:**
-- [x] `claude --dangerously-skip-permissions` nur innerhalb Docker-Container (nie auf Host)
-- [x] `--max-turns 50` begrenzt Agent-Loops (verhindert Endlosschleifen)
-- [x] `--output-format stream-json` für Live-Fortschritt an geofrey zurück
-- [x] Projekt-Isolation: jedes Auto-Tool bekommt eigenen Container + Volume
-- [x] Timeout: 30 Min maximale Laufzeit pro Build, danach SIGTERM
-- [x] Exit-Code-Prüfung: Claude Code Exit 0 = Erfolg, sonst User informieren
-- [x] Test-Pflicht im Prompt: "Write tests and ensure `npm test` passes before finishing"
-- [x] Post-Build-Validator: package.json, source files, test files, CLAUDE.md, no sensitive files
-
-**Prompt-Engineering Wissensbasis:**
-- Referenz: [`everything-claude-code`](https://github.com/affaan-m/everything-claude-code) — 37+ Skills, 13 Agents, Plan-Mode, TDD, Continuous Learning
-- Referenz: [Claude Code System Prompt (leaked)](https://github.com/asgeirtj/system_prompts_leaks/blob/main/Anthropic/claude-code.md) — interne Tools, Permission-Model, Plan-Mode, Task-Delegation
-- Referenz: [`system_prompts_leaks`](https://github.com/asgeirtj/system_prompts_leaks) — 109 System-Prompts als Pattern-Bibliothek (patterns already extracted into prompt-builder.ts)
-
-**Completed Items:**
-- [x] Gap-Detection: 16 capability categories, 10 regex patterns (incl. German), `detectCapabilityGap()`
-- [x] Kontext-Sammler: memory + profile reading, `inferOutputType()` (cron/background/one-shot)
-- [x] CLAUDE.md-Generator: deterministic user preferences + async memory/profile enrichment
-- [x] Prompt-Builder: full prompt + systemPrompt + flags (`--dangerously-skip-permissions`, `--max-turns 50`)
-- [x] Docker-Launcher: scaffold → Docker (fallback: direct) → Claude Code, 30min timeout
-- [x] Post-Build-Validator: 5 checks (package.json, source, tests, CLAUDE.md, no secrets)
-- [x] Registrierung: cron_job / background_process / one_shot via existing scheduler
-- [x] Native `auto_tooling` tool: detect_gap, build, validate, register actions
-- [x] `__autotool_run__` routing in scheduler executor
-
-### Completed — Local-First Execution (v2.3)
-
-20 native local-ops tools that handle common OS operations locally (0 cloud tokens), plus per-request cost display.
-
-- [x] Shared helpers: `confine()`, `formatSize()`, `formatDate()`, `walkDir()` in `src/local-ops/helpers.ts`
-- [x] File ops: mkdir, copy_file, move_file, file_info, find_files, search_replace
-- [x] Dir ops: tree, dir_size
-- [x] Text ops: text_stats, head, tail, diff_files, sort_lines, base64, count_lines
-- [x] System ops: system_info, disk_space, env_get
-- [x] Archive ops: archive_create, archive_extract (tar.gz via node:zlib)
-- [x] Tool registration: `src/local-ops/register.ts` registers all 20 tools
-- [x] Risk classifier: 14 tools L0, 4 tools L1, 2 tools L2
-- [x] i18n: 12 new keys under `localOps.*` namespace (de + en)
-- [x] Per-request cost display: `[Cloud: X Tokens (€Y) | Lokal: Z Tokens (€0,00)]`
-- [x] Orchestrator prompt: lists all local-ops, guides when NOT to use claude_code
-- [x] 47 new tests (file-ops, dir-ops, text-ops, system-ops, archive-ops, billing format)
-
-### Completed (v1.0–v2.0)
-- [x] All core features implemented (see Project Status above)
-- [x] 40+ native tools, 6 messaging platforms, 1199+ tests
-- [x] Anonymizer foundation (regex + LLM extraction + reversible mapping + streaming de-anonymization)
+### Deferred
+- [ ] Benchmark: Risk Classifier LLM path — `pnpm benchmark:classifier qwen3:8b`
 
 ## Testing Policy
 
-**Every feature needs two test layers: a unit test for fast feedback, then a mandatory E2E test that proves it actually works.** Unit tests alone are insufficient — the E2E findings (`docs/E2E_FINDINGS.md`) showed that 1248 green unit tests hid 6 critical bugs. A feature is NOT done until the E2E test passes.
-
-### Two-Step Testing Process
-
-When implementing a new feature or fixing a bug:
-
-1. **Step 1: Unit/Integration Test** — fast feedback loop during development
-   - Test the pure logic (regex, parsing, formatting, schemas)
-   - Runs in seconds, no external deps needed
-   - Acceptable to mock external APIs (Telegram, Google) here
-   - Purpose: catch regressions quickly, validate edge cases
-
-2. **Step 2: E2E Test** — **mandatory, non-negotiable proof that it works**
-   - Test the full pipeline as a real user would trigger it
-   - Real Ollama, real SQLite, real files, real user messages
-   - If it can't be tested E2E, the architecture is wrong
-   - A feature without an E2E test is an unfinished feature
-
-**A unit test says "the function works". An E2E test says "the user's problem is solved".** Both are needed. The unit test comes first (fast iteration), the E2E test comes after (proof of reality). Neither replaces the other.
+**Two-step process:** Unit test first (fast feedback), then mandatory E2E test (proof it works). See `docs/E2E_FINDINGS.md` for why.
 
 ### Test Hierarchy
-
-1. **E2E Tests** (`src/e2e/live/`) — **Quality gate: feature is not done without this**
-   - Simulate real user messages (as if sent via Telegram/WhatsApp)
-   - Use real Ollama (skip gracefully when unavailable)
-   - Use real SQLite databases (temp files, cleaned up after)
-   - Write real files, create real records, send real prompts
-   - Test full pipelines: user message → orchestrator → classifier → tool → response
-   - Run via `pnpm test:e2e`
-
-2. **Integration Tests** (`*.test.ts` alongside source) — Multi-component flows
-   - Use real DB (temp SQLite), real file I/O, real Zod parsing
-   - Mock ONLY external network services (Telegram API, WhatsApp API, Ollama HTTP when testing error paths)
-   - Never mock internal modules — if `anonymize()` calls `detectPatterns()`, test both together
-
+1. **E2E Tests** (`src/e2e/live/`) — Full pipeline with real Ollama, real SQLite, real files. Run via `pnpm test:e2e`
+2. **Integration Tests** (`*.test.ts`) — Multi-component flows, real DB, mock only external network services
 3. **Unit Tests** (`*.test.ts`) — Pure functions, fast feedback
-   - Good for: regex matching, math, parsing, formatting, Zod schemas, edge cases
-   - Fast to run, good for development iteration
-   - But: a green unit test does NOT prove the feature works in production
 
-### Rules for Writing Tests
-
+### Key Rules
 | Rule | Why |
 |------|-----|
-| **Unit test first, E2E test mandatory after** | Unit test for speed, E2E test for truth. Both required. |
-| **Test data = realistic data** | Use German names, real email formats, actual Telegram message structures — not `"test"`, `"foo"`, `"bar"` |
-| **Create real files and DB records** | `mkdtemp()` + real SQLite + cleanup in `after()`. No in-memory fakes. |
-| **Simulate real user messages** | `"Lösche die Datei config.json"` not `"delete file"` — test the language the user actually speaks |
-| **Test the sad path with real infrastructure** | Wrong Ollama URL → what does the user see? DB locked → what happens? |
-| **Skip gracefully, never fake success** | If Ollama/Docker isn't available, `t.skip()` — never mock the LLM and pretend it works |
-| **Assert user-visible behavior** | "Response contains '4'" not "function returned 4". "User sees error message" not "error was thrown". |
-| **No mock of Ollama for happy path** | If a test needs Ollama and it's not running, skip. A green test with a mocked LLM proves nothing. |
+| Test data = realistic data | German names, real email formats, actual message structures |
+| Create real files and DB records | `mkdtemp()` + real SQLite + cleanup in `after()` |
+| Skip gracefully, never fake success | If Ollama unavailable → `t.skip()`, never mock the LLM |
+| No mock of Ollama for happy path | Real Ollama or skip |
+| No mock of SQLite/Drizzle | Always use real temp database |
+| No mock of internal modules | Never mock `anonymize()`, `classifyRisk()`, `searchMemory()` |
 
-### What Mocks Are Acceptable For
+### Acceptable Mocks
+Telegram/WhatsApp/Signal API, external HTTP APIs (Google, GitHub), Time/Date, filesystem errors
 
-- **Telegram/WhatsApp/Signal API** — we can't send real messages in tests
-- **External HTTP APIs** (Google, GitHub webhooks) — we can't control external services
-- **Time/Date** — for testing cron schedules, TTLs
-- **Filesystem errors** — permission denied, disk full (hard to reproduce)
-
-### What Mocks Are NOT Acceptable For
-
-- **Ollama** (happy path) — use real Ollama or skip the test
-- **SQLite/Drizzle** — always use a real temp database
-- **Internal modules** — never mock `anonymize()`, `classifyRisk()`, `searchMemory()`, etc.
-- **File I/O** — create real temp files, read them back, verify content
-- **The agent loop** — test the actual pipeline, not a simplified version
-
-### Test Fixtures Location
-
-All E2E test data lives in `src/e2e/live/helpers/fixtures.ts`:
-- `DUMMY_PROFILE` — realistic German user profile
-- `DUMMY_EMAILS` — emails with embedded PII, API keys, addresses
-- `DUMMY_SHELL_COMMANDS` — categorized by risk level (L0–L3)
-- `DUMMY_PII_TEXTS` — texts with realistic German PII
-- `DUMMY_GAP_REQUESTS` — auto-tooling use cases (DE+EN)
-
-When adding new features, **add realistic fixtures first**, then write the E2E test, then implement.
-
-### Running Tests
+### Fixtures
+All E2E test data in `src/e2e/live/helpers/fixtures.ts` (profiles, emails, shell commands, PII texts, gap requests)
 
 ```bash
-pnpm test        # Unit/integration tests (no external deps needed)
-pnpm test:e2e    # E2E tests (needs Ollama, optionally Docker)
+pnpm test        # Unit/integration tests
+pnpm test:e2e    # E2E tests (needs Ollama)
 ```
 
 ## Conventions
@@ -590,62 +174,14 @@ pnpm test:e2e    # E2E tests (needs Ollama, optionally Docker)
 - No classes where functions suffice
 - Drizzle for all DB access (no raw SQL)
 
-## Key Decisions Log
-| Date | Decision | Reasoning |
-|------|----------|-----------|
-| 2026-02-11 | Project created | Privacy-first AI agent with local LLM orchestrator |
-| 2026-02-11 | Qwen3 8B as default orchestrator | 0.933 F1, 5GB Q4, ~40 tok/s — fits 18GB RAM comfortably |
-| 2026-02-11 | Mandatory blocking approvals | Fire-and-forget approval is architecturally broken — Promise-based blocking has no code path around it |
-| 2026-02-11 | TypeScript over Python | Async-native, better subprocess mgmt, same ecosystem as Claude Code |
-| 2026-02-11 | grammY for Telegram | Best TS types, conversations plugin, active ecosystem |
-| 2026-02-11 | 4-tier risk classification | Binary allow/deny too coarse; L0-L3 gives nuance without over-prompting |
-| 2026-02-11 | Long Polling over Webhooks | Local-first, no public URL needed |
-| 2026-02-11 | Hash-chained JSONL for audit | Tamper-evident, append-only, human-readable |
-| 2026-02-11 | Vercel AI SDK 6 over OpenAI SDK | ToolLoopAgent + needsApproval built-in; native Ollama provider; eliminates custom agent loop code |
-| 2026-02-11 | MCP Client for tool integration | 10K+ servers, industry standard (Linux Foundation), wrapped by risk classifier |
-| 2026-02-11 | Drizzle ORM over raw better-sqlite3 | Type-safe queries, schema migrations, zero runtime overhead |
-| 2026-02-11 | Hybrid risk classification | Deterministic patterns (90%) + LLM fallback (10%) — no single point of failure |
-| 2026-02-11 | 3-layer prompt injection defense | User input, tool output, model response — each isolated as DATA |
-| 2026-02-13 | Removed 14B tier — single tested default | 0.933 F1 sufficient; 90% deterministic regex; 14B untested with our prompts; marginal gain at 2x RAM |
-| 2026-02-12 | XML over JSON for LLM classifier output | Qwen3 8B more reliable with XML tags; JSON fallback for backward compat |
-| 2026-02-12 | Shlex-style command decomposition | Prevents `ls && curl evil` bypass — each segment classified individually |
-| 2026-02-12 | Claude Code as primary coding agent | Local LLM as communication bridge + prompt optimizer + safety layer; Claude Code does actual coding |
-| 2026-02-12 | stream-json as default output format | Enables live Telegram updates during Claude Code tasks |
-| 2026-02-12 | Risk-scoped tool profiles | L0→readOnly, L1→standard, L2→full — principle of least privilege for Claude Code |
-| 2026-02-12 | Multi-platform messaging abstraction | MessagingPlatform interface enables Telegram, WhatsApp, Signal with same orchestrator |
-| 2026-02-12 | WhatsApp Business Cloud API | Official API, interactive buttons (max 3), native fetch — no heavy dependency |
-| 2026-02-12 | Signal via signal-cli JSON-RPC | No inline buttons → text-based approvals ("1 = Genehmigen, 2 = Ablehnen") |
-| 2026-02-12 | ANTHROPIC_API_KEY support | Alternative to subscription — passed via env to Claude Code subprocess |
-| 2026-02-12 | Onboarding startup check | Checks CLI availability + auth status, shows actionable instructions |
-| 2026-02-12 | Interactive setup wizard | `pnpm setup` — auto-detection, OCR, clipboard, real-time validation |
-| 2026-02-12 | @inquirer/prompts + chalk + ora | Modern ESM CLI toolkit — tree-shakeable, German prompts |
-| 2026-02-12 | tesseract.js for OCR | Pure WASM, lazy-loaded (~60MB first use) — extract tokens from screenshots |
-| 2026-02-12 | Windows compatibility | shell.ts: cmd /c, Signal: named pipes, OCR: PowerShell SnippingTool, prerequisites: cmd start /b |
-| 2026-02-12 | Filesystem directory confinement | `confine()` rejects paths outside `process.cwd()` — prevents path traversal |
-| 2026-02-12 | MCP Zod response validation | `mcpContentSchema.safeParse()` replaces unsafe `as` assertions on MCP tool output |
-| 2026-02-12 | Schema version tracking | `schema_version` table with version + applied_at — foundation for future DB migrations |
-| 2026-02-12 | i18n with typed key-value maps | No external library; `t()` function + `satisfies` compile-time completeness; `de` + `en` locales |
-| 2026-02-12 | Language selection in setup wizard | First wizard step is bilingual "Language / Sprache:", stored as `LOCALE` in `.env` |
-| 2026-02-12 | Image metadata sanitization | EXIF/XMP/IPTC can carry prompt injection — strip before LLM, scan for patterns, audit findings |
-| 2026-02-12 | sharp for image processing | Prebuilt binaries, EXIF orientation, metadata stripping in one pipeline; configurable via env vars |
-| 2026-02-13 | Privacy Layer architecture | Aggressive opt-out anonymization, Qwen3-VL-2B for images, dual storage (SQLite + MD), approval-based learning |
-| 2026-02-13 | Hub-and-Spoke multi-agent routing | 3 strategies (skill/intent/explicit); per-agent session isolation; persistent agent configs |
-| 2026-02-13 | Skill marketplace with SHA-256 verification | Curated repository, hash-verified downloads, 5 built-in templates |
-| 2026-02-13 | Removed TTS (ElevenLabs) | Cloud dependency violates local-first philosophy. Local TTS (Piper/Coqui) if needed |
-| 2026-02-13 | Companion apps via WebSocket + push | ws package, 6-digit pairing (5min TTL), APNS (node:http2) + FCM (native fetch), heartbeat ping/pong |
-| 2026-02-13 | Smart home integration (Hue/HA/Sonos) | Hue API v2, HomeAssistant REST, Sonos HTTP; SSDP + nUPnP discovery |
-| 2026-02-13 | Gmail/Calendar via Google OAuth2 | OAuth2 with node:http callback, file-based token cache with auto-refresh, Gmail API + Calendar API |
-| 2026-02-14 | User Profile in JSON, not DB | User can read/edit `.geofrey/profile.json`, version-control it; `null` = existing users unaffected |
-| 2026-02-14 | Proactive Jobs via existing Scheduler | `__proactive_` prefix for routing; no new system, reuses cron/every jobs |
-| 2026-02-14 | System Prompt Injection for Profile | Profile always available to LLM via `<user_profile>` XML block; no extra tool call needed |
-| 2026-02-14 | Privacy rules in SQLite, not config | Rules are dynamic (created via approval flow), need CRUD; config is static |
-| 2026-02-14 | VL model on-demand (load → unload) | Qwen3-VL-2B uses 2GB RAM; load per-image, unload after to keep footprint low |
-| 2026-02-14 | Output filter as defence-in-depth | Even after anonymization, scan Claude Code output for leaked credentials; belt-and-suspenders |
-| 2026-02-14 | Profile PII terms at startup | Name + VIP-emails injected into anonymizer customTerms once at boot; no per-request overhead |
-| 2026-02-14 | Auto-Tooling: Docker-first, direct fallback | Docker preferred for isolation; falls back to direct execution if Docker unavailable |
-| 2026-02-14 | Auto-Tooling: Hybrid CLAUDE.md generation | geofrey writes user prefs deterministically; Claude Code adds tech conventions after scaffolding |
-| 2026-02-14 | Auto-Tooling: 16 capability categories | Covers monitoring, scraping, data-processing, integrations, automation — German + English gap patterns |
-| 2026-02-14 | Auto-Tooling: Standalone programs, not skills | Auto-built tools are independent projects under `.geofrey/projects/`, registered as cron/process |
-| 2026-02-14 | 20 native local-ops tools (v2.3) | Simple OS ops (mkdir, copy, tree, etc.) handled locally — saves cloud tokens. No new intent category needed. |
-| 2026-02-14 | Per-request cost display | `[Cloud: X Tokens (€Y) | Lokal: Z Tokens (€0,00)]` appended after every agent response. Locale-aware (DE/EN). |
-| 2026-02-14 | E2E-first testing policy | 1248 green unit tests hid 6 critical bugs. New rule: every feature gets an E2E test first. No mocking Ollama/SQLite/internal modules. Real data, real files, real user messages. See `docs/E2E_FINDINGS.md`. |
+## Reference Docs
+| Doc | Content |
+|-----|---------|
+| `docs/ARCHITECTURE.md` | Full architecture with diagrams |
+| `docs/ORCHESTRATOR_PROMPT.md` | System prompts for Qwen3 orchestrator |
+| `docs/PRIVACY_LAYER.md` | Privacy layer design |
+| `docs/DECISIONS.md` | Key decisions log (55+ entries with reasoning) |
+| `docs/E2E_FINDINGS.md` | E2E test findings — 6 critical bugs unit tests missed |
+| `docs/KNOWN_ISSUES.md` | Active known issues |
+| `docs/DEPLOYMENT.md` | Docker, systemd, PM2 deployment guide |
+| `docs/WHITEPAPER.md` | Project whitepaper |
