@@ -533,15 +533,15 @@ describe("E2E: Component Integration Tests", () => {
         });
       });
 
-      // Valid WhatsApp config
+      // Valid WhatsApp config (Twilio)
       const whatsappConfig = {
         platform: "whatsapp" as const,
         telegram: { botToken: "123:ABC", ownerId: 42 },
         whatsapp: {
-          phoneNumberId: "123",
-          accessToken: "token",
-          verifyToken: "verify",
-          ownerPhone: "491234567890",
+          accountSid: "ACtest00000000000000000000000000",
+          authToken: "test-token",
+          whatsappNumber: "+14155238886",
+          ownerPhone: "+491234567890",
         },
         ollama: {},
         database: {},
@@ -553,7 +553,7 @@ describe("E2E: Component Integration Tests", () => {
 
       const parsed = configSchema.parse(whatsappConfig);
       assert.equal(parsed.platform, "whatsapp");
-      assert.equal(parsed.whatsapp?.phoneNumberId, "123");
+      assert.equal(parsed.whatsapp?.accountSid, "ACtest00000000000000000000000000");
     });
   });
 

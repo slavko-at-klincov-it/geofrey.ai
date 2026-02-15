@@ -18,7 +18,7 @@ describe("WizardState", () => {
   it("can construct whatsapp state", () => {
     const state: WizardState = {
       platform: "whatsapp",
-      whatsapp: { phoneNumberId: "1", accessToken: "t", verifyToken: "v", ownerPhone: "49123", webhookPort: 3000 },
+      whatsapp: { accountSid: "AC12345678", authToken: "t", whatsappNumber: "+14155238886", ownerPhone: "+49123", webhookPort: 3000 },
       locale: "de",
       ollamaUrl: "http://localhost:11434",
       model: "qwen3:8b",

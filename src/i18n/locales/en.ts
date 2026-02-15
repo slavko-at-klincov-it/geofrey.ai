@@ -180,30 +180,30 @@ export const en: Record<TranslationKey, string> = {
   "onboarding.idManualPrompt": "Telegram user ID:",
   "onboarding.idInvalid": "Invalid user ID",
 
-  // whatsapp setup
-  "onboarding.whatsappTitle": "Set up WhatsApp Business",
+  // whatsapp setup (Twilio)
+  "onboarding.whatsappTitle": "Set up WhatsApp via Twilio",
   "onboarding.whatsappPrereqs": `
   Prerequisites:
-  1. Meta Business Account + App created
-  2. WhatsApp Business API activated
-  3. Permanent Access Token generated
-  → Docs: https://developers.facebook.com/docs/whatsapp/cloud-api
+  1. Twilio account created (twilio.com)
+  2. WhatsApp Sandbox enabled or own number requested
+  3. Account SID + Auth Token from Twilio Console
+  → Docs: https://www.twilio.com/docs/whatsapp
 `,
-  "onboarding.phoneNumberId": "Phone Number ID:",
-  "onboarding.phoneNumberIdMissing": "Phone Number ID missing",
-  "onboarding.accessTokenPrompt": "Access Token:",
-  "onboarding.accessTokenMissing": "Access Token missing",
+  "onboarding.twilioAccountSid": "Account SID (starts with AC):",
+  "onboarding.twilioAccountSidInvalid": "Invalid Account SID — must start with 'AC'",
+  "onboarding.twilioAuthToken": "Auth Token:",
+  "onboarding.twilioAuthTokenMissing": "Auth Token missing",
   "onboarding.connectionCheck": "Checking connection...",
-  "onboarding.whatsappConnected": "WhatsApp Business API connected",
-  "onboarding.whatsappConnectionFailed": "API connection failed — check Phone Number ID and Access Token",
+  "onboarding.whatsappConnected": "Twilio account connected",
+  "onboarding.whatsappConnectionFailed": "Connection failed — check Account SID and Auth Token",
   "onboarding.networkError": "Network error during validation",
   "onboarding.continueAnyway": "Continue anyway?",
-  "onboarding.verifyTokenPrompt": "Webhook Verify Token (your choice):",
-  "onboarding.ownerPhonePrompt": "Your phone number (with country code, e.g. 491234567890):",
+  "onboarding.twilioWhatsAppNumber": "WhatsApp number (e.g. +14155238886):",
+  "onboarding.twilioWhatsAppNumberMissing": "WhatsApp number missing",
+  "onboarding.ownerPhonePrompt": "Your phone number (with country code, e.g. +491234567890):",
   "onboarding.phoneMissing": "Phone number missing",
   "onboarding.webhookPortPrompt": "Webhook Port:",
-  "onboarding.whatsappPrivacyHint": "IMPORTANT: Enable 'Advanced Chat Privacy' in WhatsApp",
-  "onboarding.whatsappPrivacyPath": "→ Settings > Privacy > Advanced Chat Privacy",
+  "onboarding.twilioWebhookHint": "Configure webhook URL in Twilio Console: https://your-domain:{port}/webhook",
 
   // signal setup
   "onboarding.signalTitle": "Set up Signal",
@@ -303,7 +303,7 @@ export const en: Record<TranslationKey, string> = {
   "onboarding.summaryPlatform": "Platform:",
   "onboarding.summaryBot": "Bot:",
   "onboarding.summaryOwnerId": "Owner ID:",
-  "onboarding.summaryPhoneId": "Phone ID:",
+  "onboarding.summaryAccountSid": "Account SID:",
   "onboarding.summaryOwner": "Owner:",
   "onboarding.summaryOllama": "Ollama:",
   "onboarding.summaryModel": "Model:",

@@ -26,21 +26,21 @@ describe("generateEnv", () => {
     assert.ok(env.includes("TELEGRAM_OWNER_ID=42"));
   });
 
-  it("generates whatsapp config", () => {
+  it("generates whatsapp config (Twilio)", () => {
     const env = generateEnv(makeState({
       platform: "whatsapp",
       telegram: undefined,
       whatsapp: {
-        phoneNumberId: "12345",
-        accessToken: "token",
-        verifyToken: "verify",
-        ownerPhone: "491234567890",
+        accountSid: "ACtest00000000000000000000000000",
+        authToken: "test-token",
+        whatsappNumber: "+14155238886",
+        ownerPhone: "+491234567890",
         webhookPort: 3000,
       },
     }));
     assert.ok(env.includes("PLATFORM=whatsapp"));
-    assert.ok(env.includes("WHATSAPP_PHONE_NUMBER_ID=12345"));
-    assert.ok(env.includes("WHATSAPP_OWNER_PHONE=491234567890"));
+    assert.ok(env.includes("TWILIO_ACCOUNT_SID=ACtest00000000000000000000000000"));
+    assert.ok(env.includes("WHATSAPP_OWNER_PHONE=+491234567890"));
   });
 
   it("generates signal config", () => {

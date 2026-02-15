@@ -30,12 +30,12 @@ export function generateEnv(state: WizardState): string {
     lines.push("");
   }
 
-  // WhatsApp
+  // WhatsApp (Twilio)
   if (state.platform === "whatsapp" && state.whatsapp) {
-    lines.push("# WhatsApp Business API");
-    lines.push(`WHATSAPP_PHONE_NUMBER_ID=${state.whatsapp.phoneNumberId}`);
-    lines.push(`WHATSAPP_ACCESS_TOKEN=${state.whatsapp.accessToken}`);
-    lines.push(`WHATSAPP_VERIFY_TOKEN=${state.whatsapp.verifyToken}`);
+    lines.push("# WhatsApp via Twilio");
+    lines.push(`TWILIO_ACCOUNT_SID=${state.whatsapp.accountSid}`);
+    lines.push(`TWILIO_AUTH_TOKEN=${state.whatsapp.authToken}`);
+    lines.push(`TWILIO_WHATSAPP_NUMBER=${state.whatsapp.whatsappNumber}`);
     lines.push(`WHATSAPP_OWNER_PHONE=${state.whatsapp.ownerPhone}`);
     lines.push(`WHATSAPP_WEBHOOK_PORT=${state.whatsapp.webhookPort}`);
     lines.push("");
@@ -96,7 +96,7 @@ function buildSummaryLines(state: WizardState): string[] {
     lines.push(`${t("onboarding.summaryOwnerId").padEnd(15)}${state.telegram.ownerId}`);
   }
   if (state.whatsapp) {
-    lines.push(`${t("onboarding.summaryPhoneId").padEnd(15)}${state.whatsapp.phoneNumberId}`);
+    lines.push(`${t("onboarding.summaryAccountSid").padEnd(15)}${state.whatsapp.accountSid}`);
     lines.push(`${t("onboarding.summaryOwner").padEnd(15)}${state.whatsapp.ownerPhone}`);
   }
   if (state.signal) {

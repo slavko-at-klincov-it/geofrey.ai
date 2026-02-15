@@ -13,9 +13,9 @@ export const configSchema = z.object({
     ownerId: z.coerce.number().int().positive(),
   }).optional(),
   whatsapp: z.object({
-    phoneNumberId: z.string().min(1),
-    accessToken: z.string().min(1),
-    verifyToken: z.string().min(1),
+    accountSid: z.string().min(1).startsWith("AC"),
+    authToken: z.string().min(1),
+    whatsappNumber: z.string().min(1),
     ownerPhone: z.string().min(1),
     webhookPort: z.coerce.number().int().default(3000),
   }).optional(),

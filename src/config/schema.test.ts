@@ -132,20 +132,35 @@ describe("configSchema", () => {
     assert.deepEqual(result.mcp.allowedServers, ["fs-server", "git-server"]);
   });
 
-  it("accepts whatsapp platform with config", () => {
+  it("accepts whatsapp platform with Twilio config", () => {
     const result = configSchema.parse({
       ...minimal,
       platform: "whatsapp",
       whatsapp: {
-        phoneNumberId: "123456",
-        accessToken: "token",
-        verifyToken: "verify",
-        ownerPhone: "491234567890",
+        accountSid: "ACtest00000000000000000000000000",
+        authToken: "test-token",
+        whatsappNumber: "+14155238886",
+        ownerPhone: "+491234567890",
       },
     });
     assert.equal(result.platform, "whatsapp");
-    assert.equal(result.whatsapp!.phoneNumberId, "123456");
+    assert.equal(result.whatsapp!.accountSid, "ACtest00000000000000000000000000");
     assert.equal(result.whatsapp!.webhookPort, 3000);
+  });
+
+  it("rejects whatsapp config with invalid accountSid", () => {
+    assert.throws(() => {
+      configSchema.parse({
+        ...minimal,
+        platform: "whatsapp",
+        whatsapp: {
+          accountSid: "XX_invalid",
+          authToken: "token",
+          whatsappNumber: "+14155238886",
+          ownerPhone: "+491234567890",
+        },
+      });
+    });
   });
 
   it("rejects whatsapp platform without config", () => {

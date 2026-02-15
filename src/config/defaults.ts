@@ -5,9 +5,9 @@ import { configSchema, type Config } from "./schema.js";
 const pathToEnvVar: Record<string, string> = {
   "telegram.botToken": "TELEGRAM_BOT_TOKEN",
   "telegram.ownerId": "TELEGRAM_OWNER_ID",
-  "whatsapp.phoneNumberId": "WHATSAPP_PHONE_NUMBER_ID",
-  "whatsapp.accessToken": "WHATSAPP_ACCESS_TOKEN",
-  "whatsapp.verifyToken": "WHATSAPP_VERIFY_TOKEN",
+  "whatsapp.accountSid": "TWILIO_ACCOUNT_SID",
+  "whatsapp.authToken": "TWILIO_AUTH_TOKEN",
+  "whatsapp.whatsappNumber": "TWILIO_WHATSAPP_NUMBER",
   "whatsapp.ownerPhone": "WHATSAPP_OWNER_PHONE",
   "signal.ownerPhone": "SIGNAL_OWNER_PHONE",
   "signal.botPhone": "SIGNAL_BOT_PHONE",
@@ -89,10 +89,10 @@ export function loadConfig(): Config {
         botToken: process.env.TELEGRAM_BOT_TOKEN,
         ownerId: process.env.TELEGRAM_OWNER_ID,
       } : undefined,
-      whatsapp: process.env.WHATSAPP_PHONE_NUMBER_ID ? {
-        phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID,
-        accessToken: process.env.WHATSAPP_ACCESS_TOKEN,
-        verifyToken: process.env.WHATSAPP_VERIFY_TOKEN,
+      whatsapp: process.env.TWILIO_ACCOUNT_SID ? {
+        accountSid: process.env.TWILIO_ACCOUNT_SID,
+        authToken: process.env.TWILIO_AUTH_TOKEN,
+        whatsappNumber: process.env.TWILIO_WHATSAPP_NUMBER,
         ownerPhone: process.env.WHATSAPP_OWNER_PHONE,
         webhookPort: process.env.WHATSAPP_WEBHOOK_PORT,
       } : undefined,
