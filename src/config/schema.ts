@@ -1,6 +1,11 @@
 import { z } from "zod";
 import { platform } from "node:os";
 
+/** Zod 4: .default({}) no longer parses through inner schema. Use preprocess to apply {} when undefined, so inner field defaults work. */
+function objectWithDefaults<T extends z.ZodTypeAny>(schema: T) {
+  return z.preprocess((v) => v ?? {}, schema);
+}
+
 const DEFAULT_SIGNAL_SOCKET = platform() === "win32"
   ? "\\\\.\\pipe\\signal-cli"
   : "/var/run/signal-cli/socket";
@@ -61,36 +66,36 @@ export const configSchema = z.object({
     defaultDirs: z.array(z.string()).default([]),
     apiKey: z.string().optional(),
     mcpConfigPath: z.string().optional(),
-    toolProfiles: z.object({
+    toolProfiles: objectWithDefaults(z.object({
       readOnly: z.string().default("Read Glob Grep"),
       standard: z.string().default("Read Glob Grep Edit Write Bash(git:*)"),
       full: z.string().default("Read Glob Grep Edit Write Bash"),
-    }).default({}),
+    })),
   }),
-  imageSanitizer: z.object({
+  imageSanitizer: objectWithDefaults(z.object({
     enabled: z.boolean().default(true),
     maxInputSizeBytes: z.coerce.number().int().positive().default(20_971_520),
     scanForInjection: z.boolean().default(true),
-  }).default({}),
-  dashboard: z.object({
+  })),
+  dashboard: objectWithDefaults(z.object({
     enabled: z.boolean().default(false),
     port: z.coerce.number().int().default(3003),
     token: z.string().optional(),
-  }).default({}),
-  search: z.object({
+  })),
+  search: objectWithDefaults(z.object({
     provider: z.enum(["searxng", "brave"]).default("searxng"),
     searxngUrl: z.string().url().default("http://localhost:8080"),
     braveApiKey: z.string().optional(),
-  }).default({}),
-  billing: z.object({
+  })),
+  billing: objectWithDefaults(z.object({
     maxDailyBudgetUsd: z.coerce.number().positive().optional(),
-  }).default({}),
-  voice: z.object({
+  })),
+  voice: objectWithDefaults(z.object({
     sttProvider: z.enum(["openai", "local"]).default("openai"),
     openaiApiKey: z.string().optional(),
     whisperModelPath: z.string().optional(),
-  }).default({}),
-  sandbox: z.object({
+  })),
+  sandbox: objectWithDefaults(z.object({
     enabled: z.boolean().default(false),
     image: z.string().default("node:22-slim"),
     memoryLimit: z.string().default("512m"),
@@ -98,26 +103,26 @@ export const configSchema = z.object({
     pidsLimit: z.coerce.number().int().positive().default(64),
     readOnly: z.boolean().default(false),
     ttlMs: z.coerce.number().int().positive().default(1_800_000),
-  }).default({}),
-  webhook: z.object({
+  })),
+  webhook: objectWithDefaults(z.object({
     enabled: z.boolean().default(false),
     port: z.coerce.number().int().default(3002),
     host: z.string().default("localhost"),
     rateLimit: z.coerce.number().int().positive().default(60),
-  }).default({}),
-  agents: z.object({
+  })),
+  agents: objectWithDefaults(z.object({
     enabled: z.boolean().default(false),
     routingStrategy: z.enum(["skill-based", "intent-based", "explicit"]).default("skill-based"),
     maxConcurrentAgents: z.coerce.number().int().positive().default(5),
     sessionIsolation: z.boolean().default(true),
-  }).default({}),
-  tts: z.object({
+  })),
+  tts: objectWithDefaults(z.object({
     enabled: z.boolean().default(false),
     apiKey: z.string().optional(),
     voiceId: z.string().default("21m00Tcm4TlvDq8ikWAM"),
     cacheLruSize: z.coerce.number().int().positive().default(100),
-  }).default({}),
-  companion: z.object({
+  })),
+  companion: objectWithDefaults(z.object({
     enabled: z.boolean().default(false),
     wsPort: z.coerce.number().int().default(3003),
     pairingTtlMs: z.coerce.number().int().positive().default(300_000),
@@ -126,28 +131,28 @@ export const configSchema = z.object({
     apnsTeamId: z.string().optional(),
     apnsBundleId: z.string().optional(),
     fcmServerKey: z.string().optional(),
-  }).default({}),
-  smartHome: z.object({
+  })),
+  smartHome: objectWithDefaults(z.object({
     enabled: z.boolean().default(false),
     hueBridgeIp: z.string().optional(),
     hueApiKey: z.string().optional(),
     haUrl: z.string().optional(),
     haToken: z.string().optional(),
     sonosHttpApiUrl: z.string().optional(),
-  }).default({}),
-  google: z.object({
+  })),
+  google: objectWithDefaults(z.object({
     enabled: z.boolean().default(false),
     clientId: z.string().optional(),
     clientSecret: z.string().optional(),
     redirectUrl: z.string().default("http://localhost:3004/oauth/callback"),
     tokenCachePath: z.string().default("./data/google-tokens.json"),
-  }).default({}),
-  anonymizer: z.object({
+  })),
+  anonymizer: objectWithDefaults(z.object({
     enabled: z.boolean().default(false),
     llmPass: z.boolean().default(false),
     customTerms: z.array(z.string()).default([]),
     skipCategories: z.array(z.string()).default([]),
-  }).default({}),
+  })),
   mcp: z.object({
     // Empty array = all servers allowed (no restriction). Non-empty = only listed servers.
     allowedServers: z.array(z.string()).default([]),

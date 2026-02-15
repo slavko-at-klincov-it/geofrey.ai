@@ -46,28 +46,28 @@ function formatZodError(error: ZodError): string {
 
     switch (issue.code) {
       case "too_small":
-        if (issue.type === "string" && issue.minimum === 1) {
+        if (issue.origin === "string" && issue.minimum === 1) {
           errorMessages.push(`Missing ${envVar} — set it in .env or run 'pnpm setup'`);
         } else {
           errorMessages.push(`Invalid ${envVar} — ${issue.message.toLowerCase()}`);
         }
         break;
       case "invalid_type":
-        if (issue.received === "undefined") {
+        if (issue.expected && !issue.message.includes("received")) {
           errorMessages.push(`Missing ${envVar} — set it in .env or run 'pnpm setup'`);
         } else {
-          errorMessages.push(`Invalid ${envVar} — expected ${issue.expected}, got ${issue.received}`);
+          errorMessages.push(`Invalid ${envVar} — ${issue.message.toLowerCase()}`);
         }
         break;
-      case "invalid_string":
-        if (issue.validation === "url") {
+      case "invalid_format":
+        if (issue.format === "url") {
           errorMessages.push(`Invalid ${envVar} — must be a valid URL (e.g. http://localhost:11434)`);
         } else {
           errorMessages.push(`Invalid ${envVar} — ${issue.message.toLowerCase()}`);
         }
         break;
-      case "invalid_enum_value":
-        errorMessages.push(`Invalid ${envVar} — must be one of: ${issue.options.join(", ")}`);
+      case "invalid_value":
+        errorMessages.push(`Invalid ${envVar} — must be one of: ${issue.values.join(", ")}`);
         break;
       case "custom":
         errorMessages.push(issue.message);
