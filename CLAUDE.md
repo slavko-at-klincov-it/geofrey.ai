@@ -18,6 +18,7 @@ geofrey.ai is NOT a second OpenClaw. It is a fundamentally different architectur
 - **Blind data forwarding** — no images, emails, or personal data sent to Claude Code without anonymization. This is the core difference to OpenClaw.
 - **"Just works" at the cost of privacy** — we ask before forwarding, we anonymize by default, we remember the user's decisions.
 - **Mock-only testing** — unit tests with mocks are fine as a first step for fast feedback, but a feature is NOT done until it has a passing E2E test with real infrastructure (Ollama, SQLite, real files). 1248 green unit tests hid 6 critical bugs. Never claim "all green" based on mocked tests alone.
+- **Importing unverified external skills (ClawHub, etc.)** — ClawHub had 42% suspicious/malicious skills (ClawHavoc incident: 341 malware skills, credential theft, reverse shells). We build our own curated, verified skill ecosystem. Quality over quantity.
 
 ## Tech Stack
 | Component | Technology |
