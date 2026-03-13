@@ -5,7 +5,7 @@ import { t } from "../i18n/index.js";
 
 registerTool({
   name: "tts_speak",
-  description: "Text-to-speech via ElevenLabs: synthesize text to audio or list available voices.",
+  description: "Text-to-speech: synthesize text to audio (Piper local or ElevenLabs cloud) or list available voices.",
   parameters: z.object({
     action: z.enum(["speak", "list_voices"]),
     text: z.string().optional().describe("Text to synthesize (required for speak)"),

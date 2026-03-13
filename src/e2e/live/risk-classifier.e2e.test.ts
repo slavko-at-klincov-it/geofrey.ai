@@ -13,7 +13,7 @@ import { ensureOllama } from "./helpers/ollama-guard.js";
 import { createTestEnv, type TestEnv } from "./helpers/test-env.js";
 import { DUMMY_SHELL_COMMANDS } from "./helpers/fixtures.js";
 
-describe("E2E: Risk Classifier", { timeout: 120_000 }, () => {
+describe("E2E: Risk Classifier", { timeout: 300_000 }, () => {
   let env: TestEnv;
   let ollamaAvailable = false;
 

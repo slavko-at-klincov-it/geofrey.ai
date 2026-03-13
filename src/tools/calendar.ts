@@ -9,15 +9,23 @@ import {
   deleteEvent,
   listCalendars,
 } from "../integrations/google/calendar.js";
+import { listLocalEvents, listLocalCalendars } from "../integrations/apple-calendar.js";
+import { buildOnDemandBrief } from "../proactive/handler.js";
+import { getCachedProfile } from "../profile/store.js";
 import { t } from "../i18n/index.js";
 
 const CALENDAR_SCOPES = ["https://www.googleapis.com/auth/calendar"];
 
+function getCalendarProvider(): "google" | "apple" | "none" {
+  const profile = getCachedProfile();
+  return (profile?.calendarApp.provider as "google" | "apple") ?? "none";
+}
+
 registerTool({
   name: "calendar",
-  description: "Google Calendar: authenticate, list/get/create/update/delete events, list calendars.",
+  description: "Calendar: authenticate, list/get/create/update/delete events, list calendars. Supports Google Calendar and Apple Calendar (macOS).",
   parameters: z.object({
-    action: z.enum(["auth", "list", "get", "create", "update", "delete", "calendars"]),
+    action: z.enum(["auth", "list", "get", "create", "update", "delete", "calendars", "brief"]),
     calendarId: z.string().optional().describe("Calendar ID (default: primary)"),
     eventId: z.string().optional().describe("Event ID (for get/update/delete)"),
     summary: z.string().optional().describe("Event title (for create/update)"),
@@ -30,12 +38,15 @@ registerTool({
   }),
   source: "native",
   execute: async ({ action, calendarId, eventId, summary, start, end, description, location, timeMin, timeMax }) => {
-    if (action !== "auth" && !getGoogleConfig()) {
+    const provider = getCalendarProvider();
+
+    if (action !== "auth" && provider === "none") {
       return t("calendar.notConfigured");
     }
 
     switch (action) {
       case "auth": {
+        if (provider === "apple") return "Apple Calendar needs no authentication — it reads directly from Calendar.app.";
         if (!getGoogleConfig()) return t("calendar.notConfigured");
         const authUrl = getAuthUrl(CALENDAR_SCOPES);
         startOAuthCallbackServer().then(async (code) => {
@@ -51,7 +62,9 @@ registerTool({
 
       case "list": {
         try {
-          const events = await listEvents(calendarId, timeMin, timeMax);
+          const events = provider === "apple"
+            ? await listLocalEvents(timeMin, timeMax)
+            : await listEvents(calendarId, timeMin, timeMax);
           if (events.length === 0) return t("calendar.listEmpty");
           const header = t("calendar.listHeader", { count: String(events.length) });
           const lines = events.map(
@@ -133,6 +146,11 @@ registerTool({
 
       case "calendars": {
         try {
+          if (provider === "apple") {
+            const cals = await listLocalCalendars();
+            if (cals.length === 0) return t("calendar.listEmpty");
+            return cals.map((c) => `- ${c.name} (${c.uid})`).join("\n");
+          }
           const calendars = await listCalendars();
           if (calendars.length === 0) return t("calendar.listEmpty");
           const lines = calendars.map(
@@ -142,6 +160,15 @@ registerTool({
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
           return `Calendar error: ${msg}`;
+        }
+      }
+
+      case "brief": {
+        try {
+          return await buildOnDemandBrief();
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          return `Brief error: ${msg}`;
         }
       }
 

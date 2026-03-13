@@ -484,7 +484,13 @@ const SENSITIVE_ARG_KEYS = new Set([
 export function scrubArgsForLlm(args: Record<string, unknown>): Record<string, unknown> {
   const result: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(args)) {
-    result[key] = SENSITIVE_ARG_KEYS.has(key) ? "[REDACTED]" : value;
+    if (SENSITIVE_ARG_KEYS.has(key)) {
+      result[key] = "[REDACTED]";
+    } else if (value !== null && typeof value === "object" && !Array.isArray(value)) {
+      result[key] = scrubArgsForLlm(value as Record<string, unknown>);
+    } else {
+      result[key] = value;
+    }
   }
   return result;
 }

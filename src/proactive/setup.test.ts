@@ -110,7 +110,7 @@ describe("proactive/setup", { skip: !canLoadSqlite ? "better-sqlite3 native modu
     ]);
   });
 
-  it("creates morning brief with correct cron schedule", async () => {
+  it("creates morning brief with timezone-adjusted UTC cron schedule", async () => {
     writeProfile(tmpDir, fullProfile);
     setProfileBaseDir(tmpDir);
 
@@ -121,7 +121,9 @@ describe("proactive/setup", { skip: !canLoadSqlite ? "better-sqlite3 native modu
     const morning = jobs.find((j) => j.task === `${JOB_TAG_PREFIX}morning_brief`);
     assert.ok(morning);
     assert.equal(morning.type, "cron");
-    assert.equal(morning.schedule, "30 7 * * *"); // 07:30
+    // 07:30 Europe/Berlin = 06:30 UTC (CET, winter) or 05:30 UTC (CEST, summer)
+    // The exact offset depends on the reference date used in localTimeToUtc
+    assert.match(morning.schedule, /^30 [56] \* \* \*$/);
   });
 
   it("creates calendar watch with correct interval", async () => {

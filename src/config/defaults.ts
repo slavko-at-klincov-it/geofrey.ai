@@ -24,8 +24,10 @@ const pathToEnvVar: Record<string, string> = {
   "voice.sttProvider": "VOICE_STT_PROVIDER",
   "voice.openaiApiKey": "OPENAI_API_KEY",
   "voice.whisperModelPath": "WHISPER_MODEL_PATH",
+  "tts.provider": "TTS_PROVIDER",
   "tts.apiKey": "ELEVENLABS_API_KEY",
   "tts.voiceId": "ELEVENLABS_VOICE_ID",
+  "tts.piperModelPath": "PIPER_MODEL_PATH",
   "companion.wsPort": "COMPANION_WS_PORT",
   "smartHome.hueBridgeIp": "HUE_BRIDGE_IP",
   "smartHome.hueApiKey": "HUE_API_KEY",
@@ -211,8 +213,10 @@ export function loadConfig(): Config {
         enabled: process.env.TTS_ENABLED !== undefined
           ? process.env.TTS_ENABLED === "true"
           : undefined,
+        provider: process.env.TTS_PROVIDER,
         apiKey: process.env.ELEVENLABS_API_KEY,
         voiceId: process.env.ELEVENLABS_VOICE_ID,
+        piperModelPath: process.env.PIPER_MODEL_PATH,
         cacheLruSize: process.env.TTS_CACHE_LRU_SIZE,
       },
       companion: {

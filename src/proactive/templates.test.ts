@@ -36,6 +36,10 @@ const fullData: MorningBriefData = {
     },
   ],
   memoryHighlights: "Remember: deploy Friday",
+  tasks: [
+    { id: "task1", title: "Review PR #42", source: "todoist" },
+    { id: "task2", title: "Call dentist", due: "2026-02-13T14:00:00Z", priority: 3, source: "todoist" },
+  ],
 };
 
 const emptyData: MorningBriefData = {
@@ -43,6 +47,7 @@ const emptyData: MorningBriefData = {
   events: [],
   emails: [],
   memoryHighlights: "",
+  tasks: [],
 };
 
 describe("proactive/templates", () => {
@@ -64,6 +69,14 @@ describe("proactive/templates", () => {
       assert.ok(result.includes("</unread_emails>"));
     });
 
+    it("includes task section when tasks exist", () => {
+      const result = buildMorningBriefPrompt(fullData, "Slavko");
+      assert.ok(result.includes("<today_tasks>"));
+      assert.ok(result.includes("Review PR #42"));
+      assert.ok(result.includes("Call dentist"));
+      assert.ok(result.includes("</today_tasks>"));
+    });
+
     it("includes memory section when highlights exist", () => {
       const result = buildMorningBriefPrompt(fullData, "Slavko");
       assert.ok(result.includes("<memory_context>"));
@@ -71,7 +84,7 @@ describe("proactive/templates", () => {
       assert.ok(result.includes("</memory_context>"));
     });
 
-    it("returns empty indicator when no events, emails, or memory", () => {
+    it("returns empty indicator when no events, emails, tasks, or memory", () => {
       const result = buildMorningBriefPrompt(emptyData, "Slavko");
       // Should not contain XML sections
       assert.ok(!result.includes("<today_calendar>"));

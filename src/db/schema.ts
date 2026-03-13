@@ -103,6 +103,13 @@ export const agentSessions = sqliteTable("agent_sessions", {
   updatedAt: integer("updated_at", { mode: "timestamp" }).notNull(),
 });
 
+export const proactiveReminders = sqliteTable("proactive_reminders", {
+  id: text("id").primaryKey(),
+  type: text("type").notNull(), // "calendar" | "email"
+  externalId: text("external_id").notNull(), // event ID or email thread ID
+  remindedAt: integer("reminded_at", { mode: "timestamp" }).notNull(),
+});
+
 export const privacyRules = sqliteTable("privacy_rules", {
   id: text("id").primaryKey(),
   category: text("category").notNull(), // "email" | "name" | "path" | "secret" | "custom"

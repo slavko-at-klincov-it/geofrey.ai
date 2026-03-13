@@ -118,8 +118,10 @@ export const configSchema = z.object({
   })),
   tts: objectWithDefaults(z.object({
     enabled: z.boolean().default(false),
+    provider: z.enum(["piper", "elevenlabs"]).default("piper"),
     apiKey: z.string().optional(),
     voiceId: z.string().default("21m00Tcm4TlvDq8ikWAM"),
+    piperModelPath: z.string().optional(),
     cacheLruSize: z.coerce.number().int().positive().default(100),
   })),
   companion: objectWithDefaults(z.object({

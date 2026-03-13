@@ -85,6 +85,10 @@ export function setAnonymizerConfig(config: AnonymizerConfig): void {
   anonymizerConfig = config;
 }
 
+export function getAnonymizerConfig(): AnonymizerConfig | null {
+  return anonymizerConfig;
+}
+
 // --- Args builder ---
 
 export function buildClaudeArgs(options: {

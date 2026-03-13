@@ -543,6 +543,9 @@ export const en: Record<TranslationKey, string> = {
   "proactive.email.vip": "VIP email from {sender}",
   "proactive.no.events": "No events today.",
   "proactive.no.emails": "No new emails.",
+  "proactive.calendar.prep.hint": "Also prepare brief talking points or speaking notes for the events, based on the description and context from memory.",
+  "proactive.morning.tasks.section": "Your tasks today",
+  "proactive.no.tasks": "No tasks for today.",
 
   // local-ops
   "localOps.mkdirDone": "Directory created: {path}",

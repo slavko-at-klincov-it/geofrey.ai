@@ -523,6 +523,9 @@ export type TranslationKey =
   | "proactive.email.vip"
   | "proactive.no.events"
   | "proactive.no.emails"
+  | "proactive.calendar.prep.hint"
+  | "proactive.morning.tasks.section"
+  | "proactive.no.tasks"
 
   // local-ops
   | "localOps.mkdirDone"

@@ -33,6 +33,7 @@ import { loadProfile } from "./profile/store.js";
 import { getProfilePiiTerms } from "./privacy/profile-pii.js";
 import { isProactiveTask, buildProactivePrompt } from "./proactive/handler.js";
 import { setupProactiveJobs } from "./proactive/setup.js";
+import { setDedupDb } from "./proactive/dedup.js";
 import { isAutoToolTask, extractProjectDir } from "./auto-tooling/registrar.js";
 import { waitForInflight } from "./tracking.js";
 
@@ -114,8 +115,9 @@ async function main() {
   await initLastHash(config.audit.logDir);
 
   // Initialize database
-  getDb(config.database.url);
+  const database = getDb(config.database.url);
   setDbUrl(config.database.url);
+  setDedupDb(database);
 
   // Initialize Claude Code driver
   initClaudeCode(config.claude);
@@ -227,15 +229,26 @@ async function main() {
   }
 
   // Initialize TTS
-  if (config.tts.enabled && config.tts.apiKey) {
+  if (config.tts.enabled) {
     const { setTtsConfig } = await import("./voice/synthesizer.js");
-    setTtsConfig({
-      provider: "elevenlabs",
-      apiKey: config.tts.apiKey,
-      voiceId: config.tts.voiceId,
-      cacheLruSize: config.tts.cacheLruSize,
-    });
-    console.log("TTS: ElevenLabs initialized");
+    if (config.tts.provider === "piper" && config.tts.piperModelPath) {
+      setTtsConfig({
+        provider: "piper",
+        modelPath: config.tts.piperModelPath,
+        cacheLruSize: config.tts.cacheLruSize,
+      });
+      console.log("TTS: Piper initialized (local)");
+    } else if (config.tts.provider === "elevenlabs" && config.tts.apiKey) {
+      setTtsConfig({
+        provider: "elevenlabs",
+        apiKey: config.tts.apiKey,
+        voiceId: config.tts.voiceId,
+        cacheLruSize: config.tts.cacheLruSize,
+      });
+      console.log("TTS: ElevenLabs initialized");
+    } else {
+      console.warn("TTS: enabled but missing config (set PIPER_MODEL_PATH or ELEVENLABS_API_KEY)");
+    }
   }
 
   // Initialize Companion WebSocket server

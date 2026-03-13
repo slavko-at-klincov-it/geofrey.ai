@@ -6,6 +6,7 @@ function objectWithDefaults<T extends z.ZodTypeAny>(schema: T) {
 
 const calendarConfigSchema = z.discriminatedUnion("provider", [
   z.object({ provider: z.literal("google"), calendarId: z.string().default("primary") }),
+  z.object({ provider: z.literal("apple") }),
   z.object({ provider: z.literal("caldav"), url: z.string().url() }),
   z.object({ provider: z.literal("none") }),
 ]);

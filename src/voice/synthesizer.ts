@@ -1,11 +1,20 @@
+import { spawn } from "node:child_process";
 import { t } from "../i18n/index.js";
 
-export interface TtsConfig {
+export interface ElevenLabsTtsConfig {
   provider: "elevenlabs";
   apiKey: string;
   voiceId: string;
   cacheLruSize: number;
 }
+
+export interface PiperTtsConfig {
+  provider: "piper";
+  modelPath: string;
+  cacheLruSize: number;
+}
+
+export type TtsConfig = ElevenLabsTtsConfig | PiperTtsConfig;
 
 let ttsConfig: TtsConfig | null = null;
 
@@ -76,22 +85,83 @@ export function splitText(text: string, maxChars = 4000): string[] {
   return chunks;
 }
 
+/**
+ * Wrap raw PCM s16le mono data in a WAV header.
+ */
+function wrapPcmInWav(pcm: Buffer, sampleRate: number, channels: number, bitsPerSample: number): Buffer {
+  const byteRate = sampleRate * channels * (bitsPerSample / 8);
+  const blockAlign = channels * (bitsPerSample / 8);
+  const header = Buffer.alloc(44);
+
+  header.write("RIFF", 0);
+  header.writeUInt32LE(36 + pcm.length, 4);
+  header.write("WAVE", 8);
+  header.write("fmt ", 12);
+  header.writeUInt32LE(16, 16);          // chunk size
+  header.writeUInt16LE(1, 20);           // PCM format
+  header.writeUInt16LE(channels, 22);
+  header.writeUInt32LE(sampleRate, 24);
+  header.writeUInt32LE(byteRate, 28);
+  header.writeUInt16LE(blockAlign, 32);
+  header.writeUInt16LE(bitsPerSample, 34);
+  header.write("data", 36);
+  header.writeUInt32LE(pcm.length, 40);
+
+  return Buffer.concat([header, pcm]);
+}
+
+const PIPER_TIMEOUT_MS = 30_000;
+
+/**
+ * Synthesize text to WAV audio via Piper (local TTS).
+ * Piper outputs raw PCM s16le mono 22050Hz on stdout when using --output_raw.
+ */
+async function synthesizePiper(text: string): Promise<Buffer> {
+  if (!ttsConfig || ttsConfig.provider !== "piper") {
+    throw new Error("Piper TTS not configured");
+  }
+
+  const { modelPath } = ttsConfig;
+
+  return new Promise((resolve, reject) => {
+    const proc = spawn("piper", [
+      "--model", modelPath,
+      "--output_raw",
+    ], { timeout: PIPER_TIMEOUT_MS });
+
+    const chunks: Buffer[] = [];
+    proc.stdout.on("data", (chunk: Buffer) => chunks.push(chunk));
+    proc.stderr.on("data", () => {}); // piper logs progress to stderr
+
+    proc.on("close", (code) => {
+      if (code !== 0) {
+        reject(new Error(`Piper exited with code ${code}`));
+        return;
+      }
+      // Raw PCM s16le mono 22050Hz — wrap in WAV header
+      const pcm = Buffer.concat(chunks);
+      const wav = wrapPcmInWav(pcm, 22050, 1, 16);
+      resolve(wav);
+    });
+
+    proc.on("error", (err) => reject(new Error(`Piper not found: ${err.message}`)));
+
+    proc.stdin.write(text);
+    proc.stdin.end();
+  });
+}
+
 const FETCH_TIMEOUT_MS = 30_000;
 
 /**
- * Synthesize a single text chunk to audio via ElevenLabs API v1.
+ * Synthesize a single text chunk via ElevenLabs API v1.
  */
-export async function synthesize(text: string, voiceIdOverride?: string): Promise<Buffer> {
-  if (!ttsConfig) {
-    throw new Error("TTS not configured — call setTtsConfig() first");
+async function synthesizeElevenLabs(text: string, voiceIdOverride?: string): Promise<Buffer> {
+  if (!ttsConfig || ttsConfig.provider !== "elevenlabs") {
+    throw new Error("ElevenLabs TTS not configured");
   }
 
   const voiceId = voiceIdOverride ?? ttsConfig.voiceId;
-  const cacheKey = `${voiceId}:${text}`;
-
-  const cached = cacheGet(cacheKey);
-  if (cached) return cached;
-
   const url = `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`;
   const res = await fetch(url, {
     method: "POST",
@@ -110,9 +180,36 @@ export async function synthesize(text: string, voiceIdOverride?: string): Promis
     throw new Error(`ElevenLabs API returned ${res.status}: ${await res.text()}`);
   }
 
-  const buffer = Buffer.from(await res.arrayBuffer());
-  cachePut(cacheKey, buffer);
-  return buffer;
+  return Buffer.from(await res.arrayBuffer());
+}
+
+/**
+ * Synthesize a single text chunk to audio.
+ * Dispatches to the configured provider (piper or elevenlabs).
+ */
+export async function synthesize(text: string, voiceIdOverride?: string): Promise<Buffer> {
+  if (!ttsConfig) {
+    throw new Error("TTS not configured — call setTtsConfig() first");
+  }
+
+  if (ttsConfig.provider === "piper") {
+    const cacheKey = `piper:${text}`;
+    const cached = cacheGet(cacheKey);
+    if (cached) return cached;
+    const buf = await synthesizePiper(text);
+    cachePut(cacheKey, buf);
+    return buf;
+  }
+
+  // ElevenLabs path
+  const voiceId = voiceIdOverride ?? ttsConfig.voiceId;
+  const cacheKey = `${voiceId}:${text}`;
+  const cached = cacheGet(cacheKey);
+  if (cached) return cached;
+
+  const buf = await synthesizeElevenLabs(text, voiceIdOverride);
+  cachePut(cacheKey, buf);
+  return buf;
 }
 
 /**
@@ -142,6 +239,11 @@ export interface VoiceInfo {
 export async function listVoices(): Promise<VoiceInfo[]> {
   if (!ttsConfig) {
     throw new Error("TTS not configured — call setTtsConfig() first");
+  }
+
+  if (ttsConfig.provider === "piper") {
+    // Piper uses local model files — no remote voice listing available
+    return [];
   }
 
   const res = await fetch("https://api.elevenlabs.io/v1/voices", {

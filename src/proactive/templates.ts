@@ -1,4 +1,4 @@
-import type { MorningBriefData } from "./collector.js";
+import type { MorningBriefData, TaskItem } from "./collector.js";
 import type { CalendarEvent } from "../integrations/google/calendar.js";
 import type { GmailMessage } from "../integrations/google/gmail.js";
 import { t } from "../i18n/index.js";
@@ -17,7 +17,10 @@ export function buildMorningBriefPrompt(data: MorningBriefData, userName: string
       const time = ev.start
         ? new Date(ev.start).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })
         : "?";
-      sections.push(`- ${time}: ${ev.summary}`);
+      let line = `- ${time}: ${ev.summary}`;
+      if (ev.description) line += ` — ${ev.description.slice(0, 200)}`;
+      if (ev.location) line += ` (${ev.location})`;
+      sections.push(line);
     }
     sections.push("</today_calendar>");
   } else {
@@ -43,6 +46,27 @@ export function buildMorningBriefPrompt(data: MorningBriefData, userName: string
 
   sections.push("");
 
+  // Tasks
+  if (data.tasks && data.tasks.length > 0) {
+    sections.push(`### ${t("proactive.morning.tasks.section")}`);
+    sections.push("<today_tasks>");
+    for (const task of data.tasks.slice(0, 10)) {
+      let line = `- ${task.title}`;
+      if (task.due) {
+        const dueTime = new Date(task.due).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+        if (dueTime !== "00:00") line += ` (fällig: ${dueTime})`;
+      }
+      if (task.priority && task.priority > 2) line += " ⚡";
+      sections.push(line);
+    }
+    if (data.tasks.length > 10) {
+      sections.push(`  ... +${data.tasks.length - 10} more`);
+    }
+    sections.push("</today_tasks>");
+  }
+
+  sections.push("");
+
   // Memory
   if (data.memoryHighlights) {
     sections.push(`### ${t("proactive.morning.memory.section")}`);
@@ -54,21 +78,31 @@ export function buildMorningBriefPrompt(data: MorningBriefData, userName: string
   const content = sections.join("\n");
 
   // If there's nothing meaningful, return empty indicator
-  if (data.events.length === 0 && data.emails.length === 0 && !data.memoryHighlights) {
+  if (data.events.length === 0 && data.emails.length === 0 && (!data.tasks || data.tasks.length === 0) && !data.memoryHighlights) {
     return t("proactive.morning.empty", { name: userName });
   }
 
-  return `Bitte fasse diesen Morning Brief zusammen und schicke ihn dem User:\n\n${content}\n\n<task_hint>SIMPLE_TASK — handle this directly, do NOT use claude_code tool.</task_hint>`;
+  const prepHint = data.events.length > 0 ? `\n${t("proactive.calendar.prep.hint")}` : "";
+
+  return `Bitte fasse diesen Morning Brief zusammen und schicke ihn dem User:${prepHint}\n\n${content}\n\n<task_hint>SIMPLE_TASK — handle this directly, do NOT use claude_code tool.</task_hint>`;
 }
 
 export function buildCalendarReminderPrompt(events: CalendarEvent[]): string | null {
   if (events.length === 0) return null;
-  const lines = events.map((ev) => {
+
+  const lines: string[] = [];
+  for (const ev of events) {
     const start = new Date(ev.start);
     const minutesUntil = Math.round((start.getTime() - Date.now()) / 60_000);
-    return t("proactive.calendar.reminder", { minutes: String(minutesUntil), event: ev.summary });
-  });
-  return `Bitte erinnere den User an folgende Termine:\n\n${lines.join("\n")}\n\n<task_hint>SIMPLE_TASK — handle this directly, do NOT use claude_code tool.</task_hint>`;
+    let line = t("proactive.calendar.reminder", { minutes: String(minutesUntil), event: ev.summary });
+    if (ev.description) line += `\n  Beschreibung: ${ev.description.slice(0, 300)}`;
+    if (ev.location) line += `\n  Ort: ${ev.location}`;
+    lines.push(line);
+  }
+
+  const prepHint = t("proactive.calendar.prep.hint");
+
+  return `Bitte erinnere den User an folgende Termine und ${prepHint}:\n\n${lines.join("\n\n")}\n\n<task_hint>SIMPLE_TASK — handle this directly, do NOT use claude_code tool. Use memory_search to find relevant context about the meeting participants or topics.</task_hint>`;
 }
 
 export function buildEmailAlertPrompt(emails: GmailMessage[]): string | null {
