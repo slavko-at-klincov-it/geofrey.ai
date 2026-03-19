@@ -1,186 +1,34 @@
 import { z } from "zod";
-import { platform } from "node:os";
-
-/** Zod 4: .default({}) no longer parses through inner schema. Use preprocess to apply {} when undefined, so inner field defaults work. */
-function objectWithDefaults<T extends z.ZodTypeAny>(schema: T) {
-  return z.preprocess((v) => v ?? {}, schema);
-}
-
-const DEFAULT_SIGNAL_SOCKET = platform() === "win32"
-  ? "\\\\.\\pipe\\signal-cli"
-  : "/var/run/signal-cli/socket";
 
 export const configSchema = z.object({
   locale: z.enum(["de", "en"]).default("de"),
-  platform: z.enum(["telegram", "whatsapp", "signal", "webchat", "slack", "discord"]).default("telegram"),
   telegram: z.object({
     botToken: z.string().min(1),
     ownerId: z.coerce.number().int().positive(),
-  }).optional(),
-  whatsapp: z.object({
-    accountSid: z.string().min(1).startsWith("AC"),
-    authToken: z.string().min(1),
-    whatsappNumber: z.string().min(1),
-    ownerPhone: z.string().min(1),
-    webhookPort: z.coerce.number().int().default(3000),
-  }).optional(),
-  signal: z.object({
-    signalCliSocket: z.string().default(DEFAULT_SIGNAL_SOCKET),
-    ownerPhone: z.string().min(1),
-    botPhone: z.string().min(1),
-  }).optional(),
-  slack: z.object({
-    botToken: z.string().min(1),
-    appToken: z.string().min(1),
-    channelId: z.string().min(1),
-  }).optional(),
-  discord: z.object({
-    botToken: z.string().min(1),
-    channelId: z.string().min(1),
-  }).optional(),
-  ollama: z.object({
-    baseUrl: z.string().url().default("http://localhost:11434"),
-    model: z.string().default("qwen3:8b"),
-    embedModel: z.string().default("nomic-embed-text"),
-    numCtx: z.coerce.number().int().default(16384),
   }),
   database: z.object({
     url: z.string().default("./data/app.db"),
   }),
-  audit: z.object({
-    logDir: z.string().default("./data/audit"),
-  }),
-  limits: z.object({
-    maxAgentSteps: z.coerce.number().int().default(15),
-    approvalTimeoutMs: z.coerce.number().int().default(300_000),
-    maxConsecutiveErrors: z.coerce.number().int().default(3),
-  }),
-  claude: z.object({
+  dashboard: z.object({
     enabled: z.boolean().default(true),
-    skipPermissions: z.boolean().default(true),
-    outputFormat: z.enum(["json", "stream-json", "text"]).default("stream-json"),
-    maxBudgetUsd: z.coerce.number().optional(),
-    model: z.string().default("claude-sonnet-4-5-20250929"),
-    sessionTtlMs: z.coerce.number().int().default(3_600_000),
-    timeoutMs: z.coerce.number().int().default(600_000),
-    defaultDirs: z.array(z.string()).default([]),
-    apiKey: z.string().optional(),
-    mcpConfigPath: z.string().optional(),
-    toolProfiles: objectWithDefaults(z.object({
-      readOnly: z.string().default("Read Glob Grep"),
-      standard: z.string().default("Read Glob Grep Edit Write Bash(git:*)"),
-      full: z.string().default("Read Glob Grep Edit Write Bash"),
-    })),
-  }),
-  imageSanitizer: objectWithDefaults(z.object({
-    enabled: z.boolean().default(true),
-    maxInputSizeBytes: z.coerce.number().int().positive().default(20_971_520),
-    scanForInjection: z.boolean().default(true),
-  })),
-  dashboard: objectWithDefaults(z.object({
-    enabled: z.boolean().default(false),
     port: z.coerce.number().int().default(3003),
     token: z.string().optional(),
-  })),
-  search: objectWithDefaults(z.object({
-    provider: z.enum(["searxng", "brave"]).default("searxng"),
-    searxngUrl: z.string().url().default("http://localhost:8080"),
-    braveApiKey: z.string().optional(),
-  })),
-  billing: objectWithDefaults(z.object({
-    maxDailyBudgetUsd: z.coerce.number().positive().optional(),
-  })),
-  voice: objectWithDefaults(z.object({
-    sttProvider: z.enum(["openai", "local"]).default("openai"),
-    openaiApiKey: z.string().optional(),
-    whisperModelPath: z.string().optional(),
-  })),
-  sandbox: objectWithDefaults(z.object({
-    enabled: z.boolean().default(false),
-    image: z.string().default("node:22-slim"),
-    memoryLimit: z.string().default("512m"),
-    networkEnabled: z.boolean().default(false),
-    pidsLimit: z.coerce.number().int().positive().default(64),
-    readOnly: z.boolean().default(false),
-    ttlMs: z.coerce.number().int().positive().default(1_800_000),
-  })),
-  webhook: objectWithDefaults(z.object({
-    enabled: z.boolean().default(false),
-    port: z.coerce.number().int().default(3002),
-    host: z.string().default("localhost"),
-    rateLimit: z.coerce.number().int().positive().default(60),
-  })),
-  agents: objectWithDefaults(z.object({
-    enabled: z.boolean().default(false),
-    routingStrategy: z.enum(["skill-based", "intent-based", "explicit"]).default("skill-based"),
-    maxConcurrentAgents: z.coerce.number().int().positive().default(5),
-    sessionIsolation: z.boolean().default(true),
-  })),
-  tts: objectWithDefaults(z.object({
-    enabled: z.boolean().default(false),
-    provider: z.enum(["piper", "elevenlabs"]).default("piper"),
-    apiKey: z.string().optional(),
-    voiceId: z.string().default("21m00Tcm4TlvDq8ikWAM"),
-    piperModelPath: z.string().optional(),
-    cacheLruSize: z.coerce.number().int().positive().default(100),
-  })),
-  companion: objectWithDefaults(z.object({
-    enabled: z.boolean().default(false),
-    wsPort: z.coerce.number().int().default(3003),
-    pairingTtlMs: z.coerce.number().int().positive().default(300_000),
-    apnsKeyPath: z.string().optional(),
-    apnsKeyId: z.string().optional(),
-    apnsTeamId: z.string().optional(),
-    apnsBundleId: z.string().optional(),
-    fcmServerKey: z.string().optional(),
-  })),
-  smartHome: objectWithDefaults(z.object({
-    enabled: z.boolean().default(false),
-    hueBridgeIp: z.string().optional(),
-    hueApiKey: z.string().optional(),
-    haUrl: z.string().optional(),
-    haToken: z.string().optional(),
-    sonosHttpApiUrl: z.string().optional(),
-  })),
-  google: objectWithDefaults(z.object({
-    enabled: z.boolean().default(false),
-    clientId: z.string().optional(),
-    clientSecret: z.string().optional(),
-    redirectUrl: z.string().default("http://localhost:3004/oauth/callback"),
-    tokenCachePath: z.string().default("./data/google-tokens.json"),
-  })),
-  anonymizer: objectWithDefaults(z.object({
-    enabled: z.boolean().default(false),
-    llmPass: z.boolean().default(false),
-    customTerms: z.array(z.string()).default([]),
-    skipCategories: z.array(z.string()).default([]),
-  })),
-  mcp: z.object({
-    // Empty array = all servers allowed (no restriction). Non-empty = only listed servers.
-    allowedServers: z.array(z.string()).default([]),
   }),
-}).refine((data) => {
-  if (data.platform === "telegram" && !data.telegram) {
-    return false;
-  }
-  if (data.platform === "whatsapp" && !data.whatsapp) {
-    return false;
-  }
-  if (data.platform === "signal" && !data.signal) {
-    return false;
-  }
-  if (data.platform === "slack" && !data.slack) {
-    return false;
-  }
-  if (data.platform === "discord" && !data.discord) {
-    return false;
-  }
-  if (data.platform === "webchat" && !data.dashboard.enabled) {
-    return false;
-  }
-  return true;
-}, {
-  message: "Selected platform config must be provided (e.g. whatsapp config for platform: 'whatsapp', dashboard.enabled for platform: 'webchat')",
+  ais: z.object({
+    apiKey: z.string().optional(),
+    enabled: z.boolean().default(false),
+  }),
+  opensky: z.object({
+    user: z.string().optional(),
+    pass: z.string().optional(),
+    enabled: z.boolean().default(false),
+    pollIntervalMs: z.coerce.number().int().default(60_000),
+  }),
+  dhl: z.object({
+    apiKey: z.string().optional(),
+    enabled: z.boolean().default(false),
+    pollIntervalMs: z.coerce.number().int().default(300_000),
+  }),
 });
 
 export type Config = z.infer<typeof configSchema>;

@@ -1,7 +1,7 @@
 {
   "name": "geofrey-ai",
-  "version": "2.0.0",
-  "description": "Better OpenClaw alternative with local LLM orchestrator",
+  "version": "3.0.0",
+  "description": "Intelligent freight visibility platform",
   "license": "MIT",
   "type": "module",
   "private": true,
@@ -9,12 +9,8 @@
   "exports": {
     ".": "./dist/index.js"
   },
-  "bin": {
-    "geofrey": "./bin/geofrey.mjs"
-  },
   "files": [
     "dist/",
-    "bin/",
     "drizzle/",
     "package.json",
     "README.md",
@@ -30,36 +26,17 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "lint": "tsc --noEmit",
-    "test": "node --import tsx/esm --test $(find src -name '*.test.ts' -not -path '*/e2e/live/*' | sort)",
-    "test:e2e": "node --import tsx/esm --test --test-timeout=300000 'src/e2e/live/**/*.e2e.test.ts'",
-    "index": "tsx src/indexer/cli.ts",
-    "setup": "tsx src/onboarding/setup.ts",
-    "benchmark:classifier": "tsx src/benchmarks/risk-classifier-benchmark.ts",
     "prepublishOnly": "pnpm build"
   },
   "dependencies": {
-    "@inquirer/prompts": "^8.2.0",
-    "@modelcontextprotocol/sdk": "^1.0.0",
-    "@slack/bolt": "^4.6.0",
-    "ai": "^6.0.0",
-    "ai-sdk-ollama": "^3.0.0",
     "better-sqlite3": "^12.6.2",
-    "chalk": "^5.6.2",
-    "chrome-remote-interface": "^0.34.0",
-    "clipboardy": "^5.3.0",
-    "discord.js": "^14.25.1",
     "drizzle-orm": "^0.45.1",
-    "execa": "^9.5.0",
     "grammy": "^1.35.0",
-    "ora": "^9.3.0",
-    "sharp": "^0.34.5",
-    "tesseract.js": "^7.0.0",
     "ws": "^8.19.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.0",
-    "@types/chrome-remote-interface": "^0.33.0",
     "@types/node": "^22.0.0",
     "@types/ws": "^8.18.1",
     "drizzle-kit": "^0.31.9",
