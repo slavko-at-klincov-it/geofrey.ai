@@ -16,6 +16,10 @@ def main():
     task_parser = subparsers.add_parser("task", help="Single task for geofrey")
     task_parser.add_argument("task_text", help="Task description")
 
+    # LinkedIn generation
+    li_parser = subparsers.add_parser("post", help="Generate a LinkedIn post")
+    li_parser.add_argument("topic", nargs="?", help="Post topic (optional, will ask if missing)")
+
     # Knowledge commands
     ingest_parser = subparsers.add_parser("ingest", help="Index documents")
     ingest_parser.add_argument("path", help="Path to documents")
@@ -39,7 +43,11 @@ def main():
     args, remaining = parser.parse_known_args()
     config = load_config()
 
-    if args.command == "chat":
+    if args.command == "post":
+        from brain.linkedin import linkedin_flow
+        linkedin_flow(args.topic)
+
+    elif args.command == "chat":
         from brain.orchestrator import interactive
         interactive()
 
