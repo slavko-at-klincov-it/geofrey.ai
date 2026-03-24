@@ -1,9 +1,27 @@
-node_modules/
-dist/
-data/
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# ChromaDB (rebuild from knowledge sources)
+chroma_db/
+
+# Environment
 .env
-*.db
-*.db-journal
-.geofrey/
-eng.traineddata
 .DS_Store
+
+# Logs
+logs/
+*.log
+
+# IDE
+.vscode/
+.idea/
+
+# macOS
+.DS_Store
+**/.DS_Store
+
+# Build artifacts
+.build/
+dist/
