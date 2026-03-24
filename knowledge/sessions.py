@@ -14,6 +14,42 @@ from knowledge.ingest import load_and_chunk
 
 console = Console()
 HISTORY_FILE = Path.home() / ".claude" / "history.jsonl"
+CLAUDE_PROJECTS_DIR = Path.home() / ".claude" / "projects"
+
+
+def get_project_slug(project_path: str) -> str:
+    """Convert project path to Claude Code slug format.
+
+    /Users/slavkoklincov/Code/geofrey → -Users-slavkoklincov-Code-geofrey
+    """
+    return project_path.replace("/", "-").lstrip("-")
+
+
+def list_session_jsonls(project_slug: str | None = None) -> list[dict]:
+    """List all session JSONL files, optionally filtered by project slug.
+
+    Returns list of dicts with keys: path, session_id, project_slug.
+    """
+    results = []
+    if project_slug:
+        slugs = [project_slug]
+    else:
+        if not CLAUDE_PROJECTS_DIR.exists():
+            return []
+        slugs = [d.name for d in CLAUDE_PROJECTS_DIR.iterdir() if d.is_dir()]
+
+    for slug in slugs:
+        project_dir = CLAUDE_PROJECTS_DIR / slug
+        if not project_dir.exists():
+            continue
+        for jsonl in sorted(project_dir.glob("*.jsonl")):
+            session_id = jsonl.stem
+            results.append({
+                "path": jsonl,
+                "session_id": session_id,
+                "project_slug": slug,
+            })
+    return results
 
 
 def parse_sessions(history_path: Path | None = None, min_length: int = 50) -> list[dict]:

@@ -72,7 +72,7 @@ User: "Schreib ein Angebot für Kunde X, Power Platform Beratung"
 - [x] LinkedIn Post-Generierung End-to-End: `python main.py post "Thema"` (2026-03-24)
 - [x] Bild-Prompt Generierung via Claude Code Sonnet — 4 Optionen (2026-03-24)
 - [ ] Gemini API-Anbindung für automatische Bildgenerierung (verschoben)
-- [ ] Automatische Wissens-Persistenz nach Claude Code Sessions
+- [x] Session Intelligence: Learnings aus Claude Code Sessions extrahieren (2026-03-24)
 - [ ] Alle LinkedIn Posts importieren (aktuell nur 38, User liefert mehr)
 
 ### Phase 2: Native UI (macOS SwiftUI)

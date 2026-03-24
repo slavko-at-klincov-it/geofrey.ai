@@ -54,10 +54,12 @@ geofrey/
 │   ├── ingest.py       # Document Loading + Chunking + Embedding
 │   ├── context.py      # DACH Personal Context Manager
 │   ├── linkedin.py     # LinkedIn Post Ingestion + Style Guide
-│   └── sessions.py     # Claude Code Session Pipeline + Inbox
+│   ├── sessions.py     # Claude Code Session Pipeline + Inbox
+│   └── intelligence.py # Session Intelligence — Learnings aus Sessions extrahieren
 ├── knowledge-base/     # RAG Knowledge Chunks (Markdown, Source of Truth)
 │   ├── claude-code/    # 82 Chunks über Claude Code (ex CLI_Maestro/knowledge/)
-│   └── context/        # DACH-Kontext Dateien (Profil, DSGVO, NIS2, etc.)
+│   ├── context/        # DACH-Kontext Dateien (Profil, DSGVO, NIS2, etc.)
+│   └── sessions/       # Extrahierte Session-Learnings pro Projekt
 ├── ui/                 # Native macOS App (SwiftUI) — Phase 2
 ├── config/
 │   ├── config.yaml     # Modelle, Pfade, Chunk-Settings
@@ -88,6 +90,7 @@ Alle in `~/.knowledge/vectordb/` (shared):
 | `knowledge` | Allgemeine Recherche-Ergebnisse | Nach jeder Session / Inbox |
 | `linkedin_style` | LinkedIn Posts als Stil-Referenz | Nach jedem bestätigten Post |
 | `sessions` | Claude Code Session-Summaries | Automatisch |
+| `session_learnings` | Extrahierte Learnings pro Projekt (Decisions, Bugs, Discoveries, etc.) | Nach `learn` Command |
 
 ## Safety — Non-Negotiable
 

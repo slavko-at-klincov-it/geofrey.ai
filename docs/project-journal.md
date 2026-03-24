@@ -194,6 +194,62 @@ geofrey/
 
 ---
 
+## 2026-03-24 — Session Intelligence Feature
+
+**Problem:** Claude Code generiert beim Arbeiten wertvolles Wissen (Debugging-Findings, Architektur-Entscheidungen, Root Causes, Dinge die nicht funktioniert haben). Dieses Wissen verschwindet nach der Session. Niemand schreibt es auf.
+
+**Lösung:** Session Intelligence Pipeline — extrahiert automatisch Learnings aus Claude Code Session-JSONLs via Map-Reduce mit Qwen3.5-9B.
+
+**Was gebaut wurde:**
+
+1. `knowledge/intelligence.py` (~300 Zeilen) — Kern-Pipeline
+   - Parst Session-JSONL-Dateien (`~/.claude/projects/<slug>/<session>.jsonl`)
+   - Extrahiert nur user text + assistant text-Blöcke, filtert Noise
+   - Chunked in ~2500-char Segmente für 9B-Modell Kontext
+   - Map-Phase: Jeder Chunk → Qwen3.5-9B → JSON mit 6 Kategorien
+   - Multi-Pass Reduce: Batches à 5 → konsolidiert → wiederholt bis alles passt
+   - Speichert als Markdown (Source of Truth) + ChromaDB Index
+
+2. `brain/prompts.py` — 2 neue Prompt-Templates (Extract + Consolidate)
+
+3. `knowledge/sessions.py` — 2 neue Helpers (Slug-Konvertierung, Session-Discovery)
+
+4. `main.py` — 2 neue Commands: `learn` + `learnings`
+
+**Lernkategorien:**
+- Decisions (Architektur-/Design-Entscheidungen mit Begründung)
+- Bugs Found (Root Cause + Fix)
+- Discoveries (Wichtige Findings über Codebase/Tools)
+- Negative Knowledge (Was NICHT funktioniert hat und warum)
+- Configuration (Setup-/Config-Learnings)
+- Patterns (Wiederverwendbare Muster)
+
+**Test-Ergebnisse:**
+- Kleine Session (13 turns, 2 chunks): 12 Items in ~30s
+- Große Session (153 turns, 36 chunks): 169 Items nach 3-Pass Consolidation (von 586 → 169)
+- Ohne Multi-Pass: 586 unkondensierte Items (zu viel, Duplikate)
+- Mit Multi-Pass (35 → 7 → 2 → 1): Saubere, deduplizierte Ergebnisse
+
+**Kernentscheidungen:**
+- Map-Reduce statt ein großer LLM-Call (9B hat nur ~8K Kontext)
+- Multi-Pass Consolidation für große Sessions (>5 Chunks)
+- JSON-Output vom LLM (zuverlässiger parsbar als Freitext bei 9B)
+- Session-JSONLs als Datenquelle (nicht history.jsonl — dort fehlen Assistant-Antworten)
+- Pro Kategorie ein eigener ChromaDB-Chunk (bessere Retrieval-Präzision)
+- Markdown als Source of Truth unter `knowledge-base/sessions/{project}/`
+
+**Neue CLI Commands:**
+```bash
+python main.py learn                        # Alle unprocessed Sessions
+python main.py learn --project geofrey      # Nur ein Projekt
+python main.py learn --session 691d7f6f     # Spezifische Session
+python main.py learnings                    # Übersicht aller Projekte
+python main.py learnings geofrey            # Projekt-Details
+python main.py learnings --query "bug"      # RAG-Suche
+```
+
+---
+
 ## Aktueller Stand (2026-03-24 Ende)
 
 **Was funktioniert:**
@@ -201,12 +257,15 @@ geofrey/
 - `python main.py chat` — Orchestrator-Modus (User → Claude Code Command)
 - `python main.py task "fix login in meus"` — Single Task
 - `python main.py status` — 6 Collections, 313 Chunks
+- `python main.py learn` — Session Intelligence: Learnings aus Claude Code Sessions extrahieren
+- `python main.py learnings` — Learnings anzeigen/durchsuchen (RAG)
 - `python main.py context-setup / linkedin-ingest / sessions-ingest / inbox / embed`
 - `python main.py hub-query "DSGVO" --collections context_personal,knowledge`
+- `python main.py status` — 7 Collections inkl. session_learnings
 
 **Was noch fehlt (Phase 1):**
 - Gemini API für automatische Bildgenerierung (verschoben)
-- Automatische Wissens-Persistenz nach Claude Code Sessions
+- ~~Automatische Wissens-Persistenz nach Claude Code Sessions~~ ✓ (Session Intelligence)
 - Mehr LinkedIn Posts importieren (User liefert > 38)
 
 **Was noch fehlt (Phase 2+):**

@@ -64,3 +64,29 @@ STYLE REQUIREMENTS:
 - Must include at least one person
 
 Return exactly 4 options, each as a short image generation prompt (1-2 sentences)."""
+
+SESSION_EXTRACT_PROMPT = """Extract concrete learnings from this Claude Code session segment.
+Skip routine operations, status updates, and small talk. Focus on actionable knowledge.
+
+PROJECT: {project_name}
+DATE: {session_date}
+
+TRANSCRIPT:
+{chunk_text}
+
+Extract into these categories (skip empty ones). Be specific — include file names, error messages, versions.
+
+Respond in JSON:
+{{"decisions": ["..."], "bugs": ["..."], "discoveries": ["..."], "negative_knowledge": ["..."], "configuration": ["..."], "patterns": ["..."]}}"""
+
+SESSION_CONSOLIDATE_PROMPT = """Consolidate these session learnings. Remove duplicates, keep all unique information.
+
+PROJECT: {project_name}
+DATE: {session_date}
+
+RAW LEARNINGS:
+{raw_learnings}
+
+Output clean JSON with same categories. Merge similar items, remove exact duplicates, keep specifics.
+
+{{"decisions": ["..."], "bugs": ["..."], "discoveries": ["..."], "negative_knowledge": ["..."], "configuration": ["..."], "patterns": ["..."]}}"""

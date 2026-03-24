@@ -19,6 +19,8 @@ paths:
   claude_code_kb: "knowledge-base/claude-code"
   inbox: "~/knowledge/inbox"
   linkedin_posts: "data/linkedin/all_posts.md"
+  session_learnings: "knowledge-base/sessions"
+  claude_projects: "~/.claude/projects"
 
 chat:
   history_length: 5

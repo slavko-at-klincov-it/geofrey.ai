@@ -37,6 +37,17 @@ def main():
     hub_parser.add_argument("--collections", default="knowledge")
     hub_parser.add_argument("--top", type=int, default=5)
 
+    # Session Intelligence
+    learn_parser = subparsers.add_parser("learn", help="Extract learnings from Claude Code sessions")
+    learn_parser.add_argument("--project", help="Project name filter")
+    learn_parser.add_argument("--session", help="Specific session ID (prefix)")
+    learn_parser.add_argument("--max", type=int, default=10, help="Max sessions to process")
+    learn_parser.add_argument("--reprocess", action="store_true", help="Re-extract existing")
+
+    learnings_parser = subparsers.add_parser("learnings", help="View/search session learnings")
+    learnings_parser.add_argument("project", nargs="?", help="Project name")
+    learnings_parser.add_argument("--query", help="Search learnings via RAG")
+
     # Scripts
     subparsers.add_parser("embed", help="Embed Claude Code knowledge base (--reset, --changed)")
 
@@ -102,6 +113,48 @@ def main():
                 print(f"[{i}] {r['source']} ({r['collection']}, score: {score:.3f})")
                 print(f"{'='*60}")
                 print(r["text"][:500])
+
+    elif args.command == "learn":
+        from knowledge.intelligence import extract_all, extract_session
+        if args.session:
+            # Find specific session file
+            from knowledge.sessions import CLAUDE_PROJECTS_DIR
+            from knowledge.intelligence import _slug_to_project_name
+            found = False
+            if not CLAUDE_PROJECTS_DIR.exists():
+                print("No Claude Code projects found.")
+                sys.exit(1)
+            for d in CLAUDE_PROJECTS_DIR.iterdir():
+                if not d.is_dir():
+                    continue
+                for jsonl in d.glob("*.jsonl"):
+                    if jsonl.stem.startswith(args.session):
+                        project_name = _slug_to_project_name(d.name)
+                        extract_session(jsonl, project_name, config)
+                        found = True
+                        break
+                if found:
+                    break
+            if not found:
+                print(f"Session '{args.session}' not found.")
+        else:
+            extract_all(project=args.project, config=config, max_sessions=args.max, reprocess=args.reprocess)
+
+    elif args.command == "learnings":
+        from knowledge.intelligence import view_learnings, query_learnings
+        if args.query:
+            results = query_learnings(args.query, project=args.project, config=config)
+            if not results:
+                print("No results found.")
+            else:
+                for i, r in enumerate(results, 1):
+                    score = 1 - r["distance"]
+                    print(f"\n{'='*60}")
+                    print(f"[{i}] {r.get('project', '?')} / {r.get('category', '?')} (score: {score:.3f})")
+                    print(f"{'='*60}")
+                    print(r["text"][:500])
+        else:
+            print(view_learnings(project=args.project, config=config))
 
     elif args.command == "embed":
         import subprocess
