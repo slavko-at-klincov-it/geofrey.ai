@@ -1,0 +1,24 @@
+llm:
+  model: "qwen3.5:9b"
+  base_url: "http://localhost:11434"
+  temperature: 0.3
+
+embedding:
+  model: "nomic-embed-text"
+
+chunking:
+  chunk_size: 512
+  chunk_overlap: 50
+
+retrieval:
+  top_k: 5
+
+paths:
+  vectordb: "~/.knowledge/vectordb"
+  context: "knowledge-base/context"
+  claude_code_kb: "knowledge-base/claude-code"
+  inbox: "~/knowledge/inbox"
+  linkedin_posts: "data/linkedin/all_posts.md"
+
+chat:
+  history_length: 5

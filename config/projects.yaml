@@ -1,0 +1,33 @@
+# Maestro — Known Projects Registry
+# Add your projects here. Maestro uses this to scope Claude Code sessions correctly.
+
+projects:
+  meus:
+    path: "~/Code/meus"
+    stack: "React Native, Expo, TypeScript"
+    description: "Core project — mobile/desktop app"
+
+  aibuchhalter:
+    path: "~/Code/AIBuchhalter"
+    stack: "Python"
+    description: "Accounting app, needs invoices/offers feature"
+
+  crm:
+    path: "~/Code/CRM"
+    stack: "TBD"
+    description: "CRM — not started yet"
+
+  klincovit-website:
+    path: "~/Code/klincovit-website"
+    stack: "HTML, CSS, JS"
+    description: "Business website, static"
+
+  linkedin-automat:
+    path: "~/Code/LinkedIn_Automat"
+    stack: "Python"
+    description: "LinkedIn automation tool, unfinished"
+
+  cli-maestro:
+    path: "~/Code/CLI_Maestro"
+    stack: "Python, Ollama, ChromaDB"
+    description: "This project — Claude Code orchestrator"
