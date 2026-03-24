@@ -39,7 +39,7 @@ class KnowledgeHub:
         for col_name in collections:
             try:
                 collection = self.client.get_collection(col_name)
-            except Exception:
+            except ValueError:
                 continue
             count = collection.count()
             if count == 0:
@@ -70,7 +70,7 @@ class KnowledgeHub:
         """Load ALL chunks from context_personal collection."""
         try:
             collection = self.client.get_collection("context_personal")
-        except Exception:
+        except ValueError:
             return ""
         result = collection.get(include=["documents", "metadatas"])
         if not result["documents"]:
@@ -89,7 +89,7 @@ class KnowledgeHub:
             profile = collection.get(ids=["ctx_profile"], include=["documents"])
             if profile["documents"]:
                 return profile["documents"][0]
-        except Exception:
+        except ValueError:
             pass
         return ""
 

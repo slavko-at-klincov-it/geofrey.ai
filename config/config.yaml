@@ -24,3 +24,10 @@ paths:
 
 chat:
   history_length: 5
+
+orchestrator:
+  max_history: 20
+  temperature: 0.3
+
+linkedin:
+  temperature: 0.7

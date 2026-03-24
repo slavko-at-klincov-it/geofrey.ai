@@ -16,10 +16,12 @@ class ContextManager:
     def __init__(self, config: dict | None = None):
         self.config = config or load_config()
         self.store = VectorStore(self.config, collection_name=COLLECTION_NAME)
-        self.context_dir = Path(self.config.get("paths", {}).get("context", "knowledge-base/context"))
-        # Resolve relative to project root
-        if not self.context_dir.is_absolute():
-            self.context_dir = Path(__file__).parent.parent / self.context_dir
+        context_raw = self.config.get("paths", {}).get("context", "knowledge-base/context")
+        context_expanded = Path(os.path.expanduser(context_raw))
+        if context_expanded.is_absolute():
+            self.context_dir = context_expanded.resolve()
+        else:
+            self.context_dir = (Path(__file__).parent.parent / context_expanded).resolve()
 
     def ingest_context_files(self):
         """Ingest all markdown files from context/ directory."""

@@ -13,7 +13,7 @@ def get_safety_context(client, collection_name: str = "claude_code") -> str:
     try:
         collection = client.get_collection(collection_name)
         results = collection.get(ids=ALWAYS_INJECT, include=["documents", "metadatas"])
-    except Exception:
+    except ValueError:
         return ""
 
     if not results or not results["documents"]:

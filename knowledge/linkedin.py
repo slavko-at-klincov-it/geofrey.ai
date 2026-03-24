@@ -55,7 +55,7 @@ def parse_posts(md_path: str) -> list[dict]:
     return posts
 
 
-def ingest_linkedin_posts(config: dict | None = None):
+def ingest_linkedin_posts(config: dict | None = None) -> int:
     """Parse and ingest LinkedIn posts into linkedin_style collection."""
     config = config or load_config()
     posts_path = config.get("paths", {}).get("linkedin_posts", "data/linkedin/all_posts.md")

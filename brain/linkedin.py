@@ -31,7 +31,7 @@ console = Console()
 
 def _get_similar_posts(topic: str, config: dict, top_k: int = 3) -> str:
     """Retrieve most similar existing posts for few-shot examples."""
-    db_path = os.path.expanduser(config["paths"]["vectordb"])
+    db_path = str(Path(os.path.expanduser(config["paths"]["vectordb"])))
     client = chromadb.PersistentClient(path=db_path)
 
     try:
@@ -65,7 +65,7 @@ def _get_similar_posts(topic: str, config: dict, top_k: int = 3) -> str:
 
 def _get_personal_context(config: dict) -> str:
     """Get condensed personal context for LinkedIn prompts."""
-    db_path = os.path.expanduser(config["paths"]["vectordb"])
+    db_path = str(Path(os.path.expanduser(config["paths"]["vectordb"])))
     client = chromadb.PersistentClient(path=db_path)
 
     try:
@@ -106,7 +106,7 @@ def generate_post(topic: str, config: dict | None = None) -> str:
         model=config["llm"]["model"],
         messages=messages,
         think=False,
-        options={"temperature": 0.7, "num_predict": 800},
+        options={"temperature": config.get("linkedin", {}).get("temperature", 0.7), "num_predict": 800},
     )
 
     return response["message"]["content"]
@@ -158,7 +158,7 @@ def _parse_image_options(text: str) -> list[str]:
 
 def save_post(post_text: str, topic: str, config: dict):
     """Save confirmed post to linkedin_style collection and all_posts.md."""
-    db_path = os.path.expanduser(config["paths"]["vectordb"])
+    db_path = str(Path(os.path.expanduser(config["paths"]["vectordb"])))
     client = chromadb.PersistentClient(path=db_path)
     collection = client.get_or_create_collection(
         name=COLLECTION_NAME, metadata={"hnsw:space": "cosine"},
@@ -191,8 +191,9 @@ def save_post(post_text: str, topic: str, config: dict):
 
     # Append to all_posts.md
     posts_path = config.get("paths", {}).get("linkedin_posts", "data/linkedin/all_posts.md")
-    if not os.path.isabs(posts_path):
-        posts_path = str(Path(__file__).parent.parent / posts_path)
+    posts_path = str(Path(os.path.expanduser(posts_path)).resolve()
+                      if Path(os.path.expanduser(posts_path)).is_absolute()
+                      else (Path(__file__).parent.parent / posts_path).resolve())
 
     entry = f"\n\n## Post {next_num} - {today}\nThema: {topic}\nText:\n{post_text}\nQuellen: []\n"
     with open(posts_path, "a", encoding="utf-8") as f:

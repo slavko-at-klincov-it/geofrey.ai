@@ -32,8 +32,8 @@ def _file_hash(path: str) -> str:
 
 
 def collect_files(docs_path: str) -> list[Path]:
-    docs_path = os.path.expanduser(docs_path)
-    root = Path(docs_path)
+    """Collect all supported files from a path (file or directory)."""
+    root = Path(os.path.expanduser(docs_path))
     if root.is_file():
         return [root] if root.suffix.lower() in SUPPORTED_EXTENSIONS else []
     files = []

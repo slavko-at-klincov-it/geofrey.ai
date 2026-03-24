@@ -1,6 +1,8 @@
 """geofrey brain — orchestrates local LLM, Knowledge Hub, and Claude Code."""
 
+import os
 import re
+import shlex
 import subprocess
 import argparse
 from pathlib import Path
@@ -14,13 +16,13 @@ from brain.prompts import ORCHESTRATOR_PROMPT, CHAT_PROMPT
 from brain.safety import get_safety_context, ALWAYS_INJECT
 
 
-# --- Config ---
-LLM_MODEL = "qwen3.5:9b"
-EMBEDDING_MODEL = "nomic-embed-text"
-MAX_HISTORY = 20
+def _get_config(config: dict | None = None) -> dict:
+    """Return config, loading from file if not provided."""
+    return config if config is not None else load_config()
 
 
 def load_projects() -> dict:
+    """Load project registry from config/projects.yaml."""
     projects_file = Path(__file__).parent.parent / "config" / "projects.yaml"
     if not projects_file.exists():
         return {}
@@ -30,28 +32,27 @@ def load_projects() -> dict:
 
 
 def get_projects_text() -> str:
+    """Format project registry as human-readable text for LLM context."""
     projects = load_projects()
     lines = [f"- {name}: {info['path']} ({info['stack']}) — {info['description']}"
              for name, info in projects.items()]
     return "\n".join(lines) if lines else "(No projects configured)"
 
 
-def retrieve_context(query: str, top_k: int = 3) -> str:
+def retrieve_context(query: str, top_k: int = 3, config: dict | None = None) -> str:
     """Retrieve relevant knowledge chunks via RAG."""
-    config = load_config()
-    db_path = config["paths"]["vectordb"]
-    import os
-    db_path = os.path.expanduser(db_path)
+    config = _get_config(config)
+    db_path = str(Path(os.path.expanduser(config["paths"]["vectordb"])))
 
     try:
         client = chromadb.PersistentClient(path=db_path)
         collection = client.get_collection("claude_code")
-    except Exception:
+    except ValueError:
         return "(Knowledge base not initialized. Run: python main.py embed)"
 
     # Query embedding
     try:
-        response = ollama.embed(model=EMBEDDING_MODEL, input=query)
+        response = ollama.embed(model=config["embedding"]["model"], input=query)
         query_embedding = response["embeddings"][0]
     except Exception as e:
         return f"(Embedding failed: {e}. Is Ollama running?)"
@@ -72,7 +73,7 @@ def retrieve_context(query: str, top_k: int = 3) -> str:
         profile = ctx_col.get(ids=["ctx_profile"], include=["documents"])
         if profile["documents"]:
             personal_text = profile["documents"][0]
-    except Exception:
+    except ValueError:
         pass
 
     # Combine
@@ -98,9 +99,13 @@ def retrieve_context(query: str, top_k: int = 3) -> str:
     return "\n".join(context_parts)
 
 
-def chat(user_message: str, history: list[dict]) -> str:
+def chat(user_message: str, history: list[dict], config: dict | None = None) -> str:
     """Send message to local LLM with RAG context."""
-    context = retrieve_context(user_message, top_k=3)
+    config = _get_config(config)
+    llm_model = config["llm"]["model"]
+    max_history = config.get("orchestrator", {}).get("max_history", 20)
+
+    context = retrieve_context(user_message, top_k=3, config=config)
 
     system = ORCHESTRATOR_PROMPT.format(
         projects=get_projects_text(),
@@ -115,17 +120,17 @@ def chat(user_message: str, history: list[dict]) -> str:
         messages.append({"role": "assistant", "content": "Got it. I'll use this to construct the correct claude CLI command. What task do you need?"})
 
     # History
-    if len(history) > MAX_HISTORY * 2:
-        messages.extend(history[-(MAX_HISTORY * 2):])
+    if len(history) > max_history * 2:
+        messages.extend(history[-(max_history * 2):])
     else:
         messages.extend(history)
     messages.append({"role": "user", "content": user_message})
 
     try:
-        response = ollama.chat(model=LLM_MODEL, messages=messages, think=False)
+        response = ollama.chat(model=llm_model, messages=messages, think=False)
         return response["message"]["content"]
     except Exception as e:
-        return f"Error calling LLM: {e}\nIs Ollama running? Is {LLM_MODEL} pulled?"
+        return f"Error calling LLM: {e}\nIs Ollama running? Is {llm_model} pulled?"
 
 
 def extract_command(response: str) -> str | None:
@@ -146,7 +151,7 @@ def execute_command(command: str) -> bool:
     confirm = input("\n  Execute? [y/N]: ").strip().lower()
     if confirm == "y":
         print("\n  Running...\n")
-        result = subprocess.run(command, shell=True)
+        result = subprocess.run(["bash", "-c", command], shell=False)
         return result.returncode == 0
     print("  Skipped.")
     return False

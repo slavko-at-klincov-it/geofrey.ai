@@ -7,7 +7,8 @@ import sys
 from knowledge.store import load_config
 
 
-def main():
+def main() -> None:
+    """CLI entry point — parse args and dispatch to subcommands."""
     parser = argparse.ArgumentParser(description="geofrey — Personal AI Assistant")
     subparsers = parser.add_subparsers(dest="command")
 

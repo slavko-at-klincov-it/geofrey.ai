@@ -27,7 +27,3 @@ projects:
     stack: "Python"
     description: "LinkedIn automation tool, unfinished"
 
-  cli-maestro:
-    path: "~/Code/CLI_Maestro"
-    stack: "Python, Ollama, ChromaDB"
-    description: "This project — Claude Code orchestrator"
