@@ -63,15 +63,17 @@ User: "Schreib ein Angebot für Kunde X, Power Platform Beratung"
 ## Phasen
 
 ### Phase 1: Core (Terminal-basiert)
-- [x] Knowledge Hub mit 5 Collections (gebaut 2026-03-24)
+- [x] Knowledge Hub mit 6 Collections (gebaut 2026-03-24)
 - [x] DACH-Kontext Injection (gebaut 2026-03-24)
-- [x] Maestro Orchestrator-Logik (gebaut 2026-03-22/23)
+- [x] Orchestrator-Logik (brain/) (gebaut 2026-03-22/23, migriert 2026-03-24)
 - [x] LinkedIn Post Ingestion + Style Guide (gebaut 2026-03-24)
 - [x] Session/Inbox Pipeline (gebaut 2026-03-24)
-- [ ] Code-Migration von CLI_Maestro + knowledge-assistant nach geofrey
-- [ ] LinkedIn Post-Generierung (End-to-End Flow)
-- [ ] Bild-Prompt Generierung via Claude Code → Gemini
+- [x] Code-Migration von CLI_Maestro + knowledge-assistant nach geofrey (2026-03-24)
+- [x] LinkedIn Post-Generierung End-to-End: `python main.py post "Thema"` (2026-03-24)
+- [x] Bild-Prompt Generierung via Claude Code Sonnet — 4 Optionen (2026-03-24)
+- [ ] Gemini API-Anbindung für automatische Bildgenerierung (verschoben)
 - [ ] Automatische Wissens-Persistenz nach Claude Code Sessions
+- [ ] Alle LinkedIn Posts importieren (aktuell nur 38, User liefert mehr)
 
 ### Phase 2: Native UI (macOS SwiftUI)
 - [ ] Menübar-App (immer erreichbar)
@@ -88,10 +90,13 @@ User: "Schreib ein Angebot für Kunde X, Power Platform Beratung"
 - [ ] Proaktive Vorschläge ("Du hast seit 5 Tagen keinen Post gemacht")
 
 ### Phase 4: Erweiterungen
+- [ ] Gemini API für Bildgenerierung (API Key nötig, gratis Tier verfügbar)
 - [ ] Web UI als Alternative zur nativen App
 - [ ] LoRA Fine-Tuning wenn MLX Gated DeltaNet unterstützt
 - [ ] Multimodal (Bilder/Screenshots indexieren)
 - [ ] CRM-Integration
+- [ ] E-Mail-Entwürfe
+- [ ] Angebots-Generierung mit DACH-Kontext
 - [ ] E-Mail-Entwürfe
 
 ## RAM-Budget (18GB MacBook Pro M3 Pro)

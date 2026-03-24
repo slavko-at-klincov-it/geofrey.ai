@@ -137,12 +137,92 @@ User → geofrey UI (native macOS)
 
 ---
 
+### 8. Code-Migration nach geofrey (gleiche Session)
+
+Alles von CLI_Maestro + knowledge-assistant in ein sauberes geofrey Repo migriert:
+
+**Struktur:**
+```
+geofrey/
+├── brain/              # orchestrator.py, prompts.py, safety.py, linkedin.py
+├── knowledge/          # hub.py, store.py, ingest.py, context.py, linkedin.py, sessions.py
+├── knowledge-base/     # 82 Claude Code Chunks + 5 DACH Context Dateien
+├── data/linkedin/      # 38 LinkedIn Posts (all_posts.md)
+├── config/             # config.yaml, projects.yaml
+├── scripts/embed.py    # Embedding Pipeline
+├── docs/               # vision.md, project-journal.md
+├── main.py             # 12 CLI Commands
+└── CLAUDE.md
+```
+
+**Wichtige Änderungen gegenüber Vorgängern:**
+- Kein LangChain mehr — alles direkte Ollama + ChromaDB Calls
+- `think=False` bei allen Qwen3.5 Calls (verhindert Thinking-Mode Timeout)
+- Collection `claude_code` statt `maestro` (82 Chunks)
+- Nur Profil-Context für Orchestrator (nicht alle 5 DACH-Dateien)
+- 313 Chunks in 6 Collections, alles getestet
+
+### 9. LinkedIn Post-Generierung Pipeline
+
+**Neuer Command:** `python main.py post "NIS2 für KMU"`
+
+**Flow:**
+1. geofrey holt Style Guide + 3 ähnliche Posts + DACH-Kontext
+2. Qwen3.5-9B generiert Post-Entwurf (~230 Wörter, ~38s)
+3. Interaktiver Loop: nehmen / neu / bearbeiten / bild / abbrechen
+4. Bei "bild": Claude Code (Sonnet) generiert 4 Bild-Prompt Vorschläge
+5. Bei "nehmen": Post wird in ChromaDB gespeichert + an all_posts.md angehängt
+
+**Bild-Prompt Ergebnisse (getestet):**
+- 4 Optionen, alle im richtigen Stil (Sketches, Whiteboards, Illustrationen)
+- Claude Code Sonnet generiert in ~5-10s
+- Stil-Regeln: keine realen Fotos, Personen die etwas erklären, Whiteboards, fiktive Szenen
+
+**Entscheidung: Training vs. RAG für LinkedIn**
+- Diskutiert ob ein eigenes Modell auf Posts trainiert werden soll (auch mit 100-500 Posts)
+- Entscheidung: RAG mit Few-Shot Prompting ist besser weil:
+  - Stil entwickelt sich, trainiertes Modell mittelt alles
+  - RAG kann ähnlichste Posts gezielt als Beispiel holen
+  - Sofort aktualisierbar, kein Retraining
+  - Keine Fakten-Halluzination in deinem Stil
+
+### 10. Gemini-Anbindung (verschoben)
+
+- Diskutiert: Gemini API (google-genai SDK) vs. Vertex AI Imagen
+- Entscheidung: Später. Manuelles Kopieren der Bild-Prompts reicht vorerst
+- Wenn implementiert: API Key von Google AI Studio (gratis Tier), Bild lokal speichern
+
+---
+
+## Aktueller Stand (2026-03-24 Ende)
+
+**Was funktioniert:**
+- `python main.py post "Thema"` — Kompletter LinkedIn Flow (Post + Bild-Prompts)
+- `python main.py chat` — Orchestrator-Modus (User → Claude Code Command)
+- `python main.py task "fix login in meus"` — Single Task
+- `python main.py status` — 6 Collections, 313 Chunks
+- `python main.py context-setup / linkedin-ingest / sessions-ingest / inbox / embed`
+- `python main.py hub-query "DSGVO" --collections context_personal,knowledge`
+
+**Was noch fehlt (Phase 1):**
+- Gemini API für automatische Bildgenerierung (verschoben)
+- Automatische Wissens-Persistenz nach Claude Code Sessions
+- Mehr LinkedIn Posts importieren (User liefert > 38)
+
+**Was noch fehlt (Phase 2+):**
+- Native macOS UI (SwiftUI)
+- Feedback-Loop (User korrigiert → geofrey lernt)
+- Proaktive Vorschläge
+- Automatisches Re-Indexing
+
+---
+
 ## Offene Fragen
 
 1. Sollen CLI_Maestro und knowledge-assistant als Archive bestehen bleiben oder gelöscht werden?
 2. Wann starten wir mit der nativen macOS UI?
-3. Gemini API-Anbindung: welches Modell für Bildgenerierung?
-4. Soll geofrey auch ohne UI nutzbar sein (reines Terminal)?
+3. Mehr LinkedIn Posts: User muss LinkedIn Daten-Export machen
+4. Soll geofrey einen eigenen Cron-Job für Knowledge-Updates bekommen?
 
 ---
 
