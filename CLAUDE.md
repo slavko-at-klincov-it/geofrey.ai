@@ -57,7 +57,7 @@ geofrey/
 │   ├── sessions.py     # Claude Code Session Pipeline + Inbox
 │   └── intelligence.py # Session Intelligence — Learnings aus Sessions extrahieren
 ├── knowledge-base/     # RAG Knowledge Chunks (Markdown, Source of Truth)
-│   ├── claude-code/    # 82 Chunks über Claude Code (ex CLI_Maestro/knowledge/)
+│   ├── claude-code/    # 97 Chunks über Claude Code (inkl. System-Prompt Internals)
 │   ├── context/        # DACH-Kontext Dateien (Profil, DSGVO, NIS2, etc.)
 │   └── sessions/       # Extrahierte Session-Learnings pro Projekt
 ├── ui/                 # Native macOS App (SwiftUI) — Phase 2
@@ -85,7 +85,7 @@ Alle in `~/.knowledge/vectordb/` (shared):
 
 | Collection | Inhalt | Update-Frequenz |
 |---|---|---|
-| `claude_code` | 82 Chunks Claude Code Expertenwissen | Täglich (Cron 03:00) |
+| `claude_code` | 97 Chunks Claude Code Expertenwissen | Täglich (Cron 03:00) |
 | `context_personal` | DACH-Kontext (Profil, DSGVO, NIS2, EU Data Boundary) | Manuell |
 | `knowledge` | Allgemeine Recherche-Ergebnisse | Nach jeder Session / Inbox |
 | `linkedin_style` | LinkedIn Posts als Stil-Referenz | Nach jedem bestätigten Post |

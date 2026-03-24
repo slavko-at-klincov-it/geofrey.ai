@@ -250,6 +250,34 @@ python main.py learnings --query "bug"      # RAG-Suche
 
 ---
 
+## 2026-03-24 — Knowledge Base Erweiterung (System Prompts)
+
+**Quelle:** GitHub Repo `asgeirtj/system_prompts_leaks` — enthält geleakte System-Prompts von Claude Code, Cowork, claude.ai.
+
+**Was analysiert wurde:**
+- `claude-code.md` (v2.1.50, 78KB) — Claude Code System-Prompt
+- `claude-code2.md` (v2.1.72, 1.2MB) — Aus 643 npm-Bundle-Fragmenten assembliert
+- `claude-cowork.md` (151KB) — Cowork-Modus System-Prompt
+
+**15 neue Knowledge Chunks erstellt (82 → 97):**
+
+| Neue Kategorie | Chunks | Inhalt |
+|---|---|---|
+| `system-prompt/` (neu) | 7 | Prompt-Struktur, Tool-Schemas, Security Monitor, Verification System, Auto Memory, Git Safety Protocol, Classifier-Reminders |
+| `safety/` (erweitert) | 2 | Injection Defense Architektur, Reversibility Framework |
+| `cowork/` (neu) | 2 | Architektur (VM, File-Mounting, Skills), Tools (MCP, Plugins, Preview) |
+| `agents/` (erweitert) | 2 | Detaillierte Subagent-Specs mit Tool-Access, Worktree-Isolation |
+| `mcp/` (erweitert) | 1 | Registry, Plugins, ToolSearch/Deferred Loading |
+| `cli/` (erweitert) | 1 | Plan-Mode Internals (7 Kriterien, 5-Phasen-Workflow) |
+
+**Besonders wertvoll für geofrey:**
+- Exakte Tool-Schemas → geofrey kann präzisere Claude Code Commands generieren
+- Security Monitor Regeln → geofrey kann Safety-Checks verbessern
+- Plan-Mode Entscheidungslogik → geofrey weiß wann Plan-Mode sinnvoll ist
+- Cowork-Architektur → Verständnis wohin Anthropic geht
+
+---
+
 ## Aktueller Stand (2026-03-24 Ende)
 
 **Was funktioniert:**
@@ -261,7 +289,7 @@ python main.py learnings --query "bug"      # RAG-Suche
 - `python main.py learnings` — Learnings anzeigen/durchsuchen (RAG)
 - `python main.py context-setup / linkedin-ingest / sessions-ingest / inbox / embed`
 - `python main.py hub-query "DSGVO" --collections context_personal,knowledge`
-- `python main.py status` — 7 Collections inkl. session_learnings
+- `python main.py status` — 7 Collections, 97 Claude Code Chunks + session_learnings
 
 **Was noch fehlt (Phase 1):**
 - Gemini API für automatische Bildgenerierung (verschoben)
