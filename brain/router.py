@@ -30,14 +30,14 @@ TASK_KEYWORDS: dict[str, list[str]] = {
     ],
     "security": [
         "security", "audit", "dsgvo", "gdpr", "nis2", "vulnerability",
-        "sicherheit", "datenschutz", "compliance",
+        "sicherheit", "datenschutz", "security compliance",
     ],
     "refactor": [
         "refactor", "cleanup", "clean up", "simplify", "restructure",
         "extract", "rename", "aufräum", "vereinfach", "umstrukturier",
     ],
     "doc-sync": [
-        "doc", "docs", "documentation", "sync", "update docs", "document",
+        "docs", "documentation", "sync", "update docs", "document",
         "changelog", "readme", "journal", "doku", "dokumentation",
         "aktualisier", "sync docs", "doc-sync", "release notes",
     ],
@@ -46,17 +46,39 @@ TASK_KEYWORDS: dict[str, list[str]] = {
 DEFAULT_SKILL = "code-fix"
 
 
+def _keyword_matches(keyword: str, text: str) -> bool:
+    """Check if keyword matches in text, avoiding substring false positives.
+
+    Multi-word keywords (e.g. 'new feature') use plain substring match.
+    Single-word keywords require a word-start boundary so 'search' does not
+    match inside 'research', but German verb stems like 'prüf' still match
+    'prüfe' (no end boundary required — stems are intentional prefixes).
+    """
+    if " " in keyword:
+        return keyword in text
+    idx = text.find(keyword)
+    while idx != -1:
+        before_ok = idx == 0 or not text[idx - 1].isalpha()
+        if before_ok:
+            return True
+        idx = text.find(keyword, idx + 1)
+    return False
+
+
 def detect_task_type(user_input: str) -> str:
     """Detect task type from user input using keyword matching.
+
+    Scores by sum of matched keyword lengths so more specific keywords
+    (e.g. 'sicherheit') outweigh generic ones (e.g. 'prüf').
 
     Returns skill name (e.g., 'code-fix', 'feature', 'review').
     Falls back to DEFAULT_SKILL if no keywords match.
     """
     input_lower = user_input.lower()
-    scores: dict[str, int] = {}
+    scores: dict[str, float] = {}
 
     for skill, keywords in TASK_KEYWORDS.items():
-        score = sum(1 for kw in keywords if kw in input_lower)
+        score = sum(len(kw) for kw in keywords if _keyword_matches(kw, input_lower))
         if score > 0:
             scores[skill] = score
 
