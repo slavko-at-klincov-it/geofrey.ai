@@ -36,11 +36,16 @@ def generate_briefing(config: dict | None = None) -> MorningBriefing:
 
     briefing = MorningBriefing(generated_at=datetime.now())
 
-    for task in summary.get("tasks", []):
-        status = task.get("status", "")
+    # Collect all tasks from the correct summary keys
+    all_tasks = (
+        summary.get("tasks_done", [])
+        + summary.get("tasks_failed", [])
+        + summary.get("tasks_needs_input", [])
+    )
 
-        if status == TaskStatus.DONE.value:
-            result = task.get("result", "")
+    for task in all_tasks:
+        if task.status == TaskStatus.DONE:
+            result = task.result or ""
             has_code_changes = any(
                 kw in result.lower()
                 for kw in ["created file", "modified", "commit", "wrote", "changed"]
@@ -48,62 +53,66 @@ def generate_briefing(config: dict | None = None) -> MorningBriefing:
 
             item = BriefingItem(
                 category="done",
-                title=task.get("description", "Unknown task"),
+                title=task.description,
                 details=result[:300] if result else "Completed.",
-                task_id=task.get("id"),
+                task_id=task.id,
             )
             briefing.done.append(item)
 
             if has_code_changes:
                 approval_item = BriefingItem(
                     category="approval",
-                    title=task.get("description", "Unknown task"),
+                    title=task.description,
                     details=result[:300] if result else "Code changes to review.",
-                    task_id=task.get("id"),
+                    task_id=task.id,
                     actions=["annehmen", "ablehnen"],
                 )
                 briefing.needs_approval.append(approval_item)
 
-        elif status == TaskStatus.NEEDS_INPUT.value:
-            questions = task.get("questions", [])
+        elif task.status == TaskStatus.NEEDS_INPUT:
+            questions = task.questions or []
             item = BriefingItem(
                 category="input",
-                title=task.get("description", "Unknown task"),
-                details="\n".join(f"  → {q}" for q in questions) if questions else "Needs input.",
-                task_id=task.get("id"),
+                title=task.description,
+                details="\n".join(f"  \u2192 {q}" for q in questions) if questions else "Needs input.",
+                task_id=task.id,
             )
             briefing.needs_input.append(item)
 
-        elif status == TaskStatus.FAILED.value:
+        elif task.status == TaskStatus.FAILED:
             item = BriefingItem(
                 category="done",
-                title=f"[FAILED] {task.get('description', 'Unknown task')}",
-                details=task.get("error", "Unknown error")[:300],
-                task_id=task.get("id"),
+                title=f"[FAILED] {task.description}",
+                details=(task.error or "Unknown error")[:300],
+                task_id=task.id,
             )
             briefing.done.append(item)
 
-    # Project status summary
-    for project_name, project_info in summary.get("projects", {}).items():
-        open_count = project_info.get("open", 0)
-        done_count = project_info.get("done", 0)
-        failed_count = project_info.get("failed", 0)
+    # Build project status from task list
+    project_counts: dict[str, dict[str, int]] = {}
+    for task in all_tasks:
+        pname = task.project or "unknown"
+        if pname not in project_counts:
+            project_counts[pname] = {"done": 0, "failed": 0, "needs_input": 0}
+        if task.status == TaskStatus.DONE:
+            project_counts[pname]["done"] += 1
+        elif task.status == TaskStatus.FAILED:
+            project_counts[pname]["failed"] += 1
+        elif task.status == TaskStatus.NEEDS_INPUT:
+            project_counts[pname]["needs_input"] += 1
 
+    for pname, counts in project_counts.items():
         parts = []
-        if done_count:
-            parts.append(f"{done_count} erledigt")
-        if open_count:
-            parts.append(f"{open_count} offen")
-        if failed_count:
-            parts.append(f"{failed_count} fehlgeschlagen")
-
+        if counts["done"]:
+            parts.append(f"{counts['done']} erledigt")
+        if counts["failed"]:
+            parts.append(f"{counts['failed']} fehlgeschlagen")
+        if counts["needs_input"]:
+            parts.append(f"{counts['needs_input']} braucht Input")
         if parts:
-            item = BriefingItem(
-                category="status",
-                title=project_name,
-                details=", ".join(parts),
-            )
-            briefing.project_status.append(item)
+            briefing.project_status.append(BriefingItem(
+                category="status", title=pname, details=", ".join(parts),
+            ))
 
     return briefing
 

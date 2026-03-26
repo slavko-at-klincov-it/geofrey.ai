@@ -446,6 +446,32 @@ class TestTaskQueue:
         assert retrieved.status == TaskStatus.RUNNING
 
     @patch("brain.queue.load_projects", return_value={})
+    def test_get_pending_tasks_with_max(self, mock_projects):
+        """max_tasks parameter limits the number of returned tasks."""
+        from brain.queue import add_task, get_pending_tasks, init_db
+
+        init_db(self.db_path)
+        for i in range(5):
+            add_task(f"Task {i}", db_path=self.db_path)
+
+        limited = get_pending_tasks(db_path=self.db_path, max_tasks=3)
+        assert len(limited) == 3
+
+        all_tasks = get_pending_tasks(db_path=self.db_path)
+        assert len(all_tasks) == 5
+
+    @patch("brain.queue.load_projects", return_value={})
+    def test_add_task_questions_empty(self, mock_projects):
+        """Questions field is always empty on task creation, even with depends_on."""
+        from brain.queue import add_task, get_task, init_db
+
+        init_db(self.db_path)
+        task = add_task("Test task", db_path=self.db_path, depends_on=["dep-1"])
+        retrieved = get_task(task.id, db_path=self.db_path)
+        assert retrieved.questions == []
+        assert retrieved.depends_on == ["dep-1"]
+
+    @patch("brain.queue.load_projects", return_value={})
     def test_overnight_summary(self, mock_projects):
         """Add tasks with different statuses, verify summary counts."""
         from brain.models import TaskStatus
@@ -476,7 +502,12 @@ class TestBriefing:
         from brain.briefing import generate_briefing
         from brain.models import MorningBriefing
 
-        with patch("brain.briefing.get_overnight_summary", return_value={"tasks": [], "projects": {}}):
+        empty_summary = {
+            "done": 0, "failed": 0, "needs_input": 0, "pending": 0, "running": 0,
+            "tasks_done": [], "tasks_failed": [], "tasks_needs_input": [],
+            "tasks_pending": [], "tasks_running": [],
+        }
+        with patch("brain.briefing.get_overnight_summary", return_value=empty_summary):
             with patch("brain.briefing.load_config", return_value={}):
                 briefing = generate_briefing(config={})
 
@@ -484,6 +515,30 @@ class TestBriefing:
         assert briefing.done == []
         assert briefing.needs_approval == []
         assert briefing.needs_input == []
+
+    def test_generate_briefing_with_tasks(self):
+        """Briefing correctly categorizes done/failed/needs_input tasks."""
+        from brain.briefing import generate_briefing
+        from brain.models import MorningBriefing, Task, TaskStatus
+
+        done_task = Task(id="t1", description="Fix bug", status=TaskStatus.DONE, result="Fixed.", project="myproj")
+        failed_task = Task(id="t2", description="Deploy", status=TaskStatus.FAILED, error="Timeout", project="myproj")
+        input_task = Task(id="t3", description="Config", status=TaskStatus.NEEDS_INPUT, questions=["Which env?"], project="myproj")
+
+        summary = {
+            "done": 1, "failed": 1, "needs_input": 1, "pending": 0, "running": 0,
+            "tasks_done": [done_task], "tasks_failed": [failed_task],
+            "tasks_needs_input": [input_task], "tasks_pending": [], "tasks_running": [],
+        }
+        with patch("brain.briefing.get_overnight_summary", return_value=summary):
+            with patch("brain.briefing.load_config", return_value={}):
+                briefing = generate_briefing(config={})
+
+        assert len(briefing.done) == 2  # 1 done + 1 failed
+        assert len(briefing.needs_input) == 1
+        assert briefing.needs_input[0].task_id == "t3"
+        assert len(briefing.project_status) == 1
+        assert briefing.project_status[0].title == "myproj"
 
     def test_format_briefing_empty(self):
         """Empty briefing formatted text contains 'geofrey'."""
@@ -551,3 +606,103 @@ class TestModels:
         assert rule.include_diff_scope is True
         assert rule.post_actions == []
         assert rule.prompt_suffix == ""
+
+
+# ---------------------------------------------------------------------------
+# 10. TestAgents
+# ---------------------------------------------------------------------------
+
+class TestAgents:
+    def test_run_agent_returns_dict(self):
+        """run_agent returns dict with 'result' and 'questions' keys."""
+        from brain.agents.base import run_agent
+        from brain.models import AgentType, EnrichedPrompt, Task
+
+        task = Task(id="t1", description="test", agent_type=AgentType.CODER, project_path="/tmp")
+        enriched = EnrichedPrompt(
+            original_input="test",
+            enriched_prompt="enriched test",
+            task_type="code-fix",
+        )
+
+        with patch("brain.agents.base.run_session_sync", return_value="mock output"):
+            result = run_agent(task, enriched, config={"model": "opus"})
+
+        assert isinstance(result, dict)
+        assert "result" in result
+        assert "questions" in result
+        assert result["result"] == "mock output"
+        assert result["questions"] == []
+
+    def test_base_agent_passes_config_to_session(self):
+        """BaseAgent passes max_turns and max_budget_usd from config to run_session_sync."""
+        from brain.agents.base import BaseAgent
+        from brain.models import AgentType, EnrichedPrompt, Task
+
+        task = Task(id="t1", description="test", agent_type=AgentType.CODER, project_path="/tmp")
+        enriched = EnrichedPrompt(
+            original_input="test",
+            enriched_prompt="enriched test",
+            task_type="code-fix",
+        )
+        config = {"model": "sonnet", "max_turns": 20, "max_budget_usd": 3.0}
+        agent = BaseAgent(config)
+
+        with patch("brain.agents.base.run_session_sync", return_value="ok") as mock_sync:
+            agent.execute(task, enriched)
+
+        mock_sync.assert_called_once_with(
+            project_path="/tmp",
+            prompt="enriched test",
+            model="sonnet",
+            max_turns=20,
+            max_budget_usd=3.0,
+        )
+
+
+# ---------------------------------------------------------------------------
+# 11. TestDaemonIntegration
+# ---------------------------------------------------------------------------
+
+class TestDaemonIntegration:
+    @pytest.fixture(autouse=True)
+    def _setup_db(self, tmp_path):
+        """Create a temp SQLite DB for daemon tests."""
+        self.db_path = str(tmp_path / "test_tasks.db")
+
+    @patch("brain.queue.load_projects", return_value={})
+    def test_process_queue_e2e(self, mock_projects):
+        """Full process_queue cycle: add task → process → verify done."""
+        from brain.daemon import process_queue
+        from brain.models import Task, TaskStatus
+        from brain.queue import add_task, init_db
+
+        init_db(self.db_path)
+        task = add_task("Test task", db_path=self.db_path)
+
+        updated_tasks = {}
+
+        def mock_update(task_id, **kwargs):
+            updated_tasks[task_id] = kwargs
+            return task
+
+        with patch("brain.daemon.get_pending_tasks", return_value=[task]), \
+             patch("brain.daemon.update_task", side_effect=mock_update), \
+             patch("brain.daemon.enrich_prompt") as mock_enrich, \
+             patch("brain.daemon.validate_prompt", return_value=[]), \
+             patch("brain.daemon.has_blockers", return_value=False), \
+             patch("brain.agents.base.run_session_sync", return_value="Task completed successfully"):
+
+            from brain.models import EnrichedPrompt
+            mock_enrich.return_value = EnrichedPrompt(
+                original_input="Test task",
+                enriched_prompt="Enriched: Test task",
+                task_type="code-fix",
+            )
+
+            results = process_queue(config={"model_policy": {"code": "opus"}})
+
+        assert len(results) == 1
+        assert results[0]["status"] == "done"
+        assert task.id in updated_tasks
+        assert updated_tasks[task.id]["status"] == TaskStatus.DONE

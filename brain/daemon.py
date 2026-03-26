@@ -13,6 +13,7 @@ from pathlib import Path
 from brain.briefing import generate_briefing, save_briefing
 from brain.command import resolve_model
 from brain.enricher import enrich_prompt
+from brain.gates import has_blockers, validate_prompt
 from brain.models import TaskStatus
 from brain.queue import get_pending_tasks, update_task
 from brain.router import detect_task_type, get_skill_meta
@@ -89,7 +90,7 @@ def process_queue(config: dict | None = None, max_tasks: int = 10) -> list[dict]
                     continue
 
             # Mark as running
-            update_task(task.id, status=TaskStatus.RUNNING, started_at=datetime.now())
+            update_task(task.id, status=TaskStatus.RUNNING)
             logger.info(f"Running task {task.id[:8]}: {task.description[:60]}")
 
             # Detect task type and get skill metadata
@@ -110,14 +111,23 @@ def process_queue(config: dict | None = None, max_tasks: int = 10) -> list[dict]
                 config=config,
             )
 
-            # Run the agent
+            # Safety gate — validate prompt before execution
+            issues = validate_prompt(enriched.enriched_prompt)
+            if has_blockers(issues):
+                raise ValueError(f"Safety gate blocked: {issues}")
+            if issues:
+                logger.warning(f"Task {task.id[:8]} safety warnings: {issues}")
+
+            # Run the agent with model/turns/budget via config
+            agent_config = dict(config)
+            agent_config["model"] = model
+            agent_config["max_turns"] = skill_meta.max_turns
+            agent_config["max_budget_usd"] = skill_meta.max_budget_usd
+
             agent_result = run_agent(
-                prompt=enriched.enriched_prompt,
-                agent_type=task.agent_type.value,
-                model=model,
-                project_path=project_path,
-                max_turns=skill_meta.max_turns,
-                max_budget_usd=skill_meta.max_budget_usd,
+                task=task,
+                enriched_prompt=enriched,
+                config=agent_config,
             )
 
             # Handle result
@@ -126,7 +136,6 @@ def process_queue(config: dict | None = None, max_tasks: int = 10) -> list[dict]
                     task.id,
                     status=TaskStatus.NEEDS_INPUT,
                     questions=agent_result["questions"],
-                    completed_at=datetime.now(),
                 )
                 task_summary["status"] = "needs_input"
                 task_summary["result_preview"] = f"Questions: {agent_result['questions'][0]}"
@@ -137,7 +146,6 @@ def process_queue(config: dict | None = None, max_tasks: int = 10) -> list[dict]
                     task.id,
                     status=TaskStatus.DONE,
                     result=result_text,
-                    completed_at=datetime.now(),
                 )
                 task_summary["status"] = "done"
                 task_summary["result_preview"] = result_text[:200]
@@ -152,7 +160,6 @@ def process_queue(config: dict | None = None, max_tasks: int = 10) -> list[dict]
                     task.id,
                     status=TaskStatus.FAILED,
                     error=error_msg,
-                    completed_at=datetime.now(),
                 )
             except Exception:
                 logger.error(f"Could not update failed status for task {task.id[:8]}.")

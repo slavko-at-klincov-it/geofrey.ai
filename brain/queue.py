@@ -124,7 +124,7 @@ def add_task(
             project,
             project_path,
             now,
-            json.dumps(depends_on or []),
+            json.dumps([]),
             json.dumps(depends_on or []),
         ),
     )
@@ -155,13 +155,15 @@ def get_task(task_id: str, db_path: str | None = None) -> Task | None:
     return _row_to_task(row)
 
 
-def get_pending_tasks(db_path: str | None = None) -> list[Task]:
+def get_pending_tasks(db_path: str | None = None, max_tasks: int | None = None) -> list[Task]:
     """Get all pending tasks, ordered by priority (highest first), then creation time."""
     conn = _get_conn(db_path)
-    rows = conn.execute(
-        "SELECT * FROM tasks WHERE status = ? ORDER BY priority DESC, created_at ASC",
-        (TaskStatus.PENDING.value,),
-    ).fetchall()
+    query = "SELECT * FROM tasks WHERE status = ? ORDER BY priority DESC, created_at ASC"
+    params: list = [TaskStatus.PENDING.value]
+    if max_tasks is not None:
+        query += " LIMIT ?"
+        params.append(max_tasks)
+    rows = conn.execute(query, params).fetchall()
     conn.close()
     return [_row_to_task(row) for row in rows]
 

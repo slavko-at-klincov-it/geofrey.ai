@@ -5,8 +5,13 @@ run_session_sync. The differentiation between agent types lives
 in prompt enrichment, not in execution mechanics.
 """
 
+import logging
+from pathlib import Path
+
 from brain.models import AgentType, EnrichedPrompt, Task
 from brain.session import run_session_sync
+
+logger = logging.getLogger("geofrey.agent")
 
 
 class BaseAgent:
@@ -28,27 +33,64 @@ class BaseAgent:
         """
         project_path = task.project_path or "."
         model = self.config.get("model", "opus")
+        max_turns = self.config.get("max_turns", 50)
+        max_budget_usd = self.config.get("max_budget_usd", 10.0)
 
         return run_session_sync(
             project_path=project_path,
             prompt=enriched_prompt.enriched_prompt,
             model=model,
+            max_turns=max_turns,
+            max_budget_usd=max_budget_usd,
         )
 
     def post_process(self, task: Task, output: str) -> None:
-        """Post-process task output. Default: extract session learnings.
+        """Post-process task output: extract session learnings.
 
-        Subclasses can override to add custom post-processing.
+        Finds the most recently modified JSONL session file for the
+        project and runs the intelligence extraction pipeline.
+        Fail-safe: errors are logged, never raised.
         """
-        # Future: call session intelligence to extract learnings
-        pass
+        if not task.project_path:
+            return
+
+        try:
+            from knowledge.intelligence import extract_session
+            from knowledge.sessions import CLAUDE_PROJECTS_DIR, get_project_slug
+
+            project_path = Path(task.project_path).expanduser().resolve()
+            slug = get_project_slug(str(project_path))
+            project_dir = CLAUDE_PROJECTS_DIR / slug
+
+            if not project_dir.exists():
+                logger.debug(f"No Claude projects dir for {slug}")
+                return
+
+            jsonls = sorted(
+                project_dir.glob("*.jsonl"),
+                key=lambda p: p.stat().st_mtime,
+                reverse=True,
+            )
+            if not jsonls:
+                return
+
+            latest = jsonls[0]
+            project_name = task.project or project_path.name
+
+            logger.info(f"Extracting learnings from session {latest.stem[:8]} for {project_name}")
+            extract_session(latest, project_name.lower(), self.config)
+
+        except Exception as e:
+            logger.warning(f"Post-process failed for task {task.id[:8]}: {e}")
 
 
-def run_agent(task: Task, enriched_prompt: EnrichedPrompt, config: dict) -> str:
+def run_agent(task: Task, enriched_prompt: EnrichedPrompt, config: dict) -> dict:
     """Factory function — pick the right agent, execute, and post-process.
 
     Currently all agent types use BaseAgent. As specialized agents
     are added, this function will dispatch to the correct subclass.
+
+    Returns dict with 'result' (str) and 'questions' (list).
     """
     agent_map: dict[AgentType, type[BaseAgent]] = {
         AgentType.CODER: BaseAgent,
@@ -63,4 +105,4 @@ def run_agent(task: Task, enriched_prompt: EnrichedPrompt, config: dict) -> str:
     result = agent.execute(task, enriched_prompt)
     agent.post_process(task, output=result)
 
-    return result
+    return {"result": result, "questions": []}
