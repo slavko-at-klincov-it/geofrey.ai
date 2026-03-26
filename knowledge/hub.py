@@ -97,7 +97,7 @@ class KnowledgeHub:
         chunk_id = hashlib.sha256(text.encode()).hexdigest()[:16]
         col = self.client.get_or_create_collection(name=collection, metadata={"hnsw:space": "cosine"})
         embedding = self._embed(text)
-        col.upsert(ids=[chunk_id], documents=[text], embeddings=[embedding], metadatas=[metadata or {}])
+        col.upsert(ids=[chunk_id], documents=[text], embeddings=[embedding], metadatas=[metadata or {"source": "ingest_text"}])
         return chunk_id
 
     def ingest_file(self, path: str, collection: str = "knowledge", chunk_size: int = 512) -> int:
