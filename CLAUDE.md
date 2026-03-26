@@ -1,26 +1,58 @@
-# geofrey — Personal AI Assistant
+# geofrey — Autonomer Personal Agent
 
 ## Was geofrey ist
 
-geofrey ist Slavkos persönlicher AI-Assistent. Ein lokales LLM (Qwen3.5-9B via Ollama) das als intelligente Zwischenschicht zwischen dem User und Claude Code fungiert. geofrey kennt den User, seinen DACH-Markt, seine Projekte, seinen Schreibstil und weiß genau wie man Claude Code richtig verwendet.
+geofrey ist Slavkos autonomer Personal Agent — ein zweites Ich das nie schläft. geofrey kennt den User, seinen DACH-Markt, seine Projekte, seinen Schreibstil, und reichert jeden Input automatisch mit dem richtigen Kontext an. Ein System das den Kontext kennt, kann besser prompten als der User selbst.
 
-geofrey ist KEIN General-Purpose Chatbot. geofrey ist ein Orchestrator der:
-1. Versteht was der User will
-2. Den richtigen Claude Code Befehl generiert (Modell, Flags, Kontext, Scope)
-3. Ergebnisse in die zentrale Wissensbasis speichert
-4. Mit jedem Gespräch dazulernt
+**Beweis:** 17 Zeichen User-Input → 14.436 Zeichen angereicherter Prompt. Deterministisch, ohne LLM.
 
-## Architektur
+geofrey ist KEIN CLI-Wrapper und KEIN Chatbot. geofrey ist ein autonomer Agent der:
+1. Jeden User-Input automatisch mit Projekt-Kontext, Architektur, Learnings und Regeln anreichert (Prompt Enrichment)
+2. Claude Code Sessions autonom startet, überwacht und Learnings extrahiert (Session Automation)
+3. Tasks über Nacht abarbeitet und ein Morning Briefing bereitstellt (Overnight Agent)
+4. Mit jedem Gespräch dazulernt — Wissen bleibt persistent
+
+## Architektur — Drei Säulen
 
 ```
-User → geofrey UI (native macOS) → geofrey Brain (Qwen3.5-9B)
-                                        ↓
-                                   Knowledge Hub (ChromaDB)
-                                        ↓
-                                   Claude Code (Recherche, Code, Prompts)
-                                        ↓
-                                   Gemini (Bildgenerierung)
+User Input → Prompt Enrichment Engine → Session Manager → Claude Code CLI
+                     ↓                         ↓
+              Knowledge Layer            Overnight Daemon
+              (ChromaDB, Learnings)      (Task Queue, Agents)
+                                               ↓
+                                         Morning Briefing
 ```
+
+### Säule 1: Prompt Enrichment (deterministisch, kein LLM)
+```
+User Input (17 chars)
+  → Python: detect_task_type()        # Keyword-Matching (router.py)
+  → Python: get_skill_meta()          # Config-basierte Defaults (router.py)
+  → Python: gather_project_context()  # Git, Docs, ChromaDB (context_gatherer.py)
+  → Python: load_enrichment_rules()   # YAML-Regeln (enricher.py, brain/rules/)
+  → Python: _build_enriched_prompt()  # Alles zusammenbauen (enricher.py)
+  → Result: EnrichedPrompt (14.436 chars)
+```
+
+### Säule 2: Session Automation (tmux + Claude Code)
+```
+EnrichedPrompt
+  → tmux new-session (session.py)
+  → claude --dangerously-skip-permissions -p "..." --model opus --cwd /path
+  → Monitoring via tmux has-session
+  → capture-pane nach Abschluss
+  → Session Intelligence → Learnings extrahieren
+```
+
+### Säule 3: Overnight Agent (launchd Daemon, 02:00)
+```
+Task Queue (SQLite) → Daemon → Agents → Morning Briefing
+```
+
+**Model-Policy** (config/config.yaml):
+- Code-Tasks (code-fix, feature, refactor): **Opus**
+- Analysis-Tasks (review, research, security): **Opus**
+- Content-Tasks (doc-sync, LinkedIn): **Sonnet**
 
 ## Vorgänger-Projekte (jetzt Teil von geofrey)
 
@@ -44,39 +76,90 @@ User → geofrey UI (native macOS) → geofrey Brain (Qwen3.5-9B)
 
 ```
 geofrey/
-├── brain/              # Orchestrator-Logik (ex CLI_Maestro)
-│   ├── orchestrator.py # Hauptlogik: User-Input → Claude Code Command
-│   ├── prompts.py      # System-Prompts, Prompt-Templates
-│   └── safety.py       # Safety-Chunks, Validierung
-├── knowledge/          # Knowledge Hub (ex knowledge-assistant)
-│   ├── hub.py          # Zentrale API (kein LangChain)
-│   ├── store.py        # ChromaDB Wrapper (multi-collection)
-│   ├── ingest.py       # Document Loading + Chunking + Embedding
-│   ├── context.py      # DACH Personal Context Manager
-│   ├── linkedin.py     # LinkedIn Post Ingestion + Style Guide
-│   ├── sessions.py     # Claude Code Session Pipeline + Inbox
-│   └── intelligence.py # Session Intelligence — Learnings aus Sessions extrahieren
-├── knowledge-base/     # RAG Knowledge Chunks (Markdown, Source of Truth)
-│   ├── claude-code/    # 97 Chunks über Claude Code (inkl. System-Prompt Internals)
-│   ├── context/        # DACH-Kontext Dateien (Profil, DSGVO, NIS2, etc.)
-│   └── sessions/       # Extrahierte Session-Learnings pro Projekt
-├── ui/                 # Native macOS App (SwiftUI) — Phase 2
+├── brain/                    # Agent-Logik (Drei Säulen)
+│   ├── models.py             # Shared Dataclasses: Task, Session, EnrichedPrompt, BriefingItem, EnrichmentRule
+│   ├── enricher.py           # Prompt Enrichment Engine: Regeln laden, Kontext sammeln, Prompt bauen
+│   ├── context_gatherer.py   # Kontext sammeln: Git, CLAUDE.md, ChromaDB, Diff Scope
+│   ├── session.py            # Session Manager: tmux starten/überwachen/capturen
+│   ├── queue.py              # Task Queue: SQLite-Backend, CRUD, Priority-Ordering
+│   ├── daemon.py             # Overnight Daemon: Queue abarbeiten, Briefing generieren, launchd
+│   ├── briefing.py           # Morning Briefing: Tasks kategorisieren, Terminal + JSON/MD Export
+│   ├── agents/               # Agent-System
+│   │   └── base.py           # BaseAgent + Factory-Dispatcher (run_agent)
+│   ├── rules/                # Enrichment Rules als YAML (7 Task-Typen)
+│   │   ├── code-fix.yaml
+│   │   ├── feature.yaml
+│   │   ├── refactor.yaml
+│   │   ├── review.yaml
+│   │   ├── research.yaml
+│   │   ├── security.yaml
+│   │   └── doc-sync.yaml
+│   ├── orchestrator.py       # Legacy Orchestrator: chat(), single_task()
+│   ├── command.py            # CommandSpec + build_command() — deterministischer Command-Bau
+│   ├── router.py             # Task-Type Detection + SkillMeta (7 Skills, DE+EN Keywords)
+│   ├── gates.py              # validate_prompt() — Secrets/Dangerous Pattern Check
+│   ├── scope.py              # Diff Scope Detection (git-Änderungen kategorisieren)
+│   ├── prompts.py            # Template-Loader (load_template, render_template)
+│   ├── safety.py             # Safety-Chunks, RAG-Injection
+│   ├── linkedin.py           # LinkedIn Post Pipeline
+│   ├── templates/            # LLM-System-Prompts als Markdown
+│   └── skills/               # Skill-Templates: leiten LLM beim Prompt-Schreiben an
+├── knowledge/                # Knowledge Hub
+│   ├── hub.py                # Zentrale API (kein LangChain)
+│   ├── store.py              # ChromaDB Wrapper (multi-collection)
+│   ├── ingest.py             # Document Loading + Chunking + Embedding
+│   ├── context.py            # DACH Personal Context Manager
+│   ├── linkedin.py           # LinkedIn Post Ingestion + Style Guide
+│   ├── sessions.py           # Claude Code Session Pipeline + Inbox
+│   └── intelligence.py       # Session Intelligence — Learnings aus Sessions extrahieren
+├── knowledge-base/           # RAG Knowledge Chunks (Markdown, Source of Truth)
+│   ├── claude-code/          # 110 Chunks über Claude Code
+│   ├── context/              # DACH-Kontext Dateien (Profil, DSGVO, NIS2, etc.)
+│   └── sessions/             # Extrahierte Session-Learnings pro Projekt
+├── ui/                       # Native macOS App (SwiftUI) — Phase 2
 ├── config/
-│   ├── config.yaml     # Modelle, Pfade, Chunk-Settings
-│   └── projects.yaml   # Projekt-Registry
-├── scripts/            # Utility-Scripts
-│   ├── embed.py        # Knowledge Base embedden
-│   ├── query.py        # Debug-Tool für Retrieval
-│   └── update.py       # Daily Knowledge Update (Cron)
+│   ├── config.yaml           # Modelle, Pfade, Chunk-Settings, Skill-Defaults
+│   └── projects.yaml         # Projekt-Registry
+├── scripts/                  # Utility-Scripts
+│   ├── embed.py              # Knowledge Base embedden
+│   ├── query.py              # Debug-Tool für Retrieval
+│   └── update.py             # Daily Knowledge Update (Cron)
 ├── data/
-│   └── linkedin/       # LinkedIn Posts (all_posts.md + neue)
+│   └── linkedin/             # LinkedIn Posts (all_posts.md + neue)
 ├── docs/
-│   ├── project-journal.md  # Entwicklungs-Log
-│   ├── architecture.md     # Technische Architektur
-│   └── vision.md           # Produkt-Vision und Roadmap
-├── main.py             # CLI Entry Point
+│   ├── architecture.md       # Technische Architektur (Drei Säulen)
+│   ├── project-journal.md    # Entwicklungs-Log
+│   └── vision.md             # Produkt-Vision und Roadmap
+├── main.py                   # CLI Entry Point (20 Commands)
 ├── requirements.txt
-└── CLAUDE.md           # Diese Datei
+└── CLAUDE.md                 # Diese Datei
+```
+
+## CLI Commands
+
+```bash
+# Interaktiv
+geofrey chat                              # Orchestrator-Modus
+geofrey task "fix login in meus"          # Single Task mit Enrichment
+
+# LinkedIn
+geofrey post "NIS2 für KMU"              # Post-Generierung Pipeline
+
+# Task Queue
+geofrey queue add "refactor auth" --project meus --priority high
+geofrey queue list [--status done]        # Tasks anzeigen
+geofrey queue process                     # Pending Tasks abarbeiten
+
+# Overnight + Briefing
+geofrey overnight                         # Voller Overnight-Zyklus (Queue + Briefing)
+geofrey briefing                          # Morning Briefing anzeigen
+geofrey install-daemon                    # launchd Plist generieren
+
+# Knowledge
+geofrey learn                             # Session Learnings extrahieren
+geofrey learnings [project] [--query]     # Learnings anzeigen/suchen
+geofrey status                            # Collections + Chunks
+geofrey skills                            # Verfügbare Skills
 ```
 
 ## ChromaDB Collections
@@ -85,7 +168,7 @@ Alle in `~/.knowledge/vectordb/` (shared):
 
 | Collection | Inhalt | Update-Frequenz |
 |---|---|---|
-| `claude_code` | 97 Chunks Claude Code Expertenwissen | Täglich (Cron 03:00) |
+| `claude_code` | 110 Chunks Claude Code Expertenwissen | Täglich (Cron 03:00) |
 | `context_personal` | DACH-Kontext (Profil, DSGVO, NIS2, EU Data Boundary) | Manuell |
 | `knowledge` | Allgemeine Recherche-Ergebnisse | Nach jeder Session / Inbox |
 | `linkedin_style` | LinkedIn Posts als Stil-Referenz | Nach jedem bestätigten Post |
@@ -94,11 +177,12 @@ Alle in `~/.knowledge/vectordb/` (shared):
 
 ## Safety — Non-Negotiable
 
-- Safety-Chunks werden IMMER in jeden Prompt injiziert
-- Keine Secrets in Claude Code Prompts
-- Immer --cwd Scope auf das richtige Projekt
-- Budget-Limits immer setzen (--max-budget-usd)
-- User-Bestätigung vor Ausführung gefährlicher Commands
+- Safety-Chunks werden IMMER via RAG in den LLM-Kontext injiziert
+- validate_prompt() prüft auf Secrets und Dangerous Patterns
+- --cwd, --model, --max-budget-usd werden von Python garantiert (nicht vom LLM)
+- User-Bestätigung vor Ausführung (interaktiv) oder Agent-Autonomie mit Budget-Limit (overnight)
+- Overnight Sessions nur in tmux (isoliert), mit Budget-Limit
+- Plan-Phase (read-only) vor Execution bei Feature/Refactor auf bestehenden Projekten
 
 ## Code-Stil
 

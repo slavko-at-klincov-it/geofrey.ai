@@ -13,7 +13,7 @@ from pathlib import Path
 import ollama
 from rich.console import Console
 
-from brain.prompts import SESSION_CONSOLIDATE_PROMPT, SESSION_EXTRACT_PROMPT
+from brain.prompts import render_template
 from knowledge.sessions import CLAUDE_PROJECTS_DIR, list_session_jsonls
 from knowledge.store import VectorStore, load_config
 
@@ -151,7 +151,8 @@ def _parse_llm_json(text: str) -> dict:
 def extract_learnings_chunk(chunk: str, project_name: str, session_date: str, config: dict) -> dict:
     """Map phase: extract learnings from one chunk via LLM."""
     model = config["llm"]["model"]
-    prompt = SESSION_EXTRACT_PROMPT.format(
+    prompt = render_template(
+        "session-extract",
         project_name=project_name,
         session_date=session_date,
         chunk_text=chunk,
@@ -173,7 +174,8 @@ def _llm_consolidate(merged: dict, project_name: str, session_date: str, config:
     """Run one LLM consolidation call on a merged learnings dict."""
     raw_text = json.dumps(merged, indent=2, ensure_ascii=False)
     model = config["llm"]["model"]
-    prompt = SESSION_CONSOLIDATE_PROMPT.format(
+    prompt = render_template(
+        "session-consolidate",
         project_name=project_name,
         session_date=session_date,
         raw_learnings=raw_text,

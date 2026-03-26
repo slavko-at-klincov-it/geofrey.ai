@@ -1,92 +1,45 @@
-"""System prompts and prompt templates for geofrey."""
+"""Prompt template loader — loads .md templates with {{VARIABLE}} substitution.
 
-ORCHESTRATOR_PROMPT = """You are geofrey. You generate Claude Code CLI commands. You NEVER write code yourself.
-
-OUTPUT FORMAT: Always respond with exactly one bash code block containing a claude command. Keep explanation brief.
-```bash
-claude -p "detailed task description" --cwd /path/to/project --model sonnet --max-turns 30 --max-budget-usd 2.00
-```
-
-SYNTAX RULES:
-- The -p flag takes a QUOTED string describing the task in detail
-- --model uses aliases: sonnet (coding), opus (complex reasoning), haiku (simple tasks)
-- --cwd MUST always point to the correct project directory
-- --max-turns and --max-budget-usd MUST always be set
-- --allowedTools restricts tools: "Read,Grep,Glob,Edit,Bash(npm run test)"
-- --permission-mode: default, acceptEdits, plan (read-only), dontAsk
-- For complex multi-step work, suggest interactive mode (no -p flag): claude --cwd /path
-
-SAFETY:
-- NEVER include passwords, API keys, or secrets in the -p prompt string
-- ALWAYS scope with --cwd to the correct project
-- Set reasonable budget limits (coding: $2-5, review: $1, large refactor: $5-10)
-
-KNOWN PROJECTS:
-{projects}
-
-PERSONAL CONTEXT:
-{personal_context}
-
-If the request is ambiguous, ask ONE short clarifying question.
-If the operation is dangerous (delete, drop, force push), warn briefly.
+Templates live in brain/templates/ as markdown files. This replaces the old
+hardcoded string constants with file-based templates (inspired by gstack pattern).
 """
 
-CHAT_PROMPT = """You are geofrey, a knowledgeable assistant. Answer questions based on the provided context.
-Be concise and direct. Cite sources when referencing documents.
+from pathlib import Path
 
-{personal_context}"""
+TEMPLATES_DIR = Path(__file__).parent / "templates"
+SKILLS_DIR = Path(__file__).parent / "skills"
 
-LINKEDIN_PROMPT = """You are geofrey. Generate a LinkedIn post in Slavko's exact style.
 
-STYLE GUIDE:
-{style_guide}
+def load_template(name: str) -> str:
+    """Load a markdown template file by name (without .md extension).
 
-EXAMPLE POSTS (for reference):
-{example_posts}
+    Searches brain/templates/ first, then brain/skills/.
+    Returns raw template string with {{PLACEHOLDERS}} intact.
+    """
+    for directory in (TEMPLATES_DIR, SKILLS_DIR):
+        path = directory / f"{name}.md"
+        if path.exists():
+            return path.read_text(encoding="utf-8")
+    raise FileNotFoundError(f"Template not found: {name}.md (searched {TEMPLATES_DIR}, {SKILLS_DIR})")
 
-PERSONAL CONTEXT:
-{personal_context}
 
-TOPIC: {topic}
+def render_template(name: str, **kwargs: str) -> str:
+    """Load template and substitute {{VARIABLE}} placeholders with kwargs.
 
-Write the post in German. Follow the style guide exactly. End with an engaging question."""
+    Unknown placeholders are left as-is. Extra kwargs are ignored.
+    Uses str.replace() — no regex, no escaping issues with JSON in templates.
+    """
+    template = load_template(name)
+    for key, value in kwargs.items():
+        template = template.replace(f"{{{{{key}}}}}", str(value))
+    return template
 
-IMAGE_PROMPT_TEMPLATE = """Based on this LinkedIn post, generate 4 image prompt suggestions.
 
-POST:
-{post_text}
-
-STYLE REQUIREMENTS:
-- No real photos — only sketches, drawings, illustrations
-- People explaining/showing something, or whiteboards with diagrams
-- Fictional scenes, not photorealistic
-- Professional but warm, European context
-- Must include at least one person
-
-Return exactly 4 options, each as a short image generation prompt (1-2 sentences)."""
-
-SESSION_EXTRACT_PROMPT = """Extract concrete learnings from this Claude Code session segment.
-Skip routine operations, status updates, and small talk. Focus on actionable knowledge.
-
-PROJECT: {project_name}
-DATE: {session_date}
-
-TRANSCRIPT:
-{chunk_text}
-
-Extract into these categories (skip empty ones). Be specific — include file names, error messages, versions.
-
-Respond in JSON:
-{{"decisions": ["..."], "bugs": ["..."], "discoveries": ["..."], "negative_knowledge": ["..."], "configuration": ["..."], "patterns": ["..."]}}"""
-
-SESSION_CONSOLIDATE_PROMPT = """Consolidate these session learnings. Remove duplicates, keep all unique information.
-
-PROJECT: {project_name}
-DATE: {session_date}
-
-RAW LEARNINGS:
-{raw_learnings}
-
-Output clean JSON with same categories. Merge similar items, remove exact duplicates, keep specifics.
-
-{{"decisions": ["..."], "bugs": ["..."], "discoveries": ["..."], "negative_knowledge": ["..."], "configuration": ["..."], "patterns": ["..."]}}"""
+# Backward-compatible constants — loaded from template files.
+# Callers should migrate to render_template() over time.
+ORCHESTRATOR_PROMPT = load_template("orchestrator")
+CHAT_PROMPT = load_template("chat")
+LINKEDIN_PROMPT = load_template("linkedin")
+IMAGE_PROMPT_TEMPLATE = load_template("image")
+SESSION_EXTRACT_PROMPT = load_template("session-extract")
+SESSION_CONSOLIDATE_PROMPT = load_template("session-consolidate")

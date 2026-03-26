@@ -49,6 +49,30 @@ def main() -> None:
     learnings_parser.add_argument("project", nargs="?", help="Project name")
     learnings_parser.add_argument("--query", help="Search learnings via RAG")
 
+    # Skills
+    subparsers.add_parser("skills", help="List available task routing skills")
+
+    # Task Queue
+    queue_parser = subparsers.add_parser("queue", help="Task queue management")
+    queue_sub = queue_parser.add_subparsers(dest="queue_action")
+
+    queue_add = queue_sub.add_parser("add", help="Add a task to the queue")
+    queue_add.add_argument("description", help="Task description")
+    queue_add.add_argument("--project", help="Project name")
+    queue_add.add_argument("--priority", choices=["high", "normal", "low"], default="normal")
+    queue_add.add_argument("--agent", choices=["coder", "researcher", "content"], default="coder")
+
+    queue_list = queue_sub.add_parser("list", help="List tasks in the queue")
+    queue_list.add_argument("--status", choices=["pending", "running", "done", "failed", "needs_input"])
+
+    queue_process = queue_sub.add_parser("process", help="Process pending tasks")
+    queue_process.add_argument("--max", type=int, default=10, help="Max tasks to process")
+
+    # Briefing + Overnight
+    subparsers.add_parser("briefing", help="Show the morning briefing")
+    subparsers.add_parser("overnight", help="Run the full overnight cycle")
+    subparsers.add_parser("install-daemon", help="Print launchd plist for overnight daemon")
+
     # Scripts
     subparsers.add_parser("embed", help="Embed Claude Code knowledge base (--reset, --changed)")
 
@@ -156,6 +180,68 @@ def main() -> None:
                     print(r["text"][:500])
         else:
             print(view_learnings(project=args.project, config=config))
+
+    elif args.command == "skills":
+        from brain.router import list_skills
+        print("Available skills (task routing):")
+        for s in list_skills():
+            print(f"  - {s}")
+
+    elif args.command == "queue":
+        from brain.queue import add_task, get_tasks_by_status, get_pending_tasks, init_db
+        from brain.models import AgentType, TaskPriority, TaskStatus
+
+        init_db()
+
+        if args.queue_action == "add":
+            priority_map = {"high": 3, "normal": 2, "low": 1}
+            task = add_task(
+                description=args.description,
+                project=args.project,
+                priority=priority_map[args.priority],
+                agent_type=args.agent,
+            )
+            print(f"Task {task.id[:8]} added: {args.description}")
+
+        elif args.queue_action == "list":
+            tasks = get_tasks_by_status(args.status) if args.status else get_pending_tasks()
+            if not tasks:
+                print("No tasks found.")
+            else:
+                for t in tasks:
+                    desc = t.description[:50] + ("..." if len(t.description) > 50 else "")
+                    print(f"  {t.id[:8]}  [{t.status.value:12s}]  {t.priority.name:6s}  {desc}")
+
+        elif args.queue_action == "process":
+            from brain.daemon import process_queue
+            results = process_queue(config=config, max_tasks=args.max)
+            if not results:
+                print("No pending tasks.")
+            else:
+                for r in results:
+                    print(f"  {r['id'][:8]}  [{r['status']:12s}]  {r['result_preview'][:60]}")
+
+        else:
+            from brain.queue import init_db as _init
+            _init()
+            print("Usage: geofrey queue {add|list|process}")
+
+    elif args.command == "briefing":
+        from brain.briefing import show_briefing
+        show_briefing()
+
+    elif args.command == "overnight":
+        from brain.daemon import run_overnight
+        run_overnight(config=config)
+
+    elif args.command == "install-daemon":
+        from brain.daemon import get_launchd_plist
+        plist = get_launchd_plist()
+        print(plist)
+        print("\n--- Installation ---")
+        print("1. Save the above to ~/Library/LaunchAgents/ai.geofrey.overnight.plist")
+        print("2. Load:  launchctl load ~/Library/LaunchAgents/ai.geofrey.overnight.plist")
+        print("3. Check: launchctl list | grep geofrey")
 
     elif args.command == "embed":
         import subprocess

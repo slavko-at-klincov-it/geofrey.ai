@@ -1,21 +1,25 @@
 ---
-title: "Built-in Claude Code Skills and Commands"
+title: "Claude Code Bundled Skills Reference"
 category: "skills"
 source_urls:
   - "https://docs.anthropic.com/en/docs/claude-code/skills"
-last_verified: "2026-03-22"
+last_verified: "2026-03-25"
 content_hash: ""
 ---
 
-# Built-in Skills and Commands
+# Bundled Skills
 
-Claude Code ships with several built-in skills and commands available in every session.
+These are **skills** that ship with Claude Code. They look like slash commands but are
+prompt-based — Claude expands them into a full prompt and processes the result.
+
+For built-in slash commands (native UI actions like `/clear`, `/model`, `/compact`),
+see: `commands/commands-slash-builtin.md`
 
 ## Workflow Skills
 
 ### `/batch <instruction>`
 
-Orchestrate parallel large-scale changes across the codebase. Claude splits the work into independent tasks and runs them concurrently.
+Orchestrate parallel large-scale changes across the codebase using worktrees.
 
 ```
 /batch update all React class components to functional components
@@ -24,7 +28,7 @@ Orchestrate parallel large-scale changes across the codebase. Claude splits the 
 
 ### `/simplify [focus]`
 
-Review recent code changes for quality, reuse, efficiency, and potential issues. Optionally focus on a specific area.
+3-agent code review for architecture, duplicates, and performance.
 
 ```
 /simplify
@@ -33,7 +37,7 @@ Review recent code changes for quality, reuse, efficiency, and potential issues.
 
 ### `/debug [description]`
 
-Troubleshoot issues in the current session. Useful when something isn't working as expected.
+Troubleshoot issues in the current session.
 
 ```
 /debug tests are failing with timeout errors
@@ -42,70 +46,32 @@ Troubleshoot issues in the current session. Useful when something isn't working 
 
 ### `/loop [interval] <prompt>`
 
-Run a prompt repeatedly on a specified interval. Useful for watch-mode workflows.
+Run a prompt repeatedly on a specified interval (default 10m).
 
 ```
 /loop 5m run tests and report failures
 /loop 30s check if the dev server has errors
-/loop 2h pull latest changes and summarize new commits
 ```
 
 ### `/claude-api`
 
-Load Claude API and Agent SDK reference documentation. Auto-triggers when Claude detects `anthropic` imports in your code.
+Load Claude API and Agent SDK reference docs. Auto-triggers on `anthropic` imports.
 
-## Project Setup
+### `/schedule [description]`
 
-### `/init`
+Create, update, list, or run scheduled remote agents (cron triggers).
 
-Initialize a `CLAUDE.md` file by analyzing the codebase structure, build tools, conventions, and dependencies.
+```
+/schedule check deploy status every day at 9am
+```
 
-### `/memory`
+### `/security-review`
 
-Browse and edit `CLAUDE.md` files and auto-memory entries.
+Security audit of uncommitted changes.
 
-## Session Management
+## Key Distinction for geofrey
 
-### `/config`
-
-Open the settings interface to configure Claude Code behavior.
-
-### `/permissions`
-
-View and manage permission rules (allow/deny for tools, file paths, commands).
-
-### `/hooks`
-
-Browse configured lifecycle hooks.
-
-### `/model`
-
-Switch the active model (e.g., between Opus, Sonnet, Haiku).
-
-### `/effort`
-
-Set the reasoning effort level (low, medium, high, max).
-
-### `/compact`
-
-Compress conversation history to free up context window space. Useful in long sessions.
-
-### `/context`
-
-Check current context window usage — how much space is used and remaining.
-
-### `/cost`
-
-View the cost of the current session.
-
-### `/status`
-
-Show authentication and account status.
-
-### `/help`
-
-List all available commands and skills.
-
-### `/reload-plugins`
-
-Reload all plugins and skills without restarting the session.
+- Skills CAN be invoked in print mode: `claude -p "/simplify"`
+- Built-in commands (like `/clear`) CANNOT be invoked in print mode
+- Skills can be disabled with `--disable-slash-commands`
+- Check installed skills with `/skills` or `claude plugin list`

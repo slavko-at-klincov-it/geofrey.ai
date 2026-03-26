@@ -1,0 +1,12 @@
+task_type: code-fix
+include_git_status: true
+include_recent_commits: true
+include_claude_md: true
+include_architecture: false
+include_session_learnings: true
+include_dach_context: false
+include_diff_scope: true
+post_actions:
+  - "Run existing tests to verify the fix"
+  - "Document the root cause in a brief comment"
+prompt_suffix: "Investigate root cause before fixing. Do not just patch symptoms."

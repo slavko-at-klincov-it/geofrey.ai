@@ -1,0 +1,13 @@
+task_type: doc-sync
+include_git_status: true
+include_recent_commits: true
+include_claude_md: true
+include_architecture: true
+include_session_learnings: false
+include_dach_context: false
+include_diff_scope: true
+post_actions:
+  - "NEVER delete documentation content — only update, add, or flag conflicts"
+  - "Update project-journal.md if it exists"
+  - "Verify changelog reflects recent changes"
+prompt_suffix: "Cross-reference code changes against documentation. Update stale docs."

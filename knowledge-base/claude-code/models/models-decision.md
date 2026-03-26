@@ -70,10 +70,22 @@ Choose models based on task complexity, not habit. Each model has distinct stren
 
 **Use when:** Standard context (200K) runs out or you need Claude to hold more of the codebase in memory at once.
 
-## Decision Flowchart
+## Decision Flowchart (generic reference)
 
 1. Is the task trivial (rename, boilerplate, quick fix)? **Use Haiku.**
 2. Is it standard development (feature, test, refactor)? **Use Sonnet.**
 3. Does it need a plan then execution across many files? **Use opusplan.**
 4. Is it genuinely hard (debugging, architecture, security)? **Use Opus.**
 5. Do you need massive context? **Add [1m] to your model choice.**
+
+## geofrey Model Policy (overrides flowchart)
+
+geofrey applies a personal model policy automatically via `config/config.yaml`:
+
+- **Code tasks** (code-fix, feature, refactor): Always **Opus**
+- **Analysis tasks** (review, research, security): Always **Opus**
+- **Content tasks** (doc-sync, LinkedIn): **Sonnet**
+
+This policy is resolved by Python (`brain/command.py`), not by the LLM.
+Model aliases (`opus`, `sonnet`) are version-independent — Claude Code
+maps them to the latest available model automatically.

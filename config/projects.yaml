@@ -1,7 +1,12 @@
-# Maestro — Known Projects Registry
-# Add your projects here. Maestro uses this to scope Claude Code sessions correctly.
+# geofrey — Known Projects Registry
+# geofrey uses this to scope Claude Code sessions and enrich prompts.
 
 projects:
+  geofrey:
+    path: "~/Code/geofrey"
+    stack: "Python, Qwen3.5-9B, ChromaDB"
+    description: "Personal AI Agent — Prompt Enrichment, Session Automation, Overnight Agent"
+
   meus:
     path: "~/Code/meus"
     stack: "React Native, Expo, TypeScript"

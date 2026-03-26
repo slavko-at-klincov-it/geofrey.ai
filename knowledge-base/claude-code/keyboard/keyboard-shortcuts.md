@@ -3,7 +3,7 @@ title: "Claude Code keyboard shortcuts reference"
 category: "keyboard"
 source_urls:
   - "https://docs.anthropic.com/en/docs/claude-code/cli-reference"
-last_verified: "2026-03-22"
+last_verified: "2026-03-25"
 content_hash: ""
 ---
 
@@ -25,10 +25,12 @@ Complete reference of all keyboard shortcuts in Claude Code.
 | `Ctrl+V` / `Cmd+V` | Paste image from clipboard |
 | `Ctrl+B` | Send current task to background |
 | `Ctrl+F` | Kill all background agents |
-| `Esc Esc` | Rewind conversation / trigger summarize |
-| `Shift+Tab` / `Alt+M` | Toggle between permission modes |
+| `Esc` | Stop processing current generation |
+| `Esc Esc` | Open rewind menu |
+| `Shift+Tab` / `Alt+M` | Cycle modes (normal/auto-accept/plan) |
+| `Tab` | Toggle extended thinking |
 | `Alt+P` / `Option+P` | Switch model |
-| `Alt+T` / `Option+T` | Toggle extended thinking |
+| `Alt+T` / `Option+T` | Toggle extended thinking (alternative) |
 
 ## Text Editing (Readline-style)
 

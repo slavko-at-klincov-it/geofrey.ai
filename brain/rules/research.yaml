@@ -1,0 +1,12 @@
+task_type: research
+include_git_status: false
+include_recent_commits: false
+include_claude_md: false
+include_architecture: false
+include_session_learnings: true
+include_dach_context: true
+include_diff_scope: false
+post_actions:
+  - "Structure findings clearly with concrete examples"
+  - "Save key findings for future reference"
+prompt_suffix: "Include DACH-specific context (Austrian/German regulations) where relevant."

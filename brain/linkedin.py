@@ -20,7 +20,7 @@ import chromadb
 
 from knowledge.store import load_config
 from knowledge.linkedin import get_style_guide, COLLECTION_NAME
-from brain.prompts import LINKEDIN_PROMPT, IMAGE_PROMPT_TEMPLATE
+from brain.prompts import render_template
 
 from rich.console import Console
 from rich.panel import Panel
@@ -90,7 +90,8 @@ def generate_post(topic: str, config: dict | None = None) -> str:
     similar_posts = _get_similar_posts(topic, config)
     personal_context = _get_personal_context(config)
 
-    prompt = LINKEDIN_PROMPT.format(
+    prompt = render_template(
+        "linkedin",
         style_guide=style_guide,
         example_posts=similar_posts or "(Keine ähnlichen Posts gefunden)",
         personal_context=personal_context or "(Kein persönlicher Kontext verfügbar)",
@@ -114,7 +115,7 @@ def generate_post(topic: str, config: dict | None = None) -> str:
 
 def generate_image_prompts(post_text: str) -> list[str]:
     """Call Claude Code (Sonnet) to generate 4 image prompt suggestions."""
-    prompt = IMAGE_PROMPT_TEMPLATE.format(post_text=post_text)
+    prompt = render_template("image", post_text=post_text)
 
     # Use claude CLI in headless mode
     try:

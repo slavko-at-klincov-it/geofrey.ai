@@ -304,12 +304,367 @@ python main.py learnings --query "bug"      # RAG-Suche
 
 ---
 
+## 2026-03-25 — gstack Pattern Integration
+
+**Quelle:** [gstack](https://github.com/garrytan/gstack) von Garry Tan (YC President) — AI Engineering Framework mit 28 Claude Code Skills, Template-basiertem Prompt-System, Quality Gates, Multi-Model Review, Browser Automation.
+
+### Warum diese Integration?
+
+geofreys Orchestrator war bisher ein "dummer Weiterreicher" — ein einziger generischer Prompt für alle Tasks, keine Validierung der generierten Commands, kein Bewusstsein für Kontext (welche Files haben sich geändert?). Das führte zu drei konkreten Problemen:
+
+1. **Gleicher Prompt für alles:** "Fix einen Bug" und "Review den Code" bekamen den identischen System-Prompt. Aber ein Review braucht `--permission-mode plan` (read-only) und opus, ein Bug-Fix braucht sonnet und mehr Budget. Das 9B-Modell musste jedes Mal selbst herausfinden was die richtige Konfiguration ist — und lag oft daneben.
+
+2. **Keine Safety-Nets nach der LLM-Generierung:** Wenn Qwen3.5 einen Command ohne `--cwd` oder `--max-budget-usd` generierte, wurde das direkt dem User zur Bestätigung angezeigt. Kein Check, kein Hinweis. Der User musste selbst wissen ob der Command korrekt war.
+
+3. **Prompts in Python eingesperrt:** Alle 6 Prompts waren hardcoded Strings in `brain/prompts.py`. Um einen Prompt anzupassen, musste man Python-Code editieren, auf JSON-Escaping achten (`{{` vs `{`), und testen. Nicht praktikabel für schnelle Iterationen.
+
+gstack löst genau diese Probleme in seinem Ökosystem — mit 28 spezialisierten Skills, Template-basiertem Prompt-System, und Quality Gates. Wir haben die relevanten Patterns adaptiert: runterskaliert auf 7 Skills (statt 28), Python statt TypeScript, `str.replace()` statt komplexer Resolver, und Keyword-Matching statt LLM-Klassifikation (zu teuer für 9B).
+
+Das Ergebnis: geofrey ist von einem passiven Prompt-Weiterreicher zu einem **intelligenten Dispatcher** geworden, der versteht was der User will, den richtigen Skill wählt, und den generierten Command validiert bevor er ausgeführt wird.
+
+### Was analysiert wurde:
+- 28 spezialisierte Skill-Templates (Planning, Code Review, QA, Security, Deployment)
+- Template-System mit `.md.tmpl` + `{{PLACEHOLDER}}` Substitution
+- Quality Gates: Test-Coverage Enforcement (60% Block, 80% Target)
+- Diff Scope Detection: File-Änderungen kategorisieren (Frontend/Backend/Tests/Docs/Config)
+- Progressive Context Tiers (T1-T4)
+- Retro-Skill für Session-Analyse
+
+**Was übernommen wurde (adaptiert für 9B + Python):**
+
+1. **Prompt Template Files** — 6 hardcoded Strings aus `brain/prompts.py` → Markdown-Dateien in `brain/templates/`
+   - **Warum:** Prompts waren in Python eingesperrt. JSON-Escaping (`{{` vs `{`) machte das Editieren fehleranfällig. Nicht-Programmierer konnten Prompts nicht anpassen. Mit Markdown-Templates kann jeder die Prompts lesen und bearbeiten.
+   - `load_template(name)` und `render_template(name, **kwargs)` mit `{{variable}}` Substitution
+   - `str.replace()` statt `.format()` — kein Escaping-Problem bei JSON in Prompts
+   - Rückwärts-kompatible Konstanten bleiben erhalten (bestehende Imports brechen nicht)
+
+2. **Skill-Based Task Routing** — 6 Task-Typen statt einem generischen Prompt
+   - **Warum:** Ein generischer Prompt für alles zwingt das 9B-Modell jedes Mal selbst herauszufinden welches Modell, welches Budget, welche Flags nötig sind. Das klappt oft nicht. Spezialisierte Skills geben dem LLM die richtige Konfiguration vor — weniger Fehler, bessere Commands.
+   - code-fix, feature, review, research, security, refactor
+   - Keyword-Matching (DE + EN), deterministisch, kein LLM-Call nötig
+   - Jeder Skill hat eigene Model/Budget/Flag-Empfehlungen
+   - Shared Base Rules via `{{base_rules}}` Template-Fragment (DRY, kein Copy-Paste)
+
+3. **Quality Gates** — Pre-Execution Validierung in `brain/gates.py`
+   - **Warum:** Wenn Qwen3.5 einen Command ohne `--cwd` oder `--budget` generiert, wird das ungeprüft dem User gezeigt. Der User muss selbst wissen ob alles korrekt ist. Quality Gates fangen solche Fehler automatisch ab — defense in depth, zusätzlich zu den Safety-Chunks die schon im Prompt stecken.
+   - [BLOCK]: Missing --cwd, missing --max-budget-usd, invalid path
+   - [WARN]: Dangerous patterns (rm -rf, force push), secrets in prompts
+   - Integriert in `execute_command()` — kritische Issues blocken Ausführung
+
+4. **Diff Scope Detection** — `brain/scope.py`
+   - **Warum:** Ohne Kontext über den aktuellen Zustand eines Projekts generiert geofrey generische Commands. Wenn er weiß dass gerade 5 Backend-Files und 2 Test-Files geändert sind, kann er gezielter arbeiten — z.B. "run tests" vorschlagen oder den Scope im Claude Code Prompt einschränken.
+   - Kategorisiert git-Änderungen: frontend, backend, tests, docs, config, scripts
+   - Injiziert Scope-Summary in Orchestrator-Kontext wenn Projekt erkannt
+   - Tests haben Priorität (test_foo.py → "tests", nicht "backend")
+
+5. **Knowledge Base Expansion** — 7 neue Chunks (97 → 104, dann +6 = 110 mit doc-sync + commands)
+   - **Warum:** geofrey nutzt RAG um Kontext für die Command-Generierung zu finden. Ohne Knowledge über Skill-Architektur, Quality Gates, Diff Scope etc. kann er diese Patterns nicht anwenden. Die Chunks sind die "Erinnerung" die das 9B-Modell braucht.
+   - skills-architecture-patterns.md, workflow-quality-gates.md, workflow-retro-sessions.md
+   - workflow-diff-scope.md, prompt-template-system.md, context-progressive-tiers.md
+   - safety-quality-gates.md
+
+**Was bewusst NICHT übernommen wurde (und warum):**
+- **Browser Automation** — anderer Use Case. geofrey orchestriert Claude Code, er macht kein QA/Testing von Web-Apps.
+- **TypeScript/Bun Tooling** — geofrey ist Python. Die Patterns sind übertragbar, die Implementierung nicht.
+- **Multi-Model Consensus (Claude + Codex)** — erfordert OpenAI API Key + Kosten. geofrey's Prinzip ist local-first mit Qwen3.5, Claude Code nur über CLI.
+- **Git Worktree Management** — Claude Code handled Worktrees nativ. Kein Grund das zu duplizieren.
+- **Supabase Backend** — geofrey ist local-first, kein Cloud-Backend nötig.
+- **Office Hours / CEO Review / Design Consultation** — Strategische Consulting-Tools, zu komplex für 9B. Notiert für Phase 3/4 wenn ggf. größeres Modell.
+
+**Neue Dateien:**
+```
+brain/
+├── templates/         # 7 Markdown-Templates (6 Prompts + base-rules)
+├── skills/            # 7 Skill-Templates (code-fix, feature, review, research, security, refactor, doc-sync)
+├── router.py          # Task-Type Detection + Skill Dispatch
+├── gates.py           # Pre-Execution Quality Gate Validation
+└── scope.py           # Diff Scope Detection
+knowledge-base/claude-code/
+├── skills/skills-architecture-patterns.md
+├── workflows/workflow-quality-gates.md
+├── workflows/workflow-retro-sessions.md
+├── workflows/workflow-diff-scope.md
+├── workflows/workflow-doc-sync.md
+├── prompt-templates/prompt-template-system.md
+├── context/context-progressive-tiers.md
+└── safety/safety-quality-gates.md
+```
+
+### Doc-Sync Skill (Nachtrag, gleiche Session)
+
+**Quelle:** YouTube-Analyse eines gstack-Walkthroughs. Der Ersteller zeigt 5 der 28 Skills im Detail: Office Hours, CEO Review, Design Consultation, Engineering Review, und **Document Release**. Letzterer war in der reinen Code-Analyse untergegangen.
+
+**Was Document Release macht:**
+1. Findet alle Diffs (geänderte Files)
+2. Inventarisiert alle Docs (.md, README, Changelogs, Architecture)
+3. Cross-referenziert Code-Änderungen gegen Docs
+4. Erkennt Konflikte (Code hat sich geändert, Docs nicht)
+5. Updated veraltete Docs automatisch
+6. Prüft auf dangling TODOs
+7. Stellt Changelog-Konsistenz sicher
+
+**Problem das es löst:** Die "Snake in the Grass" — Code ändert sich schnell, Docs werden nicht aktualisiert, 2 Tage später nutzt Claude Code veraltete Docs als Kontext und generiert falschen Code.
+
+**Was gebaut wurde:**
+- `brain/skills/doc-sync.md` — Skill-Template mit 7-Schritt Workflow, sonnet, $1-3 Budget
+- `knowledge-base/claude-code/workflows/workflow-doc-sync.md` — Knowledge Chunk damit geofrey versteht was Doc-Sync ist und wann es nötig ist
+- Router-Keywords (DE+EN): "doc", "docs", "documentation", "sync", "changelog", "readme", "journal", "doku", "dokumentation", "aktualisier", "release notes"
+
+**Warum beides (Skill + Knowledge):**
+- Ohne Knowledge Chunk weiß geofrey nicht **was** Doc-Sync ist (RAG liefert keinen Kontext)
+- Ohne Skill kriegt er keinen spezialisierten Prompt (generischer Orchestrator-Prompt reicht nicht)
+- Zusammen: Router erkennt Intent → Skill liefert den richtigen Prompt → RAG liefert den Kontext → Qwen3.5 generiert präzisen Claude Code Command
+
+**Weitere Erkenntnisse aus dem Video (nicht implementiert, notiert für später):**
+- **Office Hours** — Strukturierte Produkt-Validierung mit Fragenfluss (Wedge, Target User, Workarounds, Demand). Relevant für Slavkos Beratungs-Kunden, Phase 3/4.
+- **CEO Review** — Adversarial Strategy Review: sucht "10-Star Produkt" im aktuellen Produkt, bietet scope expansion/reduction. Interessant aber zu komplex für 9B.
+- **Design Consultation** — Wettbewerber-Recherche + Design-System Generation. Nicht relevant da geofrey kein UI-Design-Tool ist.
+
+---
+
+## 2026-03-25 — Python-First Architecture
+
+### Das Problem
+
+geofrey ließ den lokalen LLM (Qwen3.5-9B) den **gesamten** Claude Code CLI-Befehl generieren — inklusive `--cwd`, `--model`, `--max-turns`, `--max-budget-usd`. Python validierte danach mit Quality Gates und extrahierte den Command per Regex (`extract_command()`).
+
+Das war rückwärts: Ein 9B-Modell generierte deterministische CLI-Syntax, und Python baute Sicherheitsnetze drumherum. Die Quality Gates und Regex-Extraction existierten nur, weil der LLM Fehler machte bei Dingen, die Python trivial richtig machen kann.
+
+### Die Lösung: Python-First
+
+**Neue Architektur:**
+```
+User Input
+  → Python: detect_task_type()        # Keyword-Matching
+  → Python: get_skill_meta()          # Config-basierte Defaults
+  → Python: retrieve_context()        # RAG (unverändert)
+  → LLM:    generate_prompt()         # NUR der -p Prompt-Text
+  → Python: validate_prompt()         # Secrets/Dangerous Check
+  → Python: build_command()           # Deterministisch: --model, --cwd, --budget
+  → Python: [Plan-Phase wenn nötig]   # read-only vor execution
+  → User:   Bestätigung
+  → Execute
+```
+
+**Kernprinzip:** Python macht alles Deterministische. Der LLM schreibt nur den Prompt-Text — das Einzige wofür Sprachverständnis nötig ist.
+
+### Was sich geändert hat
+
+**Neues Modul — `brain/command.py`:**
+- `CommandSpec` Dataclass — strukturierte Command-Spezifikation
+- `build_command()` — assembliert CLI-String mit `shlex.quote()` Escaping
+- `resolve_model()` — mapped model_category auf Model-Alias via Config
+- `project_has_code()` — prüft ob Projekt existierenden Code hat
+
+**Model-Policy — `config/config.yaml`:**
+```yaml
+model_policy:
+  code: "opus"       # code-fix, feature, refactor → immer Opus
+  analysis: "opus"   # review, research, security → immer Opus
+  content: "sonnet"  # doc-sync, linkedin → Sonnet
+```
+User zahlt $200/Monat für Max 20x Plan. Kosten sind kein Faktor.
+
+**Skill-Defaults — `config/config.yaml`:**
+- Budget, Turns, Permission-Mode, Plan-Phase pro Skill konfigurierbar
+- Feature + Refactor bekommen automatische Plan-Phase (`needs_plan: true`)
+
+**Router-Erweiterung — `brain/router.py`:**
+- Neue `SkillMeta` Dataclass mit allen Metadaten
+- `get_skill_meta()` liest aus Config, fällt auf Defaults zurück
+
+**Orchestrator-Umbau — `brain/orchestrator.py`:**
+- `generate_prompt()` — LLM schreibt nur Prompt-Text (kein Code-Block)
+- `execute_spec()` — validiert und führt CommandSpec aus
+- `run_two_phase()` — Plan-Phase (read-only) → User-Bestätigung → Execution
+- `detect_project()` — Projekt-Erkennung als eigene Funktion
+- Backward-Compat: `chat()`, `extract_command()`, `execute_command()` bleiben als deprecated
+
+**Vereinfachte Skill-Templates — `brain/skills/*.md`:**
+- Kein CLI-Syntax mehr — Templates leiten LLM nur beim Prompt-Schreiben an
+- `{{base_rules}}` Placeholder entfällt
+
+**Gelöschte Datei — `brain/templates/base-rules.md`:**
+- CLI-Syntax lebt jetzt in `command.py`, nicht im LLM-Kontext
+
+**Vereinfachte Gates — `brain/gates.py`:**
+- Neue `validate_prompt()` prüft nur Secrets/Dangerous Patterns
+- Strukturelle Checks (--cwd, --budget) entfallen — Python garantiert diese
+
+### Zwei-Phasen Plan-Mode
+
+Für Feature und Refactor auf bestehenden Projekten:
+
+1. **Phase 1 (Plan):** Claude Code mit `--permission-mode plan` (read-only). Analysiert Codebase, gibt Plan aus. Reduziertes Budget ($2, 15 turns).
+2. **User sieht Plan → bestätigt oder bricht ab**
+3. **Phase 2 (Execute):** Claude Code mit vollem Budget. Plan wird als Kontext mitgegeben.
+
+Trigger: `skill_meta.needs_plan == True` UND `project_has_code(path) == True`
+
+### Knowledge Base — Rolle ändert sich
+
+Die Knowledge Base wird NICHT durch Python ersetzt. Die Aufteilung:
+- **Python-Code:** CLI-Syntax, Modellwahl, Budget, Routing, Gates (deterministisch)
+- **Knowledge Base (RAG):** Prompt-Qualität, Best Practices, DACH-Kontext, Safety-Awareness (nicht-deterministisch, Sprachverständnis nötig)
+
+Der Zweck ändert sich: statt "lehre den LLM CLI-Syntax" ist es jetzt "gib dem LLM Kontext für bessere Prompts".
+
+---
+
+## 2026-03-25 — Re-Focus: Autonomer Personal Agent
+
+### Vision-Shift
+
+geofrey ist nicht mehr ein CLI-Wrapper für Claude Code. geofrey ist ein **autonomer Personal Agent** — ein zweites Ich das nie schläft.
+
+**Warum der Re-Focus:**
+Der bisherige Ansatz (LLM generiert CLI-Befehle, Python validiert danach) löste das falsche Problem. Der User braucht keinen Befehlsgenerator — er braucht ein System das:
+1. Seinen Kontext kennt (Projekt, Codebase, Historie, DACH-Markt)
+2. Besser prompten kann als er selbst (weil es den Kontext hat)
+3. Autonom arbeitet während er schläft
+
+**Der Schlüsselmoment:** 17 Zeichen User-Input ("fix den login bug") → 14.436 Zeichen angereicherter Prompt. Deterministisch, ohne LLM. Das ist der eigentliche Wert — nicht der CLI-Befehl, sondern der Kontext.
+
+### Was gebaut wurde (alle 3 Säulen in einer Session)
+
+#### Säule 1: Prompt Enrichment Engine
+
+Deterministisch (Python, kein LLM). 7 Enrichment Rules als YAML-Dateien.
+
+**Neue Dateien:**
+- `brain/models.py` — Shared Dataclasses für alle Module (Task, Session, EnrichedPrompt, BriefingItem, EnrichmentRule)
+- `brain/enricher.py` — Prompt Enrichment Engine: Regeln laden, Kontext sammeln, strukturierten Prompt bauen
+- `brain/context_gatherer.py` — Kontext-Sammler: Git-Status, CLAUDE.md, Architecture-Docs, Session-Learnings aus ChromaDB, DACH-Kontext
+- `brain/rules/*.yaml` — 7 Enrichment Rules (code-fix, feature, refactor, review, research, security, doc-sync)
+
+**Enrichment Flow:**
+```
+User Input (17 chars)
+  → detect_task_type() → "code-fix"
+  → gather_project_context() → Git, Docs, ChromaDB
+  → load_enrichment_rules() → code-fix.yaml
+  → _build_enriched_prompt() → 14.436 chars
+```
+
+**Kontext-Quellen pro Rule:**
+- Git Branch/Status/Commits (immer außer research)
+- Diff Scope — kategorisierte File-Änderungen (immer außer research)
+- CLAUDE.md (immer außer research)
+- Architecture-Docs (bei feature, refactor, review, security, doc-sync)
+- Session Learnings aus ChromaDB (immer)
+- DACH-Kontext (bei review, research, security)
+- Post-Actions als Requirements (rule-spezifisch)
+- Prompt-Suffix (rule-spezifisch)
+
+#### Säule 2: Session Automation
+
+tmux-basierte Session-Verwaltung mit `--dangerously-skip-permissions`.
+
+**Neue Dateien:**
+- `brain/session.py` — Session Manager: tmux starten (`start_session`), überwachen (`get_session_status`), Output capturen (`capture_session_output`), beenden (`end_session`), synchrone Ausführung (`run_session_sync`)
+
+**Session Lifecycle:**
+```
+1. tmux new-session -d -s geofrey-{id} "claude --dangerously-skip-permissions ..."
+2. tmux has-session → RUNNING / COMPLETED
+3. tmux capture-pane → Output
+4. Session Intelligence → Learnings extrahieren
+```
+
+#### Säule 3: Overnight Agent
+
+Task Queue + Daemon + Morning Briefing.
+
+**Neue Dateien:**
+- `brain/queue.py` — SQLite-backed Task Queue unter `~/.knowledge/geofrey_tasks.db`. CRUD, Priority-Ordering, Dependency-Checks
+- `brain/daemon.py` — Overnight Daemon: Queue abarbeiten, Briefing generieren. launchd Plist für 02:00 Schedule
+- `brain/briefing.py` — Morning Briefing: Tasks kategorisieren (erledigt, Freigabe, Input nötig, Status), Terminal-Formatierung, JSON+MD Export nach `~/.knowledge/briefing.md`
+- `brain/agents/base.py` — BaseAgent + run_agent() Factory-Dispatcher. Alle Agent-Typen (coder, researcher, content, documenter) routen aktuell durch Claude Code
+
+**Overnight Flow:**
+```
+1. User (tagsüber): geofrey queue add "refactor auth" --project meus
+2. Daemon (02:00): run_overnight()
+3. Für jeden Task: detect_type → enrich → agent → Claude Code
+4. generate_briefing() → briefing.md + briefing.json
+5. User (morgens): geofrey briefing
+```
+
+### Neue CLI Commands (6 neue)
+
+```bash
+geofrey queue add "task" --project X --priority high --agent coder
+geofrey queue list [--status done|pending|failed|needs_input]
+geofrey queue process [--max 10]
+geofrey overnight                   # Voller Overnight-Zyklus
+geofrey briefing                    # Morning Briefing anzeigen
+geofrey install-daemon              # launchd Plist generieren
+```
+
+### Zusammenfassung
+
+| Vorher | Nachher |
+|---|---|
+| CLI-Wrapper: LLM generiert CLI-Befehle | Autonomer Agent: deterministisches Prompt Enrichment |
+| User muss Commands bestätigen | User queued Tasks, geofrey arbeitet nachts |
+| Kein Session-Management | tmux-basierte Session Automation |
+| Kein Briefing | Morning Briefing mit Kategorien |
+| Generischer Prompt für alles | 7 YAML-basierte Enrichment Rules |
+| LLM für alles | Python für Deterministisches, LLM nur wo nötig |
+
+---
+
+## Aktueller Stand (2026-03-25 Ende)
+
+**Was funktioniert (Phase 1 — Terminal CLI):**
+- `python main.py chat` — Orchestrator mit Skill-Routing (7 Skills)
+- `python main.py task "fix login in meus"` — Single Task mit Prompt Enrichment
+- `python main.py skills` — Verfügbare Skills
+- `python main.py post "Thema"` — Kompletter LinkedIn Flow (Post + Bild-Prompts)
+- `python main.py learn` — Session Intelligence: Learnings extrahieren
+- `python main.py learnings` — Learnings anzeigen/durchsuchen (RAG)
+- `python main.py queue add/list/process` — Task Queue Management
+- `python main.py overnight` — Voller Overnight-Zyklus (Queue + Briefing)
+- `python main.py briefing` — Morning Briefing anzeigen
+- `python main.py install-daemon` — launchd Plist für Nacht-Automatisierung
+- `python main.py status` — 7 Collections, 110 Claude Code Knowledge Chunks
+- `python main.py context-setup / linkedin-ingest / sessions-ingest / inbox / embed / hub-query`
+
+**Architektur (Drei Säulen):**
+- Prompt Enrichment Engine — 17 chars → 14.436 chars, deterministisch
+- Session Automation — tmux-basiert, start/monitor/capture
+- Overnight Agent — launchd Daemon (02:00), Task Queue, Morning Briefing
+- Agent System — BaseAgent + Factory-Dispatcher (4 Agent-Typen)
+- 7 Enrichment Rules als YAML (brain/rules/)
+- Shared Data Models (brain/models.py)
+- Model-Policy — Opus für Code/Analysis, Sonnet für Content
+- Skill-Based Task Routing — 7 Skills mit DE+EN Keywords
+
+**Knowledge Base:**
+- 110 Claude Code Chunks
+- 5 DACH-Kontext Dateien
+- 38 LinkedIn Posts
+- Session Learnings (persistent)
+
+**Was noch fehlt (Phase 1):**
+- Gemini API für automatische Bildgenerierung (verschoben)
+- Mehr LinkedIn Posts importieren (User liefert > 38)
+
+**Was noch fehlt (Phase 2+):**
+- Native macOS UI (SwiftUI)
+- Proaktive Vorschläge
+- Feedback-Loop
+- Automatisches Re-Indexing
+- Website-Automatisierung (geofrey.ai)
+
+---
+
 ## Offene Fragen
 
 1. Sollen CLI_Maestro und knowledge-assistant als Archive bestehen bleiben oder gelöscht werden?
 2. Wann starten wir mit der nativen macOS UI?
 3. Mehr LinkedIn Posts: User muss LinkedIn Daten-Export machen
-4. Soll geofrey einen eigenen Cron-Job für Knowledge-Updates bekommen?
+4. Knowledge Base Chunks reviewen: CLI-Syntax Chunks können reduziert werden (Python handled das jetzt)
 
 ---
 
