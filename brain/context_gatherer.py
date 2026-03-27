@@ -126,6 +126,33 @@ def gather_project_context(project_path: str, project_name: str, config: dict | 
     )
 
 
+def gather_decision_context(
+    project_path: str,
+    project_name: str,
+    user_input: str,
+    config: dict,
+) -> str:
+    """Gather relevant decisions for this task.
+
+    1. Get affected files from git diff
+    2. Check scope overlap, keyword overlap, semantic search
+    3. Walk dependency chains for matched decisions
+    4. Format as prompt section with warnings
+    """
+    from brain.decision_checker import check_decision_conflicts, format_decision_context
+
+    # Get affected files from git status
+    git_status = _run_git(["diff", "--name-only"], project_path)
+    staged = _run_git(["diff", "--cached", "--name-only"], project_path)
+    affected = [f for f in (git_status + "\n" + staged).splitlines() if f.strip()]
+
+    conflicts = check_decision_conflicts(user_input, project_name, affected, config)
+    if not conflicts:
+        return ""
+
+    return format_decision_context([], conflicts)
+
+
 def gather_dach_context(config: dict) -> str:
     """Retrieve DACH personal context from ChromaDB.
 

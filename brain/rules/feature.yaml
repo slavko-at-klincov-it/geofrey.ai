@@ -6,6 +6,7 @@ include_architecture: true
 include_session_learnings: true
 include_dach_context: false
 include_diff_scope: true
+include_decision_context: true
 post_actions:
   - "Add or update tests for the new feature"
   - "Update architecture docs if structure changed"

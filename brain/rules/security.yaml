@@ -6,6 +6,7 @@ include_architecture: true
 include_session_learnings: true
 include_dach_context: true
 include_diff_scope: true
+include_decision_context: true
 post_actions:
   - "Produce structured report with severity levels (critical/high/medium/low)"
   - "Check OWASP Top 10, DSGVO/GDPR, NIS2 compliance"
