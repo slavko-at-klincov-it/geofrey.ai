@@ -12,7 +12,7 @@ from enum import Enum
 from pathlib import Path
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -151,21 +151,36 @@ def create_app() -> FastAPI:
             for r in results:
                 r["score"] = round(1 - r["distance"], 3)
             return results
-        return await asyncio.to_thread(_search)
+        try:
+            return await asyncio.to_thread(_search)
+        except Exception as e:
+            if "connect" in str(e).lower() or "ollama" in str(e).lower():
+                return JSONResponse(status_code=503, content={"error": "Ollama nicht erreichbar. Starte Ollama mit: ollama serve"})
+            return JSONResponse(status_code=500, content={"error": str(e)})
 
     @app.post("/api/post/generate")
     async def post_generate(req: PostGenerate):
         """Generate a LinkedIn post draft."""
         from brain.linkedin import generate_post
-        text = await asyncio.to_thread(generate_post, req.topic, config)
-        return {"text": text, "word_count": len(text.split())}
+        try:
+            text = await asyncio.to_thread(generate_post, req.topic, config)
+            return {"text": text, "word_count": len(text.split())}
+        except Exception as e:
+            if "connect" in str(e).lower() or "ollama" in str(e).lower():
+                return JSONResponse(status_code=503, content={"error": "Ollama nicht erreichbar. Starte Ollama mit: ollama serve"})
+            return JSONResponse(status_code=500, content={"error": str(e)})
 
     @app.post("/api/post/save")
     async def post_save(req: PostSave):
         """Save a confirmed LinkedIn post."""
         from brain.linkedin import save_post
-        num = await asyncio.to_thread(save_post, req.text, req.topic, config)
-        return {"post_number": num}
+        try:
+            num = await asyncio.to_thread(save_post, req.text, req.topic, config)
+            return {"post_number": num}
+        except Exception as e:
+            if "connect" in str(e).lower() or "ollama" in str(e).lower():
+                return JSONResponse(status_code=503, content={"error": "Ollama nicht erreichbar. Starte Ollama mit: ollama serve"})
+            return JSONResponse(status_code=500, content={"error": str(e)})
 
     # --- WebSocket Chat ---
 
