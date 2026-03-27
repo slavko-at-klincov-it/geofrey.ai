@@ -104,6 +104,7 @@ geofrey/
 │   ├── linkedin.py           # LinkedIn Post Pipeline
 │   ├── templates/            # LLM-System-Prompts als Markdown
 │   └── skills/               # Skill-Templates: leiten LLM beim Prompt-Schreiben an
+├── tests/                    # Unit + Integration + E2E Tests (197 Tests, 8 Dateien)
 ├── knowledge/                # Knowledge Hub
 │   ├── hub.py                # Zentrale API (kein LangChain)
 │   ├── store.py              # ChromaDB Wrapper (multi-collection)
