@@ -291,7 +291,7 @@ User hat Max 20x Plan (~$200/Monat). Kosten sind kein Faktor — Qualität geht 
 | `embedding` | Modell und Chunk-Größe |
 | `llm` | Ollama-Modell für lokale Generierung |
 
-## Safety
+## Safety & Permission Model
 
 ### Wo welche Checks passieren
 
@@ -299,19 +299,30 @@ User hat Max 20x Plan (~$200/Monat). Kosten sind kein Faktor — Qualität geht 
 |---|---|---|
 | **Pre-Enrichment** | Task-Type Detection (deterministisch) | `router.py` |
 | **Enrichment** | Regeln bestimmen welcher Kontext geladen wird | `enricher.py` |
-| **Post-Enrichment** | Secrets-Check, Dangerous Pattern Detection | `gates.py` |
+| **Post-Enrichment** | [BLOCK] + [WARN] Pattern Check (Secrets, rm -rf /, drop database, force push) | `gates.py` |
 | **Command-Bau** | --cwd, --model, --budget werden von Python garantiert | `command.py` |
+| **Permission** | `permission_mode` aus SkillMeta → `_build_claude_cmd()` in session.py | `session.py` |
 | **Pre-Execution** | User-Bestätigung (interaktiv) oder Agent-Autonomie (overnight) | `orchestrator.py` / `daemon.py` |
-| **RAG-Injection** | Safety-Chunks werden immer in den LLM-Kontext injiziert | `safety.py` |
-| **Session** | `--dangerously-skip-permissions` nur in tmux (isoliert) | `session.py` |
+| **Session** | Permission-Modus pro Skill (skip/default/plan) | `session.py` |
+
+### Permission Model (session.py)
+
+| Modus | Flag | Wann |
+|---|---|---|
+| `skip` | `--dangerously-skip-permissions` | Autonomous overnight execution |
+| `default` | (kein Flag) | Interactive — User approves |
+| `plan` | `--permission-mode plan` | Read-only analysis |
+
+Der Daemon übergibt `permission_mode` aus SkillMeta → agent_config → BaseAgent → `_build_claude_cmd()`.
 
 ### Non-Negotiable
 
 - Keine Secrets in Prompts (validate_prompt prüft automatisch)
+- [BLOCK] Patterns verhindern Execution (rm -rf /, drop database, force push main)
 - --cwd immer gesetzt (Python garantiert, nicht LLM)
 - Budget-Limits immer gesetzt
-- Safety-Chunks immer in RAG-Kontext
 - Overnight: nur in tmux, isoliert, mit Budget-Limit
+- Briefing Memory: `mark_briefing_shown()` trackt letztes Briefing, Summary nur neue Tasks
 
 ## CLI Commands
 

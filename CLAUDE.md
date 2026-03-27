@@ -94,13 +94,12 @@ geofrey/
 │   │   ├── research.yaml
 │   │   ├── security.yaml
 │   │   └── doc-sync.yaml
-│   ├── orchestrator.py       # Legacy Orchestrator: chat(), single_task()
+│   ├── orchestrator.py       # Orchestrator: interactive(), single_task(), two-phase execution
 │   ├── command.py            # CommandSpec + build_command() — deterministischer Command-Bau
 │   ├── router.py             # Task-Type Detection + SkillMeta (7 Skills, DE+EN Keywords)
-│   ├── gates.py              # validate_prompt() — Secrets/Dangerous Pattern Check
+│   ├── gates.py              # validate_prompt() — [BLOCK] + [WARN] Pattern Check
 │   ├── scope.py              # Diff Scope Detection (git-Änderungen kategorisieren)
 │   ├── prompts.py            # Template-Loader (load_template, render_template)
-│   ├── safety.py             # Safety-Chunks, RAG-Injection
 │   ├── linkedin.py           # LinkedIn Post Pipeline
 │   ├── templates/            # LLM-System-Prompts als Markdown
 │   └── skills/               # Skill-Templates: leiten LLM beim Prompt-Schreiben an
@@ -177,12 +176,14 @@ Alle in `~/.knowledge/vectordb/` (shared):
 
 ## Safety — Non-Negotiable
 
-- Safety-Chunks werden IMMER via RAG in den LLM-Kontext injiziert
-- validate_prompt() prüft auf Secrets und Dangerous Patterns
+- **gates.py** validiert Prompts: `[BLOCK]` verhindert Ausführung (rm -rf /, drop database, force push main), `[WARN]` ist advisory
 - --cwd, --model, --max-budget-usd werden von Python garantiert (nicht vom LLM)
+- **Permission Model** (session.py): `skip` = --dangerously-skip-permissions (autonomous), `default` = User approves, `plan` = read-only
+- Daemon übergibt `permission_mode` aus SkillMeta an Agent → Session
 - User-Bestätigung vor Ausführung (interaktiv) oder Agent-Autonomie mit Budget-Limit (overnight)
 - Overnight Sessions nur in tmux (isoliert), mit Budget-Limit
 - Plan-Phase (read-only) vor Execution bei Feature/Refactor auf bestehenden Projekten
+- **Briefing Memory**: `mark_briefing_shown()` trackt letztes Briefing, Summary zeigt nur neue Tasks
 
 ## Code-Stil
 

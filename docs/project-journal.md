@@ -659,6 +659,68 @@ geofrey install-daemon              # launchd Plist generieren
 
 ---
 
+## 2026-03-26 — Safety Hardening + Decision Dependency Research
+
+### Kontext
+
+Session begann mit dem Weitermachen an Router Keyword-Kollisionen (Commit 934c47f), eskalierte zu einem vollständigen Projekt-Review, und mündete in der Entdeckung des Decision Dependency Problems — einer fundamentalen Lücke in allen AI Coding Assistants.
+
+### Was gebaut wurde
+
+#### 1. Permission Model (session.py)
+**Commit:** (dieser Batch)
+**Warum:** `--dangerously-skip-permissions` war in ALLEN Sessions hardcoded. Das ist gefährlich für autonome Overnight-Execution wo niemand reviewt. SkillMeta hatte bereits `permission_mode` pro Task-Typ, aber es wurde nie an session.py durchgereicht.
+**Was:** `_build_claude_cmd()` zentralisiert Command-Bau mit 3 Modi: `skip` (autonomous), `default` (user approves), `plan` (read-only). Daemon übergibt `permission_mode` aus SkillMeta → agent_config → BaseAgent → session.
+**Betrifft:** brain/session.py, brain/agents/base.py, brain/daemon.py
+
+#### 2. Safety Konsolidierung (gates.py, safety.py gelöscht)
+**Commit:** (dieser Batch)
+**Warum:** Drei disconnected Safety-Systeme existierten: safety.py (RAG-Chunks, nie in Enricher integriert), gates.py (nur [WARN], nie [BLOCK]), Claude Code's eigene Safety. Keines war mit dem anderen verbunden. safety.py's `get_safety_context()` wurde nur in der orphaned `retrieve_context()` aufgerufen.
+**Was:** safety.py gelöscht. gates.py mit Regex-basierten [BLOCK] Patterns erweitert (rm -rf /, drop database, force push main/master). `has_blockers()` funktioniert jetzt tatsächlich.
+**Betrifft:** brain/gates.py (rewritten), brain/safety.py (deleted), brain/orchestrator.py (imports cleaned)
+
+#### 3. Dead Code Cleanup
+**Commit:** (dieser Batch)
+**Warum:** Projekt-Review identifizierte orphaned Code: `retrieve_context()` (Legacy RAG, nicht im aktiven Flow), `get_projects_text()` (nirgends aufgerufen), `validate_command()` (deprecated), unused Model Fields.
+**Was entfernt:**
+- `orchestrator.retrieve_context()` — ersetzt durch Enricher Pipeline
+- `orchestrator.get_projects_text()` — nirgends verwendet
+- `gates.validate_command()` — deprecated, Command-Struktur von Python garantiert
+- `Session.output` + `Session.learnings_extracted` — nie populated
+- `ProjectContext.known_issues` — nie populated
+- Imports: os, chromadb, ollama aus orchestrator.py (nur für gelöschte Funktionen)
+
+#### 4. Briefing Memory
+**Commit:** (dieser Batch)
+**Warum:** `get_overnight_summary()` gab ALLE completed Tasks zurück, nicht nur seit dem letzten Briefing. Das Morning Briefing zeigte immer die gleichen Tasks.
+**Was:** `meta` Tabelle in SQLite für `last_briefing_at` Timestamp. `get_overnight_summary()` filtert jetzt auf Tasks nach dem letzten Briefing. `show_briefing()` ruft `mark_briefing_shown()` auf.
+**Betrifft:** brain/queue.py, brain/briefing.py
+
+#### 5. Decision Dependency System — Research & Plugin
+**Warum:** Beim Projekt-Review fiel auf: Claude Code weiß nicht WARUM Code so ist wie er ist. Sieht State, nicht Intent. Führt zu Loops wo bewusste Entscheidungen rückgängig gemacht werden. Keine Lösung existiert — nicht in Claude Code, nicht in Cursor, Copilot, Aider.
+**Was gebaut:**
+- `docs/decision-dependency-system.md` — Vollständige Research: Problem, Stand der Technik (5 Papers, 8 Tools), Architektur-Entwurf, Quellen
+- `~/Code/decision-guard/` — Separates Projekt: Claude Code Plugin mit 4 Skills + 4 Hooks. Zero Dependencies, pure Shell+Markdown. Getestet (10/10 Tests bestanden).
+**Was kommt als nächstes:** Volle Python-Implementierung direkt in geofrey's Enricher (Plan liegt unter .claude/plans/). ChromaDB Semantic Search, Dependency Graph Walker, automatische Extraction aus Sessions.
+
+### Tests
+
+167 Tests → alle bestanden nach den Änderungen. 11 neue Tests:
+- 4 TestGatesExtended: [BLOCK] vs [WARN] Pattern Validation
+- 4 TestSessionPermissions: permission_mode in _build_claude_cmd() und run_session_sync()
+- 3 TestBriefingMemory: mark_briefing_shown(), Filter by Last Briefing, No Briefing Shows All
+
+### Architektur-Entscheidungen
+
+| Entscheidung | Warum | Betrifft |
+|---|---|---|
+| safety.py gelöscht, gates.py ist Single Source of Truth | 3 disconnected Systeme, safety.py war nie integriert | Wer Safety ändern will → nur gates.py |
+| Permission Mode per Skill statt global --dangerously-skip-permissions | Overnight Security Tasks sollten nicht alles überspringen | session.py, daemon.py, agents/base.py |
+| Briefing Memory in SQLite meta Tabelle | Kein neues Storage-System, meta Tabelle existierte bereits | queue.py, briefing.py |
+| Decision Dependency als Python-Code in geofrey, nicht als Plugin | geofrey sitzt VOR dem LLM → 100% deterministische Injection, ChromaDB Semantic Search, automatische Extraction | Enricher Pipeline, neue Dateien |
+
+---
+
 ## Offene Fragen
 
 1. Sollen CLI_Maestro und knowledge-assistant als Archive bestehen bleiben oder gelöscht werden?

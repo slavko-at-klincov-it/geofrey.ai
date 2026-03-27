@@ -657,6 +657,7 @@ class TestAgents:
             model="sonnet",
             max_turns=20,
             max_budget_usd=3.0,
+            permission_mode="skip",
         )
 
 
@@ -706,3 +707,136 @@ class TestDaemonIntegration:
         assert results[0]["status"] == "done"
         assert task.id in updated_tasks
         assert updated_tasks[task.id]["status"] == TaskStatus.DONE
+
+
+# ---------------------------------------------------------------------------
+# 12. TestGates — extended (BLOCK vs WARN patterns)
+# ---------------------------------------------------------------------------
+
+class TestGatesExtended:
+    def test_validate_prompt_blocks_rm_rf_root(self):
+        """'rm -rf /' produces a [BLOCK] issue."""
+        from brain.gates import validate_prompt, has_blockers
+        issues = validate_prompt("Please run rm -rf / to clean up")
+        assert has_blockers(issues)
+        assert any("[BLOCK]" in i for i in issues)
+
+    def test_validate_prompt_blocks_drop_database(self):
+        """'drop database' produces a [BLOCK] issue."""
+        from brain.gates import validate_prompt, has_blockers
+        issues = validate_prompt("Execute drop database production")
+        assert has_blockers(issues)
+
+    def test_validate_prompt_blocks_force_push_main(self):
+        """'force push to main' produces a [BLOCK] issue."""
+        from brain.gates import validate_prompt, has_blockers
+        issues = validate_prompt("Do a force push to main branch")
+        assert has_blockers(issues)
+
+    def test_validate_prompt_warns_but_no_block(self):
+        """'rm -rf /tmp/old' warns but does not block (no root/home path)."""
+        from brain.gates import validate_prompt, has_blockers
+        issues = validate_prompt("Run rm -rf /tmp/old-build")
+        assert len(issues) >= 1
+        assert not has_blockers(issues)
+
+
+# ---------------------------------------------------------------------------
+# 13. TestSessionPermissions
+# ---------------------------------------------------------------------------
+
+class TestSessionPermissions:
+    def test_build_cmd_skip_permissions(self):
+        """permission_mode='skip' adds --dangerously-skip-permissions."""
+        from brain.session import _build_claude_cmd
+        cmd = _build_claude_cmd("test prompt", "/tmp/proj", permission_mode="skip")
+        assert "--dangerously-skip-permissions" in cmd
+        assert "--permission-mode" not in cmd
+
+    def test_build_cmd_default_no_flag(self):
+        """permission_mode='default' adds no permission flags."""
+        from brain.session import _build_claude_cmd
+        cmd = _build_claude_cmd("test prompt", "/tmp/proj", permission_mode="default")
+        assert "--dangerously-skip-permissions" not in cmd
+        assert "--permission-mode" not in cmd
+
+    def test_build_cmd_plan_mode(self):
+        """permission_mode='plan' adds --permission-mode plan."""
+        from brain.session import _build_claude_cmd
+        cmd = _build_claude_cmd("test prompt", "/tmp/proj", permission_mode="plan")
+        assert "--permission-mode plan" in cmd
+        assert "--dangerously-skip-permissions" not in cmd
+
+    def test_run_session_sync_passes_permission(self):
+        """run_session_sync passes permission_mode to _build_claude_cmd."""
+        from brain.session import run_session_sync
+        with patch("brain.session.subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(stdout="output")
+            run_session_sync("/tmp", "test", permission_mode="plan")
+        cmd = mock_run.call_args[0][0][2]  # bash -c <cmd>
+        assert "--permission-mode plan" in cmd
+
+
+# ---------------------------------------------------------------------------
+# 14. TestBriefingMemory
+# ---------------------------------------------------------------------------
+
+class TestBriefingMemory:
+    @pytest.fixture(autouse=True)
+    def _setup_db(self, tmp_path):
+        self.db_path = str(tmp_path / "test_tasks.db")
+
+    @patch("brain.queue.load_projects", return_value={})
+    def test_mark_briefing_shown(self, mock_projects):
+        """mark_briefing_shown stores timestamp in meta table."""
+        from brain.queue import init_db, mark_briefing_shown
+        init_db(self.db_path)
+        mark_briefing_shown(self.db_path)
+
+        import sqlite3
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        row = conn.execute("SELECT value FROM meta WHERE key = 'last_briefing_at'").fetchone()
+        conn.close()
+        assert row is not None
+        assert len(row["value"]) > 0  # ISO datetime string
+
+    @patch("brain.queue.load_projects", return_value={})
+    def test_summary_filters_by_last_briefing(self, mock_projects):
+        """Tasks completed before last briefing are excluded."""
+        from brain.models import TaskStatus
+        from brain.queue import add_task, get_overnight_summary, init_db, mark_briefing_shown, update_task
+
+        init_db(self.db_path)
+
+        # Add and complete a task
+        t1 = add_task("Old task", db_path=self.db_path)
+        update_task(t1.id, db_path=self.db_path, status=TaskStatus.DONE, result="Done")
+
+        # Mark briefing shown (after t1 completed)
+        mark_briefing_shown(self.db_path)
+
+        # Add and complete a NEW task
+        t2 = add_task("New task", db_path=self.db_path)
+        update_task(t2.id, db_path=self.db_path, status=TaskStatus.DONE, result="Also done")
+
+        # Summary should only include the new task
+        summary = get_overnight_summary(self.db_path)
+        assert summary["done"] == 1
+        assert len(summary["tasks_done"]) == 1
+        assert summary["tasks_done"][0].id == t2.id
+
+    @patch("brain.queue.load_projects", return_value={})
+    def test_summary_no_briefing_shows_all(self, mock_projects):
+        """Without a previous briefing, all tasks are shown."""
+        from brain.models import TaskStatus
+        from brain.queue import add_task, get_overnight_summary, init_db, update_task
+
+        init_db(self.db_path)
+        t1 = add_task("Task 1", db_path=self.db_path)
+        t2 = add_task("Task 2", db_path=self.db_path)
+        update_task(t1.id, db_path=self.db_path, status=TaskStatus.DONE, result="Done")
+        update_task(t2.id, db_path=self.db_path, status=TaskStatus.DONE, result="Done")
+
+        summary = get_overnight_summary(self.db_path)
+        assert summary["done"] == 2
