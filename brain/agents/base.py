@@ -35,6 +35,7 @@ class BaseAgent:
         model = self.config.get("model", "opus")
         max_turns = self.config.get("max_turns", 50)
         max_budget_usd = self.config.get("max_budget_usd", 10.0)
+        permission_mode = self.config.get("permission_mode", "skip")
 
         return run_session_sync(
             project_path=project_path,
@@ -42,6 +43,7 @@ class BaseAgent:
             model=model,
             max_turns=max_turns,
             max_budget_usd=max_budget_usd,
+            permission_mode=permission_mode,
         )
 
     def post_process(self, task: Task, output: str) -> None:

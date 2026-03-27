@@ -3,6 +3,11 @@
 Handles starting, monitoring, capturing output from, and ending
 Claude Code sessions running in tmux. Also provides synchronous
 execution for simple tasks.
+
+Permission model:
+- permission_mode="skip" → --dangerously-skip-permissions (autonomous overnight)
+- permission_mode="default" → no permission flag (user approves interactively)
+- permission_mode="plan" → --permission-mode plan (read-only analysis)
 """
 
 import shlex
@@ -13,6 +18,35 @@ from uuid import uuid4
 from brain.models import Session, SessionStatus
 
 
+def _build_claude_cmd(
+    prompt: str,
+    project_path: str,
+    model: str = "opus",
+    max_turns: int = 50,
+    max_budget_usd: float = 10.0,
+    permission_mode: str = "skip",
+) -> str:
+    """Build a Claude Code CLI command string.
+
+    Centralizes command construction so all execution paths
+    (tmux, sync) use the same logic.
+    """
+    parts = ["claude"]
+
+    if permission_mode == "skip":
+        parts.append("--dangerously-skip-permissions")
+    elif permission_mode != "default":
+        parts.append(f"--permission-mode {permission_mode}")
+
+    parts.append(f"--model {model}")
+    parts.append(f"--cwd {shlex.quote(project_path)}")
+    parts.append(f"-p {shlex.quote(prompt)}")
+    parts.append(f"--max-turns {max_turns}")
+    parts.append(f"--max-budget-usd {max_budget_usd:.2f}")
+
+    return " ".join(parts)
+
+
 def start_session(
     project_path: str,
     prompt: str,
@@ -20,6 +54,7 @@ def start_session(
     task_id: str | None = None,
     max_turns: int = 50,
     max_budget_usd: float = 10.0,
+    permission_mode: str = "skip",
 ) -> Session:
     """Start a Claude Code session in a tmux window.
 
@@ -30,13 +65,13 @@ def start_session(
     tmux_name = f"geofrey-{session_id}"
     resolved_path = str(Path(project_path).expanduser())
 
-    claude_cmd = (
-        f"claude --dangerously-skip-permissions"
-        f" --model {model}"
-        f" --cwd {shlex.quote(resolved_path)}"
-        f" -p {shlex.quote(prompt)}"
-        f" --max-turns {max_turns}"
-        f" --max-budget-usd {max_budget_usd:.2f}"
+    claude_cmd = _build_claude_cmd(
+        prompt=prompt,
+        project_path=resolved_path,
+        model=model,
+        max_turns=max_turns,
+        max_budget_usd=max_budget_usd,
+        permission_mode=permission_mode,
     )
 
     try:
@@ -146,6 +181,7 @@ def run_session_sync(
     model: str = "opus",
     max_turns: int = 50,
     max_budget_usd: float = 10.0,
+    permission_mode: str = "skip",
 ) -> str:
     """Run Claude Code synchronously (no tmux) and return output.
 
@@ -153,13 +189,13 @@ def run_session_sync(
     """
     resolved_path = str(Path(project_path).expanduser())
 
-    cmd = (
-        f"claude --dangerously-skip-permissions"
-        f" --model {model}"
-        f" --cwd {shlex.quote(resolved_path)}"
-        f" -p {shlex.quote(prompt)}"
-        f" --max-turns {max_turns}"
-        f" --max-budget-usd {max_budget_usd:.2f}"
+    cmd = _build_claude_cmd(
+        prompt=prompt,
+        project_path=resolved_path,
+        model=model,
+        max_turns=max_turns,
+        max_budget_usd=max_budget_usd,
+        permission_mode=permission_mode,
     )
 
     try:

@@ -118,11 +118,12 @@ def process_queue(config: dict | None = None, max_tasks: int = 10) -> list[dict]
             if issues:
                 logger.warning(f"Task {task.id[:8]} safety warnings: {issues}")
 
-            # Run the agent with model/turns/budget via config
+            # Run the agent with model/turns/budget/permissions via config
             agent_config = dict(config)
             agent_config["model"] = model
             agent_config["max_turns"] = skill_meta.max_turns
             agent_config["max_budget_usd"] = skill_meta.max_budget_usd
+            agent_config["permission_mode"] = skill_meta.permission_mode
 
             agent_result = run_agent(
                 task=task,
