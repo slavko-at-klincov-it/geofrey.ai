@@ -43,6 +43,12 @@ def init_db(db_path: str | None = None) -> str:
             depends_on TEXT
         )
     """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS meta (
+            key TEXT PRIMARY KEY,
+            value TEXT
+        )
+    """)
     conn.commit()
     conn.close()
     return db_path
@@ -221,12 +227,35 @@ def update_task(task_id: str, db_path: str | None = None, **kwargs) -> Task:
 
 
 def get_overnight_summary(db_path: str | None = None) -> dict:
-    """Get a summary of all tasks grouped by status.
+    """Get a summary of tasks since the last briefing.
+
+    Only includes tasks that were completed/failed/updated after the
+    last briefing timestamp. Pending/running tasks are always included.
 
     Returns a dict with counts and task lists per status category.
     """
     conn = _get_conn(db_path)
-    rows = conn.execute("SELECT * FROM tasks ORDER BY created_at DESC").fetchall()
+
+    # Get last briefing timestamp
+    meta_row = conn.execute(
+        "SELECT value FROM meta WHERE key = 'last_briefing_at'"
+    ).fetchone()
+    since = meta_row["value"] if meta_row else None
+
+    # Build query: filter completed/failed by timestamp, always show pending/running
+    if since:
+        rows = conn.execute(
+            """SELECT * FROM tasks WHERE
+               status IN ('pending', 'running')
+               OR (status IN ('done', 'failed', 'needs_input') AND completed_at > ?)
+               ORDER BY created_at DESC""",
+            (since,),
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            "SELECT * FROM tasks ORDER BY created_at DESC"
+        ).fetchall()
+
     conn.close()
 
     summary: dict = {
@@ -250,3 +279,15 @@ def get_overnight_summary(db_path: str | None = None) -> dict:
             summary[f"tasks_{status}"].append(task)
 
     return summary
+
+
+def mark_briefing_shown(db_path: str | None = None) -> None:
+    """Record that a briefing was shown, so next summary only shows new tasks."""
+    conn = _get_conn(db_path)
+    now = datetime.now().isoformat()
+    conn.execute(
+        "INSERT OR REPLACE INTO meta (key, value) VALUES ('last_briefing_at', ?)",
+        (now,),
+    )
+    conn.commit()
+    conn.close()
