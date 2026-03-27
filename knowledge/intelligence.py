@@ -303,10 +303,79 @@ def save_learnings_md(learnings: dict, project_name: str, session_id: str, sessi
         for item in items:
             if isinstance(item, str) and item.strip():
                 lines.append(f"- {item.strip()}")
+            elif isinstance(item, dict) and cat == "decisions":
+                # Structured decision — write as sub-section
+                title = item.get("title", "Untitled Decision")
+                lines.append(f"\n### {title}")
+                if item.get("rationale"):
+                    lines.append(f"**Rationale:** {item['rationale']}")
+                if item.get("category"):
+                    lines.append(f"**Category:** {item['category']}")
+                if item.get("scope"):
+                    lines.append(f"**Scope:** {', '.join(item['scope'])}")
+                if item.get("keywords"):
+                    lines.append(f"**Keywords:** {', '.join(item['keywords'])}")
+                if item.get("change_warning"):
+                    lines.append(f"**Change Warning:** {item['change_warning']}")
+                lines.append("")
         lines.append("")
 
     filepath.write_text("\n".join(lines), encoding="utf-8")
+
+    # Save structured decisions as separate decision files
+    _save_decision_files(learnings, project_name, session_date, config)
+
     return filepath
+
+
+def _save_decision_files(learnings: dict, project_name: str, session_date: str, config: dict) -> None:
+    """Save structured decisions as individual Markdown files in knowledge-base/decisions/."""
+    decisions = learnings.get("decisions", [])
+    if not decisions:
+        return
+
+    decisions_base = Path(config["paths"].get("decisions", "knowledge-base/decisions"))
+    project_dir = decisions_base / project_name
+    project_dir.mkdir(parents=True, exist_ok=True)
+
+    for i, item in enumerate(decisions):
+        if not isinstance(item, dict) or not item.get("title"):
+            continue
+
+        # Generate ID from date + index
+        dec_id = f"DEC-{session_date.replace('-', '')}-{i + 1:02d}"
+        slug = re.sub(r"[^a-z0-9]+", "-", item["title"].lower()).strip("-")[:40]
+        filename = f"{dec_id}-{slug}.md"
+        filepath = project_dir / filename
+
+        if filepath.exists():
+            continue
+
+        lines = [
+            "---",
+            f"id: {dec_id}",
+            f"title: \"{item['title']}\"",
+            "status: active",
+            f"date: \"{session_date}\"",
+            f"project: {project_name}",
+            f"category: {item.get('category', 'implementation')}",
+        ]
+        if item.get("scope"):
+            lines.append(f"scope: {json.dumps(item['scope'])}")
+        if item.get("keywords"):
+            lines.append(f"keywords: {json.dumps(item['keywords'])}")
+        lines.append("---")
+        lines.append("")
+        if item.get("rationale"):
+            lines.append("## Rationale")
+            lines.append(item["rationale"])
+            lines.append("")
+        if item.get("change_warning"):
+            lines.append("## Change Warning")
+            lines.append(item["change_warning"])
+            lines.append("")
+
+        filepath.write_text("\n".join(lines), encoding="utf-8")
 
 
 def index_learnings(md_path: Path, project_name: str, session_id: str, session_date: str, learnings: dict, config: dict) -> None:
@@ -320,7 +389,14 @@ def index_learnings(md_path: Path, project_name: str, session_id: str, session_d
         if not items:
             continue
 
-        text = f"[{project_name}] {CATEGORY_HEADERS.get(cat, cat)}:\n" + "\n".join(f"- {item}" for item in items if isinstance(item, str))
+        # Build text for embedding
+        text_parts = []
+        for item in items:
+            if isinstance(item, str):
+                text_parts.append(f"- {item}")
+            elif isinstance(item, dict) and cat == "decisions":
+                text_parts.append(f"- {item.get('title', '')}: {item.get('rationale', '')}")
+        text = f"[{project_name}] {CATEGORY_HEADERS.get(cat, cat)}:\n" + "\n".join(text_parts)
         chunk_id = f"learn_{project_name}_{sid_prefix}_{cat}"
 
         try:
@@ -340,6 +416,55 @@ def index_learnings(md_path: Path, project_name: str, session_id: str, session_d
                 "session_date": session_date,
                 "category": cat,
                 "source_file": str(md_path),
+            }],
+        )
+
+    # Index structured decisions in dedicated "decisions" collection
+    _index_structured_decisions(learnings, project_name, session_id, session_date, config)
+
+
+def _index_structured_decisions(
+    learnings: dict, project_name: str, session_id: str, session_date: str, config: dict
+) -> None:
+    """Index structured decisions in the dedicated 'decisions' ChromaDB collection."""
+    decisions = learnings.get("decisions", [])
+    structured = [d for d in decisions if isinstance(d, dict) and d.get("title")]
+    if not structured:
+        return
+
+    store = VectorStore(config, collection_name="decisions")
+    embed_model = config["embedding"]["model"]
+    sid_prefix = session_id[:8]
+
+    for i, dec in enumerate(structured):
+        text = f"Decision: {dec['title']}"
+        if dec.get("rationale"):
+            text += f"\nRationale: {dec['rationale']}"
+        if dec.get("change_warning"):
+            text += f"\nChange Warning: {dec['change_warning']}"
+        if dec.get("keywords"):
+            text += f"\nKeywords: {', '.join(dec['keywords'])}"
+
+        chunk_id = f"dec_{project_name}_{sid_prefix}_{i}"
+
+        try:
+            response = ollama.embed(model=embed_model, input=text[:6000])
+            embedding = response["embeddings"][0]
+        except Exception:
+            continue
+
+        store.upsert(
+            ids=[chunk_id],
+            documents=[text],
+            embeddings=[embedding],
+            metadatas=[{
+                "project": project_name,
+                "session_id": session_id,
+                "session_date": session_date,
+                "category": dec.get("category", "implementation"),
+                "decision_id": f"DEC-{session_date.replace('-', '')}-{i + 1:02d}",
+                "scope": json.dumps(dec.get("scope", [])),
+                "keywords": json.dumps(dec.get("keywords", [])),
             }],
         )
 
