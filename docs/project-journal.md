@@ -821,12 +821,26 @@ Jede Session lernt. Jede neue Session bekommt Learnings + Decisions injiziert. F
 
 ---
 
-## Offene Fragen
+## 2026-03-28 — Offene Punkte abgearbeitet
 
-1. Sollen CLI_Maestro und knowledge-assistant als Archive bestehen bleiben oder gelöscht werden?
-2. Wann starten wir mit der nativen macOS UI?
-3. Mehr LinkedIn Posts: User muss LinkedIn Daten-Export machen
-4. Knowledge Base Chunks reviewen: CLI-Syntax Chunks können reduziert werden (Python handled das jetzt)
+### Erledigte Punkte
+
+| Punkt | Lösung |
+|-------|--------|
+| Test-Fixes (Import-Fehler, Mock-Setup) | decisions.py defensive config access + session test mock assertion → 197/197 pass |
+| CLAUDE.md: safety.py Referenz | War bereits bereinigt |
+| Knowledge Base Chunks reviewen | 33 redundante Chunks gelöscht (CLI-Flags, Permissions, Models, Env-Vars, Commands, System-Prompt). 110 → 77 Chunks. Python handled den Rest deterministisch. |
+| CLI_Maestro / knowledge-assistant | User-Entscheidung: Löschen. Alles ist in geofrey migriert. |
+
+### Offene Punkte
+
+| Punkt | Status |
+|-------|--------|
+| LinkedIn Daten-Export | User macht das separat |
+| E2E-Test mit echtem Live-Task | Nächste Session |
+| Phase 2: macOS SwiftUI UI | Eigenständiges Projekt, Zeitpunkt offen |
+
+## Offene Fragen
 
 ---
 

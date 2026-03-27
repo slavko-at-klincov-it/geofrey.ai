@@ -268,7 +268,7 @@ Alle persistent unter `~/.knowledge/vectordb/`:
 
 | Collection | Inhalt | Update |
 |---|---|---|
-| `claude_code` | 110 Chunks Claude Code Expertenwissen | Täglich (Cron 03:00) |
+| `claude_code` | 77 Chunks Claude Code Expertenwissen | Täglich (Cron 03:00) |
 | `context_personal` | DACH-Kontext (Profil, DSGVO, NIS2, EU Data Boundary) | Manuell |
 | `knowledge` | Allgemeine Recherche-Ergebnisse | Nach jeder Session / Inbox |
 | `linkedin_style` | LinkedIn Posts als Stil-Referenz | Nach jedem bestätigten Post |

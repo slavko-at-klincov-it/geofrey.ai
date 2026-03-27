@@ -241,7 +241,7 @@ class TestEmbedPipeline:
             cwd=str(PROJECT_ROOT),
         )
         assert result.returncode == 0
-        assert "110 chunks" in result.stdout
+        assert "77 chunks" in result.stdout
 
 
 # ===========================================================================

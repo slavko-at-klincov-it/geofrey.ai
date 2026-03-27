@@ -115,7 +115,7 @@ geofrey/
 │   ├── intelligence.py       # Session Intelligence — Learnings aus Sessions extrahieren
 │   └── decisions.py          # Decision Storage + Retrieval + Dependency Walker
 ├── knowledge-base/           # RAG Knowledge Chunks (Markdown, Source of Truth)
-│   ├── claude-code/          # 110 Chunks über Claude Code
+│   ├── claude-code/          # 77 Chunks über Claude Code
 │   ├── context/              # DACH-Kontext Dateien (Profil, DSGVO, NIS2, etc.)
 │   ├── sessions/             # Extrahierte Session-Learnings pro Projekt
 │   └── decisions/            # Decision Log pro Projekt (Markdown + YAML Frontmatter)
@@ -177,7 +177,7 @@ Alle in `~/.knowledge/vectordb/` (shared):
 
 | Collection | Inhalt | Update-Frequenz |
 |---|---|---|
-| `claude_code` | 110 Chunks Claude Code Expertenwissen | Täglich (Cron 03:00) |
+| `claude_code` | 77 Chunks Claude Code Expertenwissen | Täglich (Cron 03:00) |
 | `context_personal` | DACH-Kontext (Profil, DSGVO, NIS2, EU Data Boundary) | Manuell |
 | `knowledge` | Allgemeine Recherche-Ergebnisse | Nach jeder Session / Inbox |
 | `linkedin_style` | LinkedIn Posts als Stil-Referenz | Nach jedem bestätigten Post |

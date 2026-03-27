@@ -85,7 +85,7 @@ def _parse_decision_file(path: Path) -> Decision | None:
 
 def load_decisions_from_files(project: str, config: dict) -> list[Decision]:
     """Load all decisions from knowledge-base/decisions/{project}/*.md."""
-    decisions_base = Path(config["paths"].get("decisions", "knowledge-base/decisions"))
+    decisions_base = Path(config.get("paths", {}).get("decisions", "knowledge-base/decisions"))
     project_dir = decisions_base / project
     if not project_dir.exists():
         return []

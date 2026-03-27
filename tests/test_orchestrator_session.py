@@ -397,11 +397,12 @@ class TestStartSession:
         assert session.model == "opus"
         assert session.tmux_session.startswith("geofrey-")
         assert len(session.id) == 8
-        mock_run.assert_called_once()
-        # Verify tmux new-session command
-        cmd_args = mock_run.call_args[0][0]
-        assert cmd_args[0] == "tmux"
-        assert cmd_args[1] == "new-session"
+        # 5 calls: tmux new-session, send-keys /remote-control, load-buffer, paste-buffer, send-keys Enter
+        assert mock_run.call_count == 5
+        # Verify first call is tmux new-session
+        first_call_args = mock_run.call_args_list[0][0][0]
+        assert first_call_args[0] == "tmux"
+        assert first_call_args[1] == "new-session"
 
     @patch("brain.session.subprocess.run", side_effect=subprocess.CalledProcessError(1, "tmux"))
     def test_tmux_fails_returns_failed(self, mock_run):
