@@ -70,6 +70,7 @@ class ProjectContext:
     claude_md: str = ""                       # Project's CLAUDE.md content
     architecture: str = ""                    # Architecture doc if exists
     session_learnings: str = ""               # Recent learnings for this project
+    decision_context: str = ""                # Formatted decision warnings for prompt
 
 
 @dataclass
@@ -142,5 +143,26 @@ class EnrichmentRule:
     include_session_learnings: bool = True
     include_dach_context: bool = False
     include_diff_scope: bool = True
+    include_decision_context: bool = True     # Decisions always relevant
     post_actions: list[str] = field(default_factory=list)
     prompt_suffix: str = ""                   # Always appended to prompt
+
+
+@dataclass
+class Decision:
+    """A recorded architectural/design decision with dependencies."""
+    id: str
+    title: str
+    status: str = "active"                    # active | superseded | reverted | deprecated
+    date: str = ""
+    project: str = ""
+    category: str = "architecture"            # architecture | implementation | tooling | convention | security | design
+    description: str = ""
+    rationale: str = ""
+    change_warning: str = ""                  # Note to future Claude: what NOT to do
+    scope: list[str] = field(default_factory=list)
+    keywords: list[str] = field(default_factory=list)
+    depends_on: list[str] = field(default_factory=list)
+    enables: list[str] = field(default_factory=list)
+    conflicts_with: list[str] = field(default_factory=list)
+    supersedes: list[str] = field(default_factory=list)
