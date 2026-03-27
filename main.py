@@ -49,6 +49,20 @@ def main() -> None:
     learnings_parser.add_argument("project", nargs="?", help="Project name")
     learnings_parser.add_argument("--query", help="Search learnings via RAG")
 
+    # Decisions
+    dec_parser = subparsers.add_parser("decisions", help="Decision management")
+    dec_sub = dec_parser.add_subparsers(dest="dec_action")
+
+    dec_list = dec_sub.add_parser("list", help="List active decisions")
+    dec_list.add_argument("--project", help="Project name filter")
+
+    dec_check = dec_sub.add_parser("check", help="Check a task against active decisions")
+    dec_check.add_argument("task_desc", help="Task description to check")
+    dec_check.add_argument("--project", required=True, help="Project name")
+
+    dec_index = dec_sub.add_parser("index", help="Re-index decisions into ChromaDB")
+    dec_index.add_argument("--project", required=True, help="Project name")
+
     # Skills
     subparsers.add_parser("skills", help="List available task routing skills")
 
@@ -180,6 +194,51 @@ def main() -> None:
                     print(r["text"][:500])
         else:
             print(view_learnings(project=args.project, config=config))
+
+    elif args.command == "decisions":
+        from knowledge.decisions import load_decisions_from_files, index_decisions
+        from brain.decision_checker import check_decision_conflicts
+
+        if args.dec_action == "list":
+            decisions_base = __import__("pathlib").Path(config["paths"].get("decisions", "knowledge-base/decisions"))
+            if args.project:
+                projects = [args.project]
+            elif decisions_base.exists():
+                projects = [d.name for d in sorted(decisions_base.iterdir()) if d.is_dir()]
+            else:
+                projects = []
+
+            if not projects:
+                print("No decisions found.")
+            else:
+                for proj in projects:
+                    decs = load_decisions_from_files(proj, config)
+                    active = [d for d in decs if d.status == "active"]
+                    if not active:
+                        continue
+                    print(f"\n{proj} ({len(active)} active):")
+                    for d in active:
+                        print(f"  {d.id}  [{d.category:14s}]  {d.title}")
+                        if d.change_warning:
+                            print(f"         ⚠ {d.change_warning}")
+
+        elif args.dec_action == "check":
+            conflicts = check_decision_conflicts(args.task_desc, args.project, [], config)
+            if not conflicts:
+                print("No conflicts found.")
+            else:
+                print(f"{len(conflicts)} relevant decision(s):\n")
+                for c in conflicts:
+                    print(c)
+                    print()
+
+        elif args.dec_action == "index":
+            decs = load_decisions_from_files(args.project, config)
+            count = index_decisions(decs, config)
+            print(f"Indexed {count} decisions for {args.project}.")
+
+        else:
+            print("Usage: geofrey decisions {list|check|index}")
 
     elif args.command == "skills":
         from brain.router import list_skills

@@ -20,7 +20,12 @@ paths:
   inbox: "~/knowledge/inbox"
   linkedin_posts: "data/linkedin/all_posts.md"
   session_learnings: "knowledge-base/sessions"
+  decisions: "knowledge-base/decisions"
   claude_projects: "~/.claude/projects"
+
+decision_system:
+  enabled: true
+  collection_name: "decisions"
 
 chat:
   history_length: 5
