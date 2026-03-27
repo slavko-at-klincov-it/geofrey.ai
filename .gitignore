@@ -25,3 +25,5 @@ logs/
 # Build artifacts
 .build/
 dist/
+tests/sandbox/
+tests/acceptance/reports/
