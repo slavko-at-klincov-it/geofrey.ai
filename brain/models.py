@@ -70,7 +70,6 @@ class ProjectContext:
     claude_md: str = ""                       # Project's CLAUDE.md content
     architecture: str = ""                    # Architecture doc if exists
     session_learnings: str = ""               # Recent learnings for this project
-    known_issues: str = ""                    # Known bugs/problems
 
 
 @dataclass
@@ -106,8 +105,6 @@ class Session:
     status: SessionStatus = SessionStatus.STARTING
     started_at: datetime = field(default_factory=datetime.now)
     completed_at: datetime | None = None
-    output: str = ""                          # Captured output
-    learnings_extracted: bool = False
 
 
 # --- Briefing Models ---

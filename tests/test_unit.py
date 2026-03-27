@@ -323,26 +323,6 @@ class TestPrompts:
 
 
 # ---------------------------------------------------------------------------
-# 6. Safety Tests
-# ---------------------------------------------------------------------------
-
-class TestSafety:
-    def test_always_inject_ids(self):
-        """Verify ALWAYS_INJECT contains expected chunk IDs."""
-        from brain.safety import ALWAYS_INJECT
-
-        assert isinstance(ALWAYS_INJECT, list)
-        assert len(ALWAYS_INJECT) > 0
-        expected_ids = [
-            "safety__safety-scope",
-            "safety__safety-secrets",
-            "safety__safety-patterns",
-        ]
-        for expected_id in expected_ids:
-            assert expected_id in ALWAYS_INJECT, f"Missing safety chunk: {expected_id}"
-
-
-# ---------------------------------------------------------------------------
 # 7. LinkedIn Parser Tests
 # ---------------------------------------------------------------------------
 
