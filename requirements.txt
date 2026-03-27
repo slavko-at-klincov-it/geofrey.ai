@@ -2,3 +2,6 @@ ollama
 chromadb
 pyyaml
 rich
+fastapi
+uvicorn[standard]
+websockets

@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="de" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>geofrey</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        bg: { DEFAULT: '#0f172a', card: '#1e293b', hover: '#334155' },
+                        accent: { DEFAULT: '#38bdf8', dim: '#0ea5e9', bright: '#7dd3fc' },
+                        surface: '#1e293b',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        [x-cloak] { display: none !important; }
+        body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+        .mono { font-family: 'JetBrains Mono', 'Fira Code', monospace; }
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+        /* Chat animation */
+        @keyframes pulse-dot { 0%, 80%, 100% { opacity: 0.3; } 40% { opacity: 1; } }
+        .typing-dot { animation: pulse-dot 1.4s infinite; }
+        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+        /* Smooth transitions */
+        .view-enter { animation: fadeIn 0.15s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body class="bg-bg text-gray-200 min-h-screen flex" x-data="app()" x-cloak>
+
+    <!-- Sidebar -->
+    <aside class="w-60 bg-bg-card border-r border-gray-700/50 flex flex-col min-h-screen shrink-0">
+        <div class="p-5 border-b border-gray-700/50">
+            <h1 class="text-xl font-bold text-accent">geofrey</h1>
+            <p class="text-xs text-gray-500 mt-1">Autonomer Personal Agent</p>
+        </div>
+        <nav class="flex-1 p-3 space-y-1">
+            <template x-for="item in navItems" :key="item.id">
+                <button
+                    @click="view = item.id"
+                    :class="view === item.id ? 'bg-accent/10 text-accent' : 'text-gray-400 hover:text-gray-200 hover:bg-bg-hover'"
+                    class="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all"
+                >
+                    <span x-text="item.icon" class="text-base"></span>
+                    <span x-text="item.label"></span>
+                </button>
+            </template>
+        </nav>
+        <div class="p-4 border-t border-gray-700/50">
+            <div class="flex items-center gap-2 text-xs text-gray-500">
+                <span class="w-2 h-2 rounded-full" :class="serverOnline ? 'bg-emerald-400' : 'bg-red-400'"></span>
+                <span x-text="serverOnline ? 'Verbunden' : 'Offline'"></span>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col min-h-screen overflow-hidden">
+
+        <!-- Dashboard -->
+        <div x-show="view === 'dashboard'" x-cloak class="view-enter flex-1 overflow-y-auto p-6">
+            <h2 class="text-lg font-semibold mb-6">Dashboard</h2>
+
+            <!-- Stats Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                <div class="bg-bg-card rounded-xl p-5 border border-gray-700/50">
+                    <p class="text-xs text-gray-500 uppercase tracking-wider">Knowledge Chunks</p>
+                    <p class="text-3xl font-bold text-accent mt-2" x-text="dashStatus.total_chunks ?? '...'"></p>
+                </div>
+                <div class="bg-bg-card rounded-xl p-5 border border-gray-700/50">
+                    <p class="text-xs text-gray-500 uppercase tracking-wider">Collections</p>
+                    <p class="text-3xl font-bold text-accent-bright mt-2" x-text="Object.keys(dashStatus.collections ?? {}).length"></p>
+                </div>
+                <div class="bg-bg-card rounded-xl p-5 border border-gray-700/50">
+                    <p class="text-xs text-gray-500 uppercase tracking-wider">Pending Tasks</p>
+                    <p class="text-3xl font-bold text-amber-400 mt-2" x-text="dashTasks.filter(t => t.status === 'pending').length"></p>
+                </div>
+            </div>
+
+            <!-- Collections Detail -->
+            <h3 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Collections</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-8">
+                <template x-for="[name, count] in Object.entries(dashStatus.collections ?? {})" :key="name">
+                    <div class="bg-bg-card rounded-lg p-4 border border-gray-700/50 flex justify-between items-center">
+                        <span class="text-sm mono" x-text="name"></span>
+                        <span class="text-sm font-bold text-accent" x-text="count + ' chunks'"></span>
+                    </div>
+                </template>
+            </div>
+
+            <!-- Recent Tasks -->
+            <h3 class="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Letzte Tasks</h3>
+            <div class="space-y-2">
+                <template x-for="task in dashTasks.slice(0, 8)" :key="task.id">
+                    <div class="bg-bg-card rounded-lg p-3 border border-gray-700/50 flex items-center gap-3">
+                        <span class="text-xs px-2 py-0.5 rounded-full font-medium"
+                              :class="{
+                                  'bg-emerald-500/20 text-emerald-400': task.status === 'done',
+                                  'bg-amber-500/20 text-amber-400': task.status === 'pending',
+                                  'bg-blue-500/20 text-blue-400': task.status === 'running',
+                                  'bg-red-500/20 text-red-400': task.status === 'failed',
+                                  'bg-purple-500/20 text-purple-400': task.status === 'needs_input'
+                              }"
+                              x-text="task.status"></span>
+                        <span class="text-sm flex-1 truncate" x-text="task.description"></span>
+                        <span class="text-xs text-gray-500 mono" x-text="task.id?.substring(0, 8)"></span>
+                    </div>
+                </template>
+                <p x-show="dashTasks.length === 0" class="text-sm text-gray-500">Keine Tasks vorhanden.</p>
+            </div>
+        </div>
+
+        <!-- Chat -->
+        <div x-show="view === 'chat'" x-cloak class="view-enter flex-1 flex flex-col">
+            <div class="border-b border-gray-700/50 px-6 py-3">
+                <h2 class="text-lg font-semibold">Chat</h2>
+                <p class="text-xs text-gray-500">Sprich mit geofrey</p>
+            </div>
+
+            <!-- Messages -->
+            <div class="flex-1 overflow-y-auto p-6 space-y-4" id="chat-messages" x-ref="chatMessages">
+                <template x-for="(msg, i) in chatMessages" :key="i">
+                    <div :class="msg.role === 'user' ? 'flex justify-end' : 'flex justify-start'">
+                        <div :class="msg.role === 'user'
+                            ? 'bg-accent/20 text-gray-100 rounded-2xl rounded-br-md'
+                            : msg.type === 'status'
+                                ? 'bg-amber-500/10 text-amber-300 rounded-lg text-xs'
+                                : msg.type === 'preview'
+                                    ? 'bg-purple-500/10 text-purple-200 rounded-xl border border-purple-500/30'
+                                    : msg.type === 'error'
+                                        ? 'bg-red-500/10 text-red-300 rounded-xl'
+                                        : 'bg-bg-card text-gray-200 rounded-2xl rounded-bl-md border border-gray-700/50'"
+                             class="max-w-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap">
+                            <template x-if="msg.type === 'preview'">
+                                <div>
+                                    <div class="flex items-center gap-2 mb-2">
+                                        <span class="text-xs font-bold uppercase tracking-wider text-purple-400">Enriched Prompt</span>
+                                        <span class="text-xs text-gray-500" x-text="msg.total_chars + ' chars'"></span>
+                                    </div>
+                                    <pre class="mono text-xs overflow-x-auto" x-text="msg.text"></pre>
+                                    <button @click="queueFromPreview(msg)"
+                                            class="mt-3 px-3 py-1 bg-accent/20 text-accent text-xs rounded-lg hover:bg-accent/30 transition">
+                                        In Task Queue einreihen
+                                    </button>
+                                </div>
+                            </template>
+                            <template x-if="msg.type !== 'preview'">
+                                <span x-text="msg.text"></span>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+
+                <!-- Typing indicator -->
+                <div x-show="chatLoading" class="flex justify-start">
+                    <div class="bg-bg-card rounded-2xl rounded-bl-md border border-gray-700/50 px-4 py-3 flex gap-1.5">
+                        <span class="typing-dot w-2 h-2 bg-accent rounded-full"></span>
+                        <span class="typing-dot w-2 h-2 bg-accent rounded-full"></span>
+                        <span class="typing-dot w-2 h-2 bg-accent rounded-full"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Input -->
+            <div class="border-t border-gray-700/50 p-4">
+                <form @submit.prevent="sendChat()" class="flex gap-3">
+                    <input x-model="chatInput" type="text" placeholder="Schreib etwas..."
+                           class="flex-1 bg-bg-card border border-gray-700/50 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/30 transition"
+                           :disabled="chatLoading">
+                    <button type="submit" :disabled="chatLoading || !chatInput.trim()"
+                            class="bg-accent hover:bg-accent-dim text-bg font-medium px-6 py-3 rounded-xl text-sm transition disabled:opacity-40">
+                        Senden
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Tasks -->
+        <div x-show="view === 'tasks'" x-cloak class="view-enter flex-1 overflow-y-auto p-6">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-lg font-semibold">Task Queue</h2>
+                <button @click="showAddTask = !showAddTask"
+                        class="bg-accent hover:bg-accent-dim text-bg text-sm font-medium px-4 py-2 rounded-lg transition">
+                    + Neuer Task
+                </button>
+            </div>
+
+            <!-- Add Task Form -->
+            <div x-show="showAddTask" x-cloak class="bg-bg-card rounded-xl border border-gray-700/50 p-5 mb-6 view-enter">
+                <form @submit.prevent="addTask()">
+                    <div class="space-y-4">
+                        <div>
+                            <label class="text-xs text-gray-500 uppercase tracking-wider">Beschreibung</label>
+                            <input x-model="newTask.description" type="text" required
+                                   class="mt-1 w-full bg-bg border border-gray-700/50 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent/50">
+                        </div>
+                        <div class="grid grid-cols-3 gap-4">
+                            <div>
+                                <label class="text-xs text-gray-500 uppercase tracking-wider">Projekt</label>
+                                <select x-model="newTask.project"
+                                        class="mt-1 w-full bg-bg border border-gray-700/50 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent/50">
+                                    <option value="">Kein Projekt</option>
+                                    <template x-for="p in projectList" :key="p">
+                                        <option :value="p" x-text="p"></option>
+                                    </template>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="text-xs text-gray-500 uppercase tracking-wider">Priorit&auml;t</label>
+                                <select x-model="newTask.priority"
+                                        class="mt-1 w-full bg-bg border border-gray-700/50 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent/50">
+                                    <option value="low">Low</option>
+                                    <option value="normal" selected>Normal</option>
+                                    <option value="high">High</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="text-xs text-gray-500 uppercase tracking-wider">Agent</label>
+                                <select x-model="newTask.agent"
+                                        class="mt-1 w-full bg-bg border border-gray-700/50 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent/50">
+                                    <option value="coder">Coder</option>
+                                    <option value="researcher">Researcher</option>
+                                    <option value="content">Content</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="flex gap-3">
+                            <button type="submit" class="bg-accent hover:bg-accent-dim text-bg font-medium px-4 py-2 rounded-lg text-sm transition">
+                                Hinzuf&uuml;gen
+                            </button>
+                            <button type="button" @click="showAddTask = false" class="text-gray-500 hover:text-gray-300 text-sm transition">
+                                Abbrechen
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Filter Tabs -->
+            <div class="flex gap-2 mb-4">
+                <template x-for="f in ['all', 'pending', 'running', 'done', 'failed', 'needs_input']" :key="f">
+                    <button @click="taskFilter = f; loadTasks()"
+                            :class="taskFilter === f ? 'bg-accent/20 text-accent' : 'text-gray-500 hover:text-gray-300'"
+                            class="px-3 py-1.5 rounded-lg text-xs font-medium transition"
+                            x-text="f === 'all' ? 'Alle' : f"></button>
+                </template>
+            </div>
+
+            <!-- Task List -->
+            <div class="space-y-2">
+                <template x-for="task in filteredTasks" :key="task.id">
+                    <div class="bg-bg-card rounded-lg border border-gray-700/50 p-4">
+                        <div class="flex items-start gap-3">
+                            <span class="text-xs px-2 py-0.5 rounded-full font-medium shrink-0 mt-0.5"
+                                  :class="{
+                                      'bg-emerald-500/20 text-emerald-400': task.status === 'done',
+                                      'bg-amber-500/20 text-amber-400': task.status === 'pending',
+                                      'bg-blue-500/20 text-blue-400': task.status === 'running',
+                                      'bg-red-500/20 text-red-400': task.status === 'failed',
+                                      'bg-purple-500/20 text-purple-400': task.status === 'needs_input'
+                                  }"
+                                  x-text="task.status"></span>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-sm" x-text="task.description"></p>
+                                <div class="flex items-center gap-3 mt-1.5 text-xs text-gray-500">
+                                    <span class="mono" x-text="task.id?.substring(0, 8)"></span>
+                                    <span x-show="task.project" x-text="task.project" class="text-accent/70"></span>
+                                    <span x-text="task.priority === 3 ? 'HIGH' : task.priority === 1 ? 'LOW' : 'NORMAL'"
+                                          :class="task.priority === 3 ? 'text-red-400' : task.priority === 1 ? 'text-gray-600' : ''"></span>
+                                    <span x-text="task.agent_type"></span>
+                                </div>
+                                <p x-show="task.result" class="mt-2 text-xs text-gray-400 truncate" x-text="task.result"></p>
+                                <p x-show="task.error" class="mt-2 text-xs text-red-400 truncate" x-text="task.error"></p>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+                <p x-show="filteredTasks.length === 0" class="text-sm text-gray-500">Keine Tasks gefunden.</p>
+            </div>
+        </div>
+
+        <!-- Briefing -->
+        <div x-show="view === 'briefing'" x-cloak class="view-enter flex-1 overflow-y-auto p-6">
+            <h2 class="text-lg font-semibold mb-2">Morning Briefing</h2>
+            <p class="text-xs text-gray-500 mb-6" x-text="briefingData.generated_at ? 'Erstellt: ' + new Date(briefingData.generated_at).toLocaleString('de-DE') : 'Kein Briefing vorhanden'"></p>
+
+            <template x-if="briefingData.generated_at">
+                <div class="space-y-6">
+                    <!-- Done -->
+                    <div x-show="briefingData.done?.length">
+                        <h3 class="text-sm font-semibold text-emerald-400 flex items-center gap-2 mb-3">
+                            <span>&#10003;</span> Erledigt
+                        </h3>
+                        <div class="space-y-2">
+                            <template x-for="item in briefingData.done" :key="item.task_id">
+                                <div class="bg-bg-card rounded-lg border border-gray-700/50 p-4">
+                                    <p class="text-sm font-medium" x-text="item.title"></p>
+                                    <p class="text-xs text-gray-400 mt-1" x-text="item.details"></p>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- Needs Approval -->
+                    <div x-show="briefingData.needs_approval?.length">
+                        <h3 class="text-sm font-semibold text-amber-400 flex items-center gap-2 mb-3">
+                            <span>&#128203;</span> Zur Freigabe
+                        </h3>
+                        <div class="space-y-2">
+                            <template x-for="item in briefingData.needs_approval" :key="item.task_id">
+                                <div class="bg-bg-card rounded-lg border border-amber-500/20 p-4">
+                                    <p class="text-sm font-medium" x-text="item.title"></p>
+                                    <p class="text-xs text-gray-400 mt-1" x-text="item.details"></p>
+                                    <div class="flex gap-2 mt-3">
+                                        <template x-for="action in item.actions || []" :key="action">
+                                            <button class="px-3 py-1 text-xs rounded-lg border border-gray-600 hover:border-accent text-gray-400 hover:text-accent transition"
+                                                    x-text="action"></button>
+                                        </template>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- Needs Input -->
+                    <div x-show="briefingData.needs_input?.length">
+                        <h3 class="text-sm font-semibold text-purple-400 flex items-center gap-2 mb-3">
+                            <span>?</span> Brauche Input
+                        </h3>
+                        <div class="space-y-2">
+                            <template x-for="item in briefingData.needs_input" :key="item.task_id">
+                                <div class="bg-bg-card rounded-lg border border-purple-500/20 p-4">
+                                    <p class="text-sm font-medium" x-text="item.title"></p>
+                                    <p class="text-xs text-gray-400 mt-1 whitespace-pre-wrap" x-text="item.details"></p>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- Project Status -->
+                    <div x-show="briefingData.project_status?.length">
+                        <h3 class="text-sm font-semibold text-blue-400 flex items-center gap-2 mb-3">
+                            <span>&#128202;</span> Projekt-Status
+                        </h3>
+                        <div class="space-y-2">
+                            <template x-for="item in briefingData.project_status" :key="item.title">
+                                <div class="bg-bg-card rounded-lg border border-gray-700/50 p-4 flex justify-between items-center">
+                                    <span class="text-sm font-medium" x-text="item.title"></span>
+                                    <span class="text-xs text-gray-400" x-text="item.details"></span>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </template>
+
+            <div x-show="!briefingData.generated_at" class="bg-bg-card rounded-xl border border-gray-700/50 p-8 text-center">
+                <p class="text-gray-500">Kein Briefing vorhanden.</p>
+                <p class="text-xs text-gray-600 mt-2">Starte den Overnight-Zyklus mit <span class="mono text-accent">geofrey overnight</span></p>
+            </div>
+        </div>
+
+        <!-- LinkedIn -->
+        <div x-show="view === 'linkedin'" x-cloak class="view-enter flex-1 overflow-y-auto p-6">
+            <h2 class="text-lg font-semibold mb-6">LinkedIn Post Generator</h2>
+
+            <!-- Topic Input -->
+            <div class="bg-bg-card rounded-xl border border-gray-700/50 p-5 mb-6">
+                <form @submit.prevent="generatePost()">
+                    <label class="text-xs text-gray-500 uppercase tracking-wider">Thema</label>
+                    <div class="flex gap-3 mt-2">
+                        <input x-model="postTopic" type="text" placeholder="z.B. NIS2 f&uuml;r KMU"
+                               class="flex-1 bg-bg border border-gray-700/50 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent/50">
+                        <button type="submit" :disabled="postLoading || !postTopic.trim()"
+                                class="bg-accent hover:bg-accent-dim text-bg font-medium px-5 py-2 rounded-lg text-sm transition disabled:opacity-40">
+                            <span x-show="!postLoading">Generieren</span>
+                            <span x-show="postLoading">Generiere...</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Post Preview -->
+            <div x-show="postText" class="space-y-4">
+                <div class="bg-bg-card rounded-xl border border-gray-700/50 p-6">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="text-sm font-semibold text-gray-400">Post-Entwurf</h3>
+                        <span class="text-xs text-gray-500" x-text="postWordCount + ' W&ouml;rter'"></span>
+                    </div>
+                    <div class="whitespace-pre-wrap text-sm leading-relaxed" x-text="postText"></div>
+                </div>
+                <div class="flex gap-3">
+                    <button @click="savePost()" :disabled="postLoading"
+                            class="bg-emerald-600 hover:bg-emerald-500 text-white font-medium px-5 py-2 rounded-lg text-sm transition disabled:opacity-40">
+                        Speichern
+                    </button>
+                    <button @click="generatePost()" :disabled="postLoading"
+                            class="bg-bg-card border border-gray-700/50 hover:border-accent/50 text-gray-300 px-5 py-2 rounded-lg text-sm transition disabled:opacity-40">
+                        Neu generieren
+                    </button>
+                </div>
+                <p x-show="postSaved" class="text-sm text-emerald-400 view-enter">Post gespeichert!</p>
+            </div>
+        </div>
+
+        <!-- Search -->
+        <div x-show="view === 'search'" x-cloak class="view-enter flex-1 overflow-y-auto p-6">
+            <h2 class="text-lg font-semibold mb-6">Knowledge Search</h2>
+
+            <div class="bg-bg-card rounded-xl border border-gray-700/50 p-5 mb-6">
+                <form @submit.prevent="doSearch()">
+                    <div class="flex gap-3 mb-4">
+                        <input x-model="searchQuery" type="text" placeholder="Suche in der Knowledge Base..."
+                               class="flex-1 bg-bg border border-gray-700/50 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-accent/50">
+                        <button type="submit" :disabled="searchLoading || !searchQuery.trim()"
+                                class="bg-accent hover:bg-accent-dim text-bg font-medium px-5 py-2 rounded-lg text-sm transition disabled:opacity-40">
+                            Suchen
+                        </button>
+                    </div>
+                    <!-- Collection Checkboxes -->
+                    <div class="flex flex-wrap gap-3">
+                        <template x-for="col in availableCollections" :key="col">
+                            <label class="flex items-center gap-1.5 text-xs text-gray-400 cursor-pointer">
+                                <input type="checkbox" :value="col" x-model="searchCollections"
+                                       class="rounded border-gray-600 bg-bg text-accent focus:ring-accent/30">
+                                <span x-text="col" class="mono"></span>
+                            </label>
+                        </template>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Results -->
+            <div class="space-y-3">
+                <template x-for="(r, i) in searchResults" :key="i">
+                    <div class="bg-bg-card rounded-lg border border-gray-700/50 p-4 view-enter">
+                        <div class="flex items-center gap-3 mb-2">
+                            <span class="text-xs font-medium text-accent mono" x-text="r.collection"></span>
+                            <span class="text-xs text-gray-500" x-text="r.source"></span>
+                            <span class="text-xs text-emerald-400 ml-auto" x-text="'Score: ' + r.score"></span>
+                        </div>
+                        <p class="text-sm text-gray-300 whitespace-pre-wrap" x-text="r.text?.substring(0, 500)"></p>
+                    </div>
+                </template>
+                <p x-show="searchDone && searchResults.length === 0" class="text-sm text-gray-500">Keine Ergebnisse gefunden.</p>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Toast Notification -->
+    <div x-show="toast" x-cloak
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0 translate-y-2"
+         x-transition:enter-end="opacity-100 translate-y-0"
+         x-transition:leave="transition ease-in duration-150"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="fixed bottom-6 right-6 bg-bg-card border border-gray-700/50 rounded-xl shadow-2xl px-5 py-3 text-sm z-50"
+         :class="toastType === 'error' ? 'border-red-500/50 text-red-300' : 'border-accent/50 text-accent'"
+         x-text="toast">
+    </div>
+
+    <script>
+    function app() {
+        return {
+            // Navigation
+            view: 'dashboard',
+            navItems: [
+                { id: 'dashboard', label: 'Dashboard', icon: '\u25A6' },
+                { id: 'chat',      label: 'Chat',      icon: '\u2192' },
+                { id: 'tasks',     label: 'Tasks',     icon: '\u2610' },
+                { id: 'briefing',  label: 'Briefing',  icon: '\u2606' },
+                { id: 'linkedin',  label: 'LinkedIn',  icon: '\u270E' },
+                { id: 'search',    label: 'Suche',     icon: '\u2315' },
+            ],
+            serverOnline: true,
+
+            // Toast
+            toast: '',
+            toastType: 'info',
+            showToast(msg, type = 'info') {
+                this.toast = msg;
+                this.toastType = type;
+                setTimeout(() => this.toast = '', 3000);
+            },
+
+            // Dashboard
+            dashStatus: {},
+            dashTasks: [],
+
+            // Chat
+            chatMessages: [],
+            chatInput: '',
+            chatLoading: false,
+            ws: null,
+            streamingMsg: null,
+
+            // Tasks
+            taskList: [],
+            taskFilter: 'all',
+            showAddTask: false,
+            newTask: { description: '', project: '', priority: 'normal', agent: 'coder' },
+            projectList: [],
+
+            get filteredTasks() {
+                if (this.taskFilter === 'all') return this.taskList;
+                return this.taskList.filter(t => t.status === this.taskFilter);
+            },
+
+            // Briefing
+            briefingData: {},
+
+            // LinkedIn
+            postTopic: '',
+            postText: '',
+            postWordCount: 0,
+            postLoading: false,
+            postSaved: false,
+
+            // Search
+            searchQuery: '',
+            searchCollections: ['knowledge', 'claude_code'],
+            searchResults: [],
+            searchLoading: false,
+            searchDone: false,
+            availableCollections: [],
+
+            // --- Init ---
+            async init() {
+                this.loadDashboard();
+                this.loadProjects();
+                this.connectWebSocket();
+
+                // Watch view changes to load data
+                this.$watch('view', (v) => {
+                    if (v === 'dashboard') this.loadDashboard();
+                    if (v === 'tasks') this.loadTasks();
+                    if (v === 'briefing') this.loadBriefing();
+                });
+            },
+
+            // --- API Helpers ---
+            async api(path, opts = {}) {
+                try {
+                    const res = await fetch(path, {
+                        headers: { 'Content-Type': 'application/json' },
+                        ...opts,
+                    });
+                    this.serverOnline = true;
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    return await res.json();
+                } catch (e) {
+                    this.serverOnline = false;
+                    this.showToast('Server nicht erreichbar', 'error');
+                    throw e;
+                }
+            },
+
+            // --- Dashboard ---
+            async loadDashboard() {
+                try {
+                    const [status, tasks] = await Promise.all([
+                        this.api('/api/status'),
+                        this.api('/api/tasks'),
+                    ]);
+                    this.dashStatus = status;
+                    this.dashTasks = tasks;
+                } catch (e) {}
+            },
+
+            // --- Chat ---
+            connectWebSocket() {
+                const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+                this.ws = new WebSocket(`${proto}//${location.host}/ws/chat`);
+
+                this.ws.onmessage = (event) => {
+                    const data = JSON.parse(event.data);
+
+                    if (data.type === 'status') {
+                        this.chatMessages.push({ role: 'assistant', type: 'status', text: data.text });
+                    } else if (data.type === 'preview') {
+                        this.chatMessages.push({
+                            role: 'assistant', type: 'preview',
+                            text: data.prompt_preview,
+                            total_chars: data.total_chars,
+                            task_type: data.task_type,
+                            project: data.project,
+                        });
+                    } else if (data.type === 'chunk') {
+                        if (!this.streamingMsg) {
+                            this.streamingMsg = { role: 'assistant', type: 'text', text: '' };
+                            this.chatMessages.push(this.streamingMsg);
+                        }
+                        this.streamingMsg.text += data.text;
+                    } else if (data.type === 'error') {
+                        this.chatMessages.push({ role: 'assistant', type: 'error', text: data.text });
+                    } else if (data.type === 'done') {
+                        this.chatLoading = false;
+                        this.streamingMsg = null;
+                    }
+
+                    this.$nextTick(() => {
+                        const el = this.$refs.chatMessages;
+                        if (el) el.scrollTop = el.scrollHeight;
+                    });
+                };
+
+                this.ws.onclose = () => {
+                    this.serverOnline = false;
+                    setTimeout(() => this.connectWebSocket(), 3000);
+                };
+                this.ws.onerror = () => { this.serverOnline = false; };
+                this.ws.onopen = () => { this.serverOnline = true; };
+            },
+
+            sendChat() {
+                if (!this.chatInput.trim() || !this.ws || this.ws.readyState !== 1) return;
+                const msg = this.chatInput.trim();
+                this.chatMessages.push({ role: 'user', type: 'text', text: msg });
+                this.chatInput = '';
+                this.chatLoading = true;
+                this.streamingMsg = null;
+                this.ws.send(JSON.stringify({ message: msg }));
+            },
+
+            queueFromPreview(msg) {
+                this.view = 'tasks';
+                this.showAddTask = true;
+                this.newTask.description = msg.text?.substring(0, 200) || '';
+            },
+
+            // --- Tasks ---
+            async loadTasks() {
+                try {
+                    this.taskList = await this.api('/api/tasks');
+                } catch (e) {}
+            },
+
+            async addTask() {
+                if (!this.newTask.description.trim()) return;
+                try {
+                    const task = await this.api('/api/tasks', {
+                        method: 'POST',
+                        body: JSON.stringify(this.newTask),
+                    });
+                    this.taskList.unshift(task);
+                    this.newTask = { description: '', project: '', priority: 'normal', agent: 'coder' };
+                    this.showAddTask = false;
+                    this.showToast('Task hinzugef\u00fcgt');
+                } catch (e) {}
+            },
+
+            async loadProjects() {
+                try {
+                    const data = await this.api('/api/projects');
+                    this.projectList = Object.keys(data);
+                } catch (e) {}
+            },
+
+            // --- Briefing ---
+            async loadBriefing() {
+                try {
+                    this.briefingData = await this.api('/api/briefing');
+                } catch (e) {}
+            },
+
+            // --- LinkedIn ---
+            async generatePost() {
+                if (!this.postTopic.trim()) return;
+                this.postLoading = true;
+                this.postSaved = false;
+                try {
+                    const data = await this.api('/api/post/generate', {
+                        method: 'POST',
+                        body: JSON.stringify({ topic: this.postTopic }),
+                    });
+                    this.postText = data.text;
+                    this.postWordCount = data.word_count;
+                } catch (e) {
+                    this.showToast('Post-Generierung fehlgeschlagen', 'error');
+                } finally {
+                    this.postLoading = false;
+                }
+            },
+
+            async savePost() {
+                if (!this.postText) return;
+                this.postLoading = true;
+                try {
+                    await this.api('/api/post/save', {
+                        method: 'POST',
+                        body: JSON.stringify({ text: this.postText, topic: this.postTopic }),
+                    });
+                    this.postSaved = true;
+                    this.showToast('Post gespeichert!');
+                } catch (e) {
+                    this.showToast('Speichern fehlgeschlagen', 'error');
+                } finally {
+                    this.postLoading = false;
+                }
+            },
+
+            // --- Search ---
+            async doSearch() {
+                if (!this.searchQuery.trim()) return;
+                this.searchLoading = true;
+                this.searchDone = false;
+                try {
+                    this.searchResults = await this.api('/api/search', {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            query: this.searchQuery,
+                            collections: this.searchCollections,
+                            top_k: 10,
+                        }),
+                    });
+                    // Update available collections from dashboard status
+                    if (this.dashStatus.collections) {
+                        this.availableCollections = Object.keys(this.dashStatus.collections);
+                    }
+                } catch (e) {
+                    this.showToast('Suche fehlgeschlagen', 'error');
+                } finally {
+                    this.searchLoading = false;
+                    this.searchDone = true;
+                }
+            },
+        };
+    }
+    </script>
+</body>
+</html>

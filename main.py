@@ -73,6 +73,11 @@ def main() -> None:
     subparsers.add_parser("overnight", help="Run the full overnight cycle")
     subparsers.add_parser("install-daemon", help="Print launchd plist for overnight daemon")
 
+    # Web UI
+    app_parser = subparsers.add_parser("app", help="Start the geofrey web UI")
+    app_parser.add_argument("--port", type=int, default=8420)
+    app_parser.add_argument("--host", default="127.0.0.1")
+
     # Scripts
     subparsers.add_parser("embed", help="Embed Claude Code knowledge base (--reset, --changed)")
 
@@ -242,6 +247,13 @@ def main() -> None:
         print("1. Save the above to ~/Library/LaunchAgents/ai.geofrey.overnight.plist")
         print("2. Load:  launchctl load ~/Library/LaunchAgents/ai.geofrey.overnight.plist")
         print("3. Check: launchctl list | grep geofrey")
+
+    elif args.command == "app":
+        import uvicorn
+        from web.app import create_app
+        application = create_app()
+        print(f"  geofrey Web UI: http://{args.host}:{args.port}")
+        uvicorn.run(application, host=args.host, port=args.port)
 
     elif args.command == "embed":
         import subprocess
