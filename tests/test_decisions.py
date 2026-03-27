@@ -352,8 +352,10 @@ class TestDecisionSaving:
 class TestDecisionsCLI:
     def test_decisions_list_no_decisions(self, capsys):
         from main import main
+        fake_config = {"paths": {"decisions": "/nonexistent", "vectordb": "/tmp/test-vectordb"}}
         with patch("sys.argv", ["main", "decisions", "list"]):
-            with patch("knowledge.store.load_config", return_value={"paths": {"decisions": "/nonexistent", "vectordb": "/tmp/test-vectordb"}}):
-                main()
+            with patch("knowledge.store.load_config", return_value=fake_config):
+                with patch("main.load_config", return_value=fake_config):
+                    main()
         captured = capsys.readouterr()
         assert "No decisions" in captured.out

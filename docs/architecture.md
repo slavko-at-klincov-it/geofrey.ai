@@ -111,7 +111,7 @@ Der User wacht auf und findet ein Morning Briefing:
 | `gates.py` | validate_prompt(): Secrets/Dangerous Pattern Check |
 | `scope.py` | Diff Scope Detection: git-Änderungen kategorisieren |
 | `prompts.py` | Template-Loader: load_template(), render_template() |
-| `safety.py` | Safety-Chunks, RAG-Injection |
+| `decision_checker.py` | Decision Conflict Detection: Scope, Keyword, Semantic Matching |
 | `linkedin.py` | LinkedIn Post Pipeline |
 | `agents/` | Agent-System: BaseAgent, Factory-Dispatcher, spezialisierte Agents |
 | `rules/` | Enrichment Rules als YAML: pro Task-Typ konfigurierbar |
@@ -129,6 +129,7 @@ Der User wacht auf und findet ein Morning Briefing:
 | `linkedin.py` | LinkedIn Post Ingestion + Style Guide |
 | `sessions.py` | Claude Code Session Pipeline + Inbox |
 | `intelligence.py` | Session Intelligence: Map-Reduce Learnings Extraction |
+| `decisions.py` | Decision Storage, Retrieval, Semantic Search, Dependency Walker |
 
 ## Datenfluss
 
@@ -208,6 +209,7 @@ prompt_suffix: "Investigate root cause before fixing. Do not just patch symptoms
 | Architecture | `docs/architecture.md` lesen | Bei feature, refactor, review, security, doc-sync |
 | Session Learnings | ChromaDB `session_learnings` Collection | Immer |
 | DACH-Kontext | ChromaDB `context_personal` Collection | Bei review, research, security |
+| Decision Context | `knowledge/decisions.py` + ChromaDB `decisions` Collection | Immer (include_decision_context: true) |
 
 ### Prompt-Struktur (Output)
 
@@ -232,6 +234,14 @@ Diff scope: backend: 1 file, tests: 1 file
 
 ## Known Context from Previous Sessions
 [Learnings aus ChromaDB]
+
+## Active Decisions
+The following active decisions are relevant to this task.
+Do NOT contradict these without explicit user approval.
+
+- **DEC-001: Safety consolidated into gates.py** [architecture]
+  Rationale: Three disconnected safety systems
+  ⚠ WARNING: Do not recreate safety.py — consolidated by design
 
 ## Requirements
 After completing:
@@ -264,6 +274,7 @@ Alle persistent unter `~/.knowledge/vectordb/`:
 | `linkedin_style` | LinkedIn Posts als Stil-Referenz | Nach jedem bestätigten Post |
 | `sessions` | Claude Code Session-Summaries | Automatisch |
 | `session_learnings` | Extrahierte Learnings (Decisions, Bugs, Discoveries, Patterns) | Nach `learn` Command |
+| `decisions` | Architektur-Entscheidungen mit Dependencies, Scope, Warnings | Nach `decisions index` oder `learn` |
 
 ### Source of Truth
 
@@ -324,6 +335,73 @@ Der Daemon übergibt `permission_mode` aus SkillMeta → agent_config → BaseAg
 - Overnight: nur in tmux, isoliert, mit Budget-Limit
 - Briefing Memory: `mark_briefing_shown()` trackt letztes Briefing, Summary nur neue Tasks
 
+## Decision Dependency System
+
+AI Coding Assistants wissen nicht WARUM Code so ist wie er ist. Das führt zu Loops wo Claude bewusste Entscheidungen rückgängig macht. geofrey löst das durch deterministische Decision Injection vor dem LLM.
+
+Siehe [docs/decision-dependency-system.md](decision-dependency-system.md) für die vollständige Research.
+
+### Wie es funktioniert
+
+```
+User Input: "fix the safety system"
+  → context_gatherer.py: gather_decision_context()
+    → git diff → affected files: [brain/gates.py]
+    → decision_checker.py: check_decision_conflicts()
+      → Level 1: Scope match (brain/gates.py → DEC-001)
+      → Level 2: Keyword match ("safety" → DEC-001)
+      → Level 3: Semantic match (ChromaDB embedding similarity)
+      → walk_dependency_chain(DEC-001) → [DEC-001, DEC-002]
+    → format_decision_context() → Warning Text
+  → enricher.py: "## Active Decisions" Section im Prompt
+  → Claude bekommt den Kontext VOR dem Reasoning
+```
+
+### Architektur
+
+| Komponente | Modul | Rolle |
+|---|---|---|
+| Decision Dataclass | `brain/models.py` | Datenmodell mit Dependencies, Scope, Warnings |
+| Storage + Retrieval | `knowledge/decisions.py` | Laden, Embedden, Semantic Search, Dependency Walker |
+| Conflict Detection | `brain/decision_checker.py` | 3-Level Matching: Scope, Keyword, Semantic |
+| Context Gathering | `brain/context_gatherer.py` | `gather_decision_context()` für den Enricher |
+| Prompt Injection | `brain/enricher.py` | `## Active Decisions` Section |
+| Auto-Extraction | `knowledge/intelligence.py` | Strukturierte Decisions aus Sessions extrahieren |
+| Source of Truth | `knowledge-base/decisions/` | Markdown + YAML Frontmatter pro Projekt |
+
+### Decision Format
+
+```markdown
+---
+id: DEC-001
+title: "Safety consolidated into gates.py"
+status: active
+date: "2026-03-26"
+project: geofrey
+category: architecture
+scope: ["brain/gates.py"]
+keywords: ["safety", "gates", "validation"]
+depends_on: []
+enables: ["DEC-002"]
+---
+
+## Rationale
+Three disconnected safety systems (safety.py, gates.py, inline checks)
+were consolidated into a single gates.py with [BLOCK] + [WARN] patterns.
+
+## Change Warning
+Do NOT recreate safety.py. All safety logic lives in gates.py.
+```
+
+### Lifecycle
+
+```
+Session Intelligence extrahiert Decision → Markdown-File in knowledge-base/decisions/
+  → index_decisions() → ChromaDB "decisions" Collection
+  → Nächster Task → gather_decision_context() findet relevante Decisions
+  → Prompt enthält Warnings → Claude revertiert keine bewussten Entscheidungen
+```
+
 ## CLI Commands
 
 ```bash
@@ -351,6 +429,11 @@ geofrey learnings                         # Learnings anzeigen
 geofrey status                            # Collections + Chunks
 geofrey embed                             # Knowledge Base embedden
 geofrey skills                            # Verfügbare Skills
+
+# Decisions
+geofrey decisions list [--project X]      # Aktive Decisions anzeigen
+geofrey decisions check "task" --project X  # Conflict Check
+geofrey decisions index --project X       # Re-Index in ChromaDB
 
 # Utilities
 geofrey context-setup                     # DACH-Kontext importieren
