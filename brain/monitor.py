@@ -70,6 +70,33 @@ FILE_PATTERNS = [
 ]
 
 
+def _build_correction_message(user_response: str, guardian_warning: str) -> str:
+    """Wrap user's correction with decision context for Claude.
+
+    The user typed a correction after a guardian warning. We send it to
+    Claude in the SAME session, reinforced with the decision context so
+    Claude understands WHY the user is correcting.
+    """
+    # Extract the decision part from the warning
+    decision_context = ""
+    if "Decision " in guardian_warning:
+        decision_start = guardian_warning.find("Decision ")
+        decision_context = guardian_warning[decision_start:].strip()
+
+    lines = [
+        "[User correction after geofrey guardian warning]",
+        "",
+        f"The user says: {user_response}",
+        "",
+    ]
+    if decision_context:
+        lines.append(f"Reminder: {decision_context}")
+        lines.append("")
+    lines.append("Please adjust your approach accordingly. Do NOT proceed with the change that was flagged.")
+
+    return "\n".join(lines)
+
+
 def _get_new_content(output: str, last_checked: str) -> str:
     """Extract only the new content since last poll."""
     if last_checked and len(output) > len(last_checked):
@@ -240,14 +267,20 @@ def monitor_session(
                     if not auto_confirm:
                         print(f"\n  {warning}")
                         try:
-                            response = input("  Continue anyway? [y/N/stop]: ").strip().lower()
-                            if response == "stop":
+                            response = input("  [y] continue / [stop] abort / or type correction: ").strip()
+                            if response.lower() == "stop":
                                 _send_keys(tmux_name, "no")
                                 logger.info("User stopped session due to guardian warning")
                                 break
-                            elif response != "y":
+                            elif response.lower() == "y":
+                                pass  # Let Claude continue
+                            elif response:
+                                # User typed a correction — wrap with decision context
+                                correction = _build_correction_message(response, warning)
+                                _send_prompt_via_buffer(tmux_name, correction)
+                                logger.info(f"Sent user correction to Claude: {response[:80]}")
+                            else:
                                 _send_keys(tmux_name, "no")
-                                continue
                         except (EOFError, KeyboardInterrupt):
                             pass
                     else:
