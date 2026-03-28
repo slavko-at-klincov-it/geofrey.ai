@@ -87,7 +87,17 @@ class BaseAgent:
             if not jsonls:
                 return
 
+            # Find the JSONL that was modified AFTER this task started
+            # (prevents picking up a JSONL from a parallel session)
             latest = jsonls[0]
+            if task.started_at:
+                for jsonl in jsonls:
+                    file_mtime = jsonl.stat().st_mtime
+                    task_start = task.started_at.timestamp()
+                    if file_mtime >= task_start:
+                        latest = jsonl
+                        break
+                    # If no JSONL was modified after task start, use newest (fallback)
             project_name = task.project or project_path.name
 
             logger.info(f"Extracting learnings from session {latest.stem[:8]} for {project_name}")
