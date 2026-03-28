@@ -86,6 +86,7 @@ def main() -> None:
     subparsers.add_parser("briefing", help="Show the morning briefing")
     subparsers.add_parser("overnight", help="Run the full overnight cycle")
     subparsers.add_parser("install-daemon", help="Print launchd plist for overnight daemon")
+    subparsers.add_parser("preflight", help="Run pre-flight checks for autonomous operation")
 
     # Scripts
     subparsers.add_parser("embed", help="Embed Claude Code knowledge base (--reset, --changed)")
@@ -301,6 +302,13 @@ def main() -> None:
         print("1. Save the above to ~/Library/LaunchAgents/ai.geofrey.overnight.plist")
         print("2. Load:  launchctl load ~/Library/LaunchAgents/ai.geofrey.overnight.plist")
         print("3. Check: launchctl list | grep geofrey")
+
+    elif args.command == "preflight":
+        from brain.preflight import run_preflight, format_preflight
+        results = run_preflight(config)
+        print(format_preflight(results))
+        all_ok = all(ok for ok, _ in results.values())
+        sys.exit(0 if all_ok else 1)
 
     elif args.command == "embed":
         import subprocess

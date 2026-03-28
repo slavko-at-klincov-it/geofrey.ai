@@ -24,7 +24,8 @@ def init_db(db_path: str | None = None) -> str:
     db_path = db_path or DEFAULT_DB_PATH
     Path(db_path).parent.mkdir(parents=True, exist_ok=True)
 
-    conn = sqlite3.connect(db_path)
+    conn = sqlite3.connect(db_path, timeout=5.0)
+    conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("""
         CREATE TABLE IF NOT EXISTS tasks (
             id TEXT PRIMARY KEY,
@@ -61,7 +62,7 @@ def _get_conn(db_path: str | None = None) -> sqlite3.Connection:
     """
     db_path = db_path or DEFAULT_DB_PATH
     init_db(db_path)
-    conn = sqlite3.connect(db_path)
+    conn = sqlite3.connect(db_path, timeout=5.0)
     conn.row_factory = sqlite3.Row
     return conn
 

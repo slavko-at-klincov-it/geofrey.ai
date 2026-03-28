@@ -24,16 +24,24 @@ class KnowledgeHub:
         self.client = chromadb.PersistentClient(path=self.db_path)
 
     def _embed(self, text: str) -> list[float]:
-        response = ollama.embed(model=self.embedding_model, input=text)
-        return response["embeddings"][0]
+        try:
+            response = ollama.embed(model=self.embedding_model, input=text)
+            return response["embeddings"][0]
+        except Exception:
+            return []
 
     def _embed_batch(self, texts: list[str]) -> list[list[float]]:
-        response = ollama.embed(model=self.embedding_model, input=texts)
-        return response["embeddings"]
+        try:
+            response = ollama.embed(model=self.embedding_model, input=texts)
+            return response["embeddings"]
+        except Exception:
+            return [[] for _ in texts]
 
     def query(self, text: str, collections: list[str], top_k: int = 5) -> list[dict]:
         """Query one or more collections, merge results by relevance."""
         query_embedding = self._embed(text)
+        if not query_embedding:
+            return []
         all_results = []
 
         for col_name in collections:

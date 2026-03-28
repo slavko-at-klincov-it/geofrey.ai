@@ -189,6 +189,22 @@ def run_overnight(config: dict | None = None) -> None:
     start_time = datetime.now()
     logger.info(f"=== Overnight run started at {start_time.strftime('%Y-%m-%d %H:%M:%S')} ===")
 
+    # Pre-flight checks
+    from brain.preflight import run_preflight, format_preflight
+    checks = run_preflight(config)
+    logger.info(format_preflight(checks))
+
+    if not checks["claude"][0]:
+        logger.error("ABORT: claude CLI not in PATH. Cannot execute tasks.")
+        return
+    if not checks["directories"][0]:
+        logger.error(f"ABORT: {checks['directories'][1]}")
+        return
+    if not checks["ollama_running"][0]:
+        logger.warning(f"Ollama not running — session intelligence will be skipped.")
+    if not checks["tmux"][0]:
+        logger.warning("tmux not found — sessions will use sync mode.")
+
     # Process the task queue
     results = process_queue(config=config)
 
@@ -218,11 +234,18 @@ def get_launchd_plist() -> str:
     Schedule: 02:00 every night
     The user installs this manually into ~/Library/LaunchAgents/.
 
+    Includes EnvironmentVariables so launchd has correct PATH (for claude,
+    ollama, git), HOME, and USER — without these, the daemon runs in a
+    minimal environment where most tools are not in PATH.
+
     Returns:
         The plist XML content as a string.
     """
+    import os as _os
     project_root = Path(__file__).parent.parent.resolve()
     log_path = KNOWLEDGE_DIR / "geofrey-overnight.log"
+    user = _os.environ.get("USER", "nobody")
+    home = str(Path.home())
 
     return f"""<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
@@ -231,6 +254,19 @@ def get_launchd_plist() -> str:
 <dict>
     <key>Label</key>
     <string>ai.geofrey.overnight</string>
+
+    <key>UserName</key>
+    <string>{user}</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <key>HOME</key>
+        <string>{home}</string>
+        <key>USER</key>
+        <string>{user}</string>
+    </dict>
 
     <key>ProgramArguments</key>
     <array>

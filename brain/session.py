@@ -10,7 +10,9 @@ Permission model:
 - permission_mode="plan" → --permission-mode plan (read-only analysis)
 """
 
+import logging
 import shlex
+import shutil
 import subprocess
 import tempfile
 import time
@@ -18,6 +20,8 @@ from pathlib import Path
 from uuid import uuid4
 
 from brain.models import Session, SessionStatus
+
+logger = logging.getLogger("geofrey.session")
 
 
 def _build_claude_cmd(
@@ -125,6 +129,20 @@ def start_session(
     session_id = uuid4().hex[:8]
     tmux_name = f"geofrey-{session_id}"
     resolved_path = str(Path(project_path).expanduser())
+
+    # Validate dependencies before starting
+    if not shutil.which("claude"):
+        logger.error("claude CLI not found in PATH. Cannot start session.")
+        return Session(
+            id=session_id, task_id=task_id, project_path=resolved_path,
+            model=model, tmux_session=tmux_name, status=SessionStatus.FAILED,
+        )
+    if not shutil.which("tmux"):
+        logger.error("tmux not found. Cannot start background session.")
+        return Session(
+            id=session_id, task_id=task_id, project_path=resolved_path,
+            model=model, tmux_session=tmux_name, status=SessionStatus.FAILED,
+        )
 
     # Start Claude in interactive mode (no -p) so we can send /remote-control first
     claude_cmd = _build_claude_cmd(
@@ -260,6 +278,10 @@ def run_session_sync(
 
     For simple tasks that don't need background execution.
     """
+    if not shutil.which("claude"):
+        logger.error("claude CLI not found in PATH.")
+        return ""
+
     resolved_path = str(Path(project_path).expanduser())
 
     cmd = _build_claude_cmd(

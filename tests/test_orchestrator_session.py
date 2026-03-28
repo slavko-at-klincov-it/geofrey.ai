@@ -382,8 +382,9 @@ class TestSingleTask:
 # ---------------------------------------------------------------------------
 
 class TestStartSession:
+    @patch("brain.session.shutil.which", return_value="/usr/bin/mock")
     @patch("brain.session.subprocess.run")
-    def test_success_returns_running(self, mock_run):
+    def test_success_returns_running(self, mock_run, mock_which):
         """Successful tmux start → Session with RUNNING status."""
         from brain.session import start_session
         from brain.models import SessionStatus
@@ -404,8 +405,9 @@ class TestStartSession:
         assert first_call_args[0] == "tmux"
         assert first_call_args[1] == "new-session"
 
+    @patch("brain.session.shutil.which", return_value="/usr/bin/mock")
     @patch("brain.session.subprocess.run", side_effect=subprocess.CalledProcessError(1, "tmux"))
-    def test_tmux_fails_returns_failed(self, mock_run):
+    def test_tmux_fails_returns_failed(self, mock_run, mock_which):
         """tmux start fails → Session with FAILED status."""
         from brain.session import start_session
         from brain.models import SessionStatus
