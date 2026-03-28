@@ -15,7 +15,7 @@ from brain.command import resolve_model
 from brain.enricher import enrich_prompt
 from brain.gates import has_blockers, validate_prompt
 from brain.models import TaskStatus
-from brain.queue import get_pending_tasks, update_task
+from brain.queue import get_pending_tasks, recover_orphaned_tasks, update_task
 from brain.router import detect_task_type, get_skill_meta
 from knowledge.store import load_config
 
@@ -58,6 +58,12 @@ def process_queue(config: dict | None = None, max_tasks: int = 10) -> list[dict]
     from brain.agents import run_agent
 
     config = config or load_config()
+
+    # Recover tasks stuck in RUNNING from previous crashes
+    recovered = recover_orphaned_tasks(max_running_minutes=60)
+    if recovered:
+        logger.info(f"Recovered {recovered} orphaned task(s) stuck in RUNNING state.")
+
     pending = get_pending_tasks(max_tasks=max_tasks)
     results: list[dict] = []
 

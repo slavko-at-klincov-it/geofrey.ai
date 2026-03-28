@@ -162,6 +162,45 @@ def get_task(task_id: str, db_path: str | None = None) -> Task | None:
     return _row_to_task(row)
 
 
+def recover_orphaned_tasks(max_running_minutes: int = 60, db_path: str | None = None) -> int:
+    """Mark tasks stuck in RUNNING for too long as FAILED.
+
+    If the daemon crashes while a task is RUNNING, the task stays
+    RUNNING forever. This function recovers those orphaned tasks
+    by marking them FAILED with an error message.
+
+    Called at the start of process_queue() to clean up before processing.
+
+    Returns number of tasks recovered.
+    """
+    conn = _get_conn(db_path)
+    rows = conn.execute(
+        "SELECT * FROM tasks WHERE status = ?",
+        (TaskStatus.RUNNING.value,),
+    ).fetchall()
+
+    recovered = 0
+    now = datetime.now()
+    for row in rows:
+        started = datetime.fromisoformat(row["started_at"]) if row["started_at"] else None
+        if started and (now - started).total_seconds() > max_running_minutes * 60:
+            conn.execute(
+                "UPDATE tasks SET status = ?, error = ?, completed_at = ? WHERE id = ?",
+                (
+                    TaskStatus.FAILED.value,
+                    f"Orphaned: stuck in RUNNING for >{max_running_minutes} minutes (daemon crash?)",
+                    now.isoformat(),
+                    row["id"],
+                ),
+            )
+            recovered += 1
+
+    if recovered:
+        conn.commit()
+    conn.close()
+    return recovered
+
+
 def get_pending_tasks(db_path: str | None = None, max_tasks: int | None = None) -> list[Task]:
     """Get all pending tasks, ordered by priority (highest first), then creation time."""
     conn = _get_conn(db_path)
