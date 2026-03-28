@@ -269,9 +269,12 @@ class TestOrchestratorSingleTask:
         # Setup mock subprocess (claude CLI)
         mock_subprocess.return_value = MagicMock(returncode=0)
 
-        # Execute
+        # Execute with mocked intent layer
+        from brain.intent import Intent
+        mock_intent = Intent(task_type="code-fix", project="testproject", summary="fix login", source="llm")
         with patch("brain.orchestrator._get_config", return_value={"model_policy": {"code": "opus"}}):
-            single_task("fix login in testproject")
+            with patch("brain.orchestrator.understand_intent", return_value=mock_intent):
+                single_task("fix login in testproject")
 
         # Verify enrichment was called with correct task_type
         mock_enrich.assert_called_once()
@@ -321,14 +324,17 @@ class TestOrchestratorSingleTask:
     def test_single_task_no_project_detected(self, mock_projects):
         """No matching project — should exit gracefully without enrichment."""
         from brain.orchestrator import single_task
+        from brain.intent import Intent
 
         mock_projects.return_value = {
             "myproject": {"path": "/tmp/myproject", "stack": "Python", "description": "test"}
         }
 
+        mock_intent = Intent(task_type="code-fix", project=None, summary="fix something", source="keyword-fallback")
         with patch("brain.orchestrator._get_config", return_value={}):
-            with patch("brain.orchestrator.enrich_prompt") as mock_enrich:
-                single_task("fix some random thing")
+            with patch("brain.orchestrator.understand_intent", return_value=mock_intent):
+                with patch("brain.orchestrator.enrich_prompt") as mock_enrich:
+                    single_task("fix some random thing")
 
         # enrich_prompt should not be called when no project is detected
         mock_enrich.assert_not_called()

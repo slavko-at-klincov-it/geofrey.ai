@@ -225,6 +225,7 @@ class TestRunEnrichmentFlow:
         from brain.orchestrator import _run_enrichment_flow
         from brain.models import EnrichedPrompt
         from brain.router import SkillMeta
+        from brain.intent import Intent
 
         mock_skill.return_value = SkillMeta(
             name="code-fix", model_category="code", needs_plan=False,
@@ -235,8 +236,11 @@ class TestRunEnrichmentFlow:
             enriched_prompt="Enriched: fix login in meus with full context",
             task_type="code-fix",
         )
+        mock_intent = Intent(task_type="code-fix", project="meus", summary="fix login", source="llm")
 
-        spec, prompt_text = _run_enrichment_flow("fix login in meus", config={})
+        with patch("brain.orchestrator.understand_intent", return_value=mock_intent):
+            with patch("brain.orchestrator.load_projects", return_value={"meus": {"path": "/home/user/meus"}}):
+                spec, prompt_text, _intent = _run_enrichment_flow("fix login in meus", config={})
 
         assert spec is not None
         assert spec.project_path == "/home/user/meus"
@@ -244,20 +248,23 @@ class TestRunEnrichmentFlow:
         assert "Enriched" in prompt_text
         mock_enrich.assert_called_once()
 
-    @patch("brain.orchestrator.detect_project", return_value=(None, None))
     @patch("brain.orchestrator.get_skill_meta")
     @patch("brain.orchestrator.detect_task_type", return_value="code-fix")
-    def test_unknown_project_returns_none(self, mock_detect, mock_skill, mock_proj):
-        """No project detected → returns (None, "")."""
+    def test_unknown_project_returns_none(self, mock_detect, mock_skill):
+        """No project detected → returns (None, "", intent)."""
         from brain.orchestrator import _run_enrichment_flow
         from brain.router import SkillMeta
+        from brain.intent import Intent
 
         mock_skill.return_value = SkillMeta(
             name="code-fix", model_category="code", needs_plan=False,
             max_budget_usd=5.0, max_turns=30, permission_mode="default",
         )
+        mock_intent = Intent(task_type="code-fix", project=None, summary="fix something", source="keyword-fallback")
 
-        spec, prompt_text = _run_enrichment_flow("fix something", config={})
+        with patch("brain.orchestrator.understand_intent", return_value=mock_intent):
+            with patch("brain.orchestrator.detect_project", return_value=(None, None)):
+                spec, prompt_text, _intent = _run_enrichment_flow("fix something", config={})
 
         assert spec is None
         assert prompt_text == ""
@@ -326,11 +333,12 @@ class TestSingleTask:
         from brain.orchestrator import single_task
         from brain.command import CommandSpec
 
+        from brain.intent import Intent
         spec = CommandSpec(prompt="enriched", project_path="/tmp/proj")
-        mock_flow.return_value = (spec, "enriched prompt text")
+        mock_intent = Intent(task_type="code-fix", source="llm")
+        mock_flow.return_value = (spec, "enriched prompt text", mock_intent)
 
-        with patch("brain.orchestrator.get_skill_meta") as mock_skill, \
-             patch("brain.orchestrator.detect_task_type", return_value="code-fix"):
+        with patch("brain.orchestrator.get_skill_meta") as mock_skill:
             from brain.router import SkillMeta
             mock_skill.return_value = SkillMeta(
                 name="code-fix", model_category="code", needs_plan=False,
@@ -348,12 +356,13 @@ class TestSingleTask:
         """Task with needs_plan=True + existing code → calls run_two_phase."""
         from brain.orchestrator import single_task
         from brain.command import CommandSpec
+        from brain.intent import Intent
 
         spec = CommandSpec(prompt="enriched", project_path="/tmp/proj")
-        mock_flow.return_value = (spec, "enriched prompt text")
+        mock_intent = Intent(task_type="feature", source="llm")
+        mock_flow.return_value = (spec, "enriched prompt text", mock_intent)
 
-        with patch("brain.orchestrator.get_skill_meta") as mock_skill, \
-             patch("brain.orchestrator.detect_task_type", return_value="feature"):
+        with patch("brain.orchestrator.get_skill_meta") as mock_skill:
             from brain.router import SkillMeta
             mock_skill.return_value = SkillMeta(
                 name="feature", model_category="code", needs_plan=True,
@@ -365,7 +374,7 @@ class TestSingleTask:
 
     @patch("brain.orchestrator.execute_spec")
     @patch("brain.orchestrator.run_two_phase")
-    @patch("brain.orchestrator._run_enrichment_flow", return_value=(None, ""))
+    @patch("brain.orchestrator._run_enrichment_flow", return_value=(None, "", None))
     @patch("brain.orchestrator._get_config", return_value={})
     def test_no_project_detected(self, mock_config, mock_flow, mock_two, mock_exec):
         """No project detected → neither execute_spec nor run_two_phase called."""

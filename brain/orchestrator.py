@@ -1,20 +1,19 @@
-"""geofrey brain — orchestrates prompt enrichment, command building, and session execution.
+"""geofrey brain — orchestrates intent understanding, enrichment, and execution.
 
-New architecture (Prompt Enrichment Engine):
+Architecture:
 
   1. User types input
-  2. detect_task_type() → task_type (keyword-based, deterministic)
+  2. LLM Intent Layer (Qwen3.5) → understand intent, detect project, resolve ambiguity
+     Falls back to keyword routing if Ollama unavailable.
   3. get_skill_meta() → skill defaults (model, budget, turns, plan mode)
-  4. detect_project() → project_name, project_path
-  5. enrich_prompt() → Python gathers context and builds a structured prompt
-     (replaces old LLM-based prompt generation entirely)
-  6. resolve_model() → select Claude Code model from config policy
-  7. Build CommandSpec with enriched prompt + skill defaults
-  8. Two-phase (plan → execute) or direct execution
+  4. enrich_prompt() → Python gathers context deterministically
+  5. resolve_model() → select Claude Code model from config policy
+  6. Build CommandSpec with enriched prompt + skill defaults
+  7. Two-phase (plan → execute) or direct execution
 
-Python handles ALL deterministic logic. No LLM call needed for prompt
-construction — the enricher gathers git state, architecture docs, session
-learnings, DACH context, and post-actions automatically based on task type.
+LLM handles DYNAMIC logic: intent understanding, ambiguity, follow-ups.
+Python handles DETERMINISTIC logic: context gathering, prompt building,
+CLI construction, safety gates, decision injection.
 """
 
 import subprocess
@@ -26,6 +25,7 @@ from rich.console import Console
 
 from knowledge.store import load_config
 from brain.enricher import enrich_prompt
+from brain.intent import understand_intent, Intent
 from brain.router import detect_task_type, get_skill_meta, TASK_KEYWORDS, _keyword_matches
 from brain.command import CommandSpec, build_command, resolve_model, project_has_code
 from brain.gates import validate_prompt, format_gate_results, has_blockers
@@ -205,38 +205,97 @@ def run_two_phase(spec: CommandSpec, prompt_text: str) -> bool:
 def _run_enrichment_flow(
     user_input: str,
     config: dict,
-) -> tuple[CommandSpec | None, str]:
+    conversation_history: list[str] | None = None,
+) -> tuple[CommandSpec | None, str, Intent | None]:
     """Core enrichment flow shared by interactive() and single_task().
 
-    Returns:
-        Tuple of (CommandSpec or None, enriched_prompt_text).
-        CommandSpec is None when no project was detected.
-    """
-    # 1. Route task
-    task_type = detect_task_type(user_input)
-    skill_meta = get_skill_meta(task_type, config)
+    Uses LLM Intent Layer (Qwen3.5) to understand what the user wants,
+    then Python enrichment to gather context deterministically.
 
-    # 2. Detect project
-    project_name, project_path = detect_project(user_input)
+    Returns:
+        Tuple of (CommandSpec or None, enriched_prompt_text, Intent or None).
+        CommandSpec is None when project not detected or clarification needed.
+    """
+    # 1. LLM Intent Understanding (falls back to keyword routing if Ollama unavailable)
+    intent = understand_intent(user_input, config, conversation_history)
+
+    # Show intent summary
+    _console.print()
+    _console.print("  [dim]─── geofrey intent ───[/dim]")
+    _console.print(f"  [dim]understood:[/dim] {intent.summary}")
+    _console.print(f"  [dim]type:[/dim]       {intent.task_type} [dim]({intent.source})[/dim]")
+    if intent.project:
+        _console.print(f"  [dim]project:[/dim]    {intent.project}")
+    if intent.approach:
+        _console.print(f"  [dim]approach:[/dim]   {intent.approach}")
+    if intent.relevant_files:
+        _console.print(f"  [dim]files:[/dim]      {', '.join(intent.relevant_files)}")
+    if intent.subtasks:
+        _console.print(f"  [dim]subtasks:[/dim]   {' → '.join(intent.subtasks)}")
+    _console.print("  [dim]────────────────────────[/dim]")
+
+    # 2. Handle clarification — LLM detected ambiguity
+    if intent.clarification:
+        _console.print(f"\n  [yellow]geofrey:[/yellow] {intent.clarification}")
+        try:
+            answer = input("  You: ").strip()
+        except (EOFError, KeyboardInterrupt):
+            return None, "", intent
+        if answer:
+            # Re-run with clarification as additional context
+            combined = f"{user_input} — {answer}"
+            return _run_enrichment_flow(combined, config, conversation_history)
+        return None, "", intent
+
+    # 3. Resolve project
+    project_name = intent.project
+    project_path = None
+
+    if project_name:
+        projects = load_projects()
+        project_info = projects.get(project_name)
+        if project_info:
+            project_path = project_info["path"]
+
+    if not project_name:
+        # Fallback: try string matching
+        project_name, project_path = detect_project(user_input)
 
     if not project_path or not project_name:
-        print(f"\n  Task type: {task_type}")
-        print("  (No project detected — specify a project name to generate a command)")
-        return None, ""
+        _console.print(f"\n  [dim]Task type: {intent.task_type}[/dim]")
+        _console.print("  [dim](No project detected — specify a project name)[/dim]")
+        return None, "", intent
 
-    # 3. Enrich prompt (Python gathers all context, no LLM call)
-    enriched = enrich_prompt(user_input, project_name, project_path, task_type, config)
+    # 4. Get skill meta
+    skill_meta = get_skill_meta(intent.task_type, config)
 
-    # 4. Resolve model
+    # 5. Enrich prompt (Python gathers all context deterministically)
+    enriched = enrich_prompt(user_input, project_name, project_path, intent.task_type, config)
+
+    # 6. If LLM suggested an approach, prepend it to the prompt
+    if intent.approach:
+        enriched_text = enriched.enriched_prompt.replace(
+            "## Task\n",
+            f"## Task\n",
+        )
+        # Add approach after task section
+        if intent.approach not in enriched.enriched_prompt:
+            enriched_text = enriched.enriched_prompt.replace(
+                f"## Task\n{user_input}",
+                f"## Task\n{user_input}\n\nApproach: {intent.approach}",
+            )
+            enriched = enriched._replace(enriched_prompt=enriched_text) if hasattr(enriched, '_replace') else enriched
+
+    # 7. Resolve model
     model = resolve_model(skill_meta.model_category, config)
 
-    # 5. Show enrichment summary (dim, non-blocking — like thinking mode)
+    # 8. Show enrichment summary
     _show_enrichment_summary(
-        user_input, task_type, skill_meta, model,
+        user_input, intent.task_type, skill_meta, model,
         enriched.enriched_prompt, enriched.context,
     )
 
-    # 6. Build CommandSpec
+    # 9. Build CommandSpec
     spec = CommandSpec(
         prompt=enriched.enriched_prompt,
         project_path=project_path,
@@ -246,22 +305,18 @@ def _run_enrichment_flow(
         permission_mode=skill_meta.permission_mode,
     )
 
-    return spec, enriched.enriched_prompt
+    return spec, enriched.enriched_prompt, intent
 
 
 def interactive():
-    """Run geofrey in interactive chat mode.
+    """Run geofrey in interactive chat mode with LLM intent understanding.
 
     Flow per iteration:
       1. User types input
-      2. detect_task_type → keyword routing
-      3. get_skill_meta → model/budget/turns/plan defaults
-      4. detect_project → project name + path
-      5. enrich_prompt → Python gathers context, builds structured prompt
-      6. Show enriched prompt preview (first 500 chars)
-      7. resolve_model → select Claude Code model
-      8. Build CommandSpec with enriched prompt + skill defaults
-      9. Two-phase or direct execution
+      2. LLM Intent Layer → understand intent, detect project, resolve ambiguity
+      3. Python Enrichment → gather context, build structured prompt
+      4. Show enrichment summary (transparent, like thinking mode)
+      5. Two-phase or direct execution
     """
     print("=" * 50)
     print("  geofrey — Personal AI Assistant")
@@ -269,6 +324,7 @@ def interactive():
     print("=" * 50)
 
     config = _get_config()
+    conversation_history: list[str] = []
 
     while True:
         try:
@@ -282,14 +338,18 @@ def interactive():
             print("  Bye!")
             break
 
-        print("\n  Processing...\n")
+        conversation_history.append(f"User: {user_input}")
 
-        spec, prompt_text = _run_enrichment_flow(user_input, config)
+        spec, prompt_text, intent = _run_enrichment_flow(user_input, config, conversation_history)
         if spec is None:
             continue
 
+        # Track intent for conversation context
+        if intent:
+            conversation_history.append(f"geofrey: {intent.summary} ({intent.task_type})")
+
         # Execute: two-phase or direct
-        skill_meta = get_skill_meta(detect_task_type(user_input), config)
+        skill_meta = get_skill_meta(intent.task_type if intent else detect_task_type(user_input), config)
         if skill_meta.needs_plan and project_has_code(spec.project_path):
             run_two_phase(spec, prompt_text)
         else:
@@ -297,16 +357,16 @@ def interactive():
 
 
 def single_task(task: str):
-    """Process a single task using the enrichment flow."""
+    """Process a single task using LLM intent + enrichment flow."""
     config = _get_config()
     print(f"  Task: {task}\n")
 
-    spec, prompt_text = _run_enrichment_flow(task, config)
+    spec, prompt_text, intent = _run_enrichment_flow(task, config)
     if spec is None:
         return
 
     # Execute: two-phase or direct
-    skill_meta = get_skill_meta(detect_task_type(task), config)
+    skill_meta = get_skill_meta(intent.task_type if intent else detect_task_type(task), config)
     if skill_meta.needs_plan and project_has_code(spec.project_path):
         run_two_phase(spec, prompt_text)
     else:
