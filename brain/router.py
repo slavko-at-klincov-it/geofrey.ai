@@ -29,7 +29,7 @@ TASK_KEYWORDS: dict[str, list[str]] = {
         "recherch", "such", "erklär", "was ist", "wie funktioniert",
     ],
     "security": [
-        "security", "audit", "dsgvo", "gdpr", "nis2", "vulnerability",
+        "security", "audit", "dsgvo", "gdpr", "nis2", "vulnerabilit",
         "sicherheit", "datenschutz", "security compliance",
     ],
     "refactor": [
