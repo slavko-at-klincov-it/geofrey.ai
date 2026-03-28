@@ -28,7 +28,7 @@ def _build_claude_cmd(
     prompt: str | None,
     project_path: str,
     model: str = "opus",
-    max_turns: int = 50,
+    max_turns: int = 200,
 
     permission_mode: str = "skip",
 ) -> str:
@@ -112,7 +112,7 @@ def start_session(
     prompt: str,
     model: str = "opus",
     task_id: str | None = None,
-    max_turns: int = 50,
+    max_turns: int = 200,
 
     permission_mode: str = "skip",
     remote_control: bool = True,
@@ -270,7 +270,7 @@ def run_session_sync(
     project_path: str,
     prompt: str,
     model: str = "opus",
-    max_turns: int = 50,
+    max_turns: int = 200,
 
     permission_mode: str = "skip",
 ) -> str:

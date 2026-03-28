@@ -83,6 +83,12 @@ def understand_intent(
     Returns:
         Intent dataclass with structured understanding.
     """
+    # Guard: empty/whitespace input → ask instead of hallucinating
+    if not user_input or not user_input.strip():
+        return Intent(
+            clarification="Was möchtest du tun? Beschreibe deine Aufgabe.",
+            source="guard",
+        )
     # Build context (lazy import to avoid circular dependency)
     from brain.orchestrator import load_projects
     projects = load_projects()
@@ -123,9 +129,16 @@ def understand_intent(
         if task_type not in valid_types:
             task_type = "code-fix"
 
+        # Validate project against actual registry (prevents hallucination)
+        project = parsed.get("project")
+        if project:
+            if project not in projects:
+                logger.info(f"LLM returned project '{project}' not in registry — ignoring.")
+                project = None
+
         return Intent(
             task_type=task_type,
-            project=parsed.get("project"),
+            project=project,
             summary=parsed.get("summary", user_input),
             clarification=parsed.get("clarification"),
             subtasks=parsed.get("subtasks", []),

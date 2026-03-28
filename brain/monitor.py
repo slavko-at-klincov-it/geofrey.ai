@@ -204,7 +204,7 @@ def monitor_session(
     poll_interval: int = 10,
     auto_confirm: bool = False,
     run_review: bool = True,
-    max_wait: int = 600,
+    max_wait: int = 3600,
 ) -> str:
     """Monitor a running tmux session with active guardian supervision.
 

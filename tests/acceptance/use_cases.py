@@ -87,7 +87,6 @@ def uc_001(ctx):
         assert_equals("task_type", "code-fix", tt),
         assert_equals("needs_plan", False, sm.needs_plan),
         assert_equals("model_category", "code", sm.model_category),
-        assert_equals("max_budget", 5.0, sm.max_budget_usd),
     ], "English 'fix' correctly routed."
 
 def uc_002(ctx):
@@ -96,7 +95,6 @@ def uc_002(ctx):
     return [
         assert_equals("task_type", "feature", tt),
         assert_equals("needs_plan", True, sm.needs_plan),
-        assert_equals("max_budget", 10.0, sm.max_budget_usd),
     ], ""
 
 def uc_003(ctx):
@@ -105,7 +103,6 @@ def uc_003(ctx):
     return [
         assert_equals("task_type", "review", tt),
         assert_equals("permission_mode", "plan", sm.permission_mode),
-        assert_equals("max_budget", 2.0, sm.max_budget_usd),
     ], ""
 
 def uc_004(ctx):
@@ -400,13 +397,12 @@ def uc_040(ctx):
 def uc_041(ctx):
     from brain.command import CommandSpec, build_command
     spec = CommandSpec(prompt="test prompt", project_path="/tmp/webshop", model="opus",
-                       max_turns=30, max_budget_usd=5.0, permission_mode="default")
+                       max_turns=200, permission_mode="default")
     cmd = build_command(spec)
     return [
         assert_contains("has claude", cmd, "claude"),
         assert_contains("has model", cmd, "--model opus"),
-        assert_contains("has turns", cmd, "--max-turns 30"),
-        assert_contains("has budget", cmd, "--max-budget-usd 5.00"),
+        assert_contains("has turns", cmd, "--max-turns 200"),
         assert_not_contains("no permission flag", cmd, "--permission-mode"),
     ], ""
 

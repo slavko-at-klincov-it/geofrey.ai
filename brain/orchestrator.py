@@ -404,14 +404,12 @@ def _run_subtask_chain(
     config: dict,
     conversation_history: list[str] | None = None,
 ) -> None:
-    """Execute subtasks sequentially, passing output forward.
+    """Execute subtasks sequentially via execute_spec (Guardian + Observer + Review).
 
-    Each subtask runs through the full enrichment pipeline. Output from
-    one step becomes context for the next.
+    Each subtask goes through the full pipeline: enrichment → monitored execution.
+    Output from one step becomes context for the next. User confirmed the chain
+    at the start, so individual steps use auto_confirm=True.
     """
-    from brain.session import run_session_sync
-    from brain.command import resolve_model
-
     _console.print(f"\n  [yellow]Multi-step task: {len(subtasks)} subtasks[/yellow]")
     previous_output = ""
 
@@ -432,14 +430,22 @@ def _run_subtask_chain(
         _show_enrichment_summary(task_input, task_type, skill_meta, model,
                                  enriched.enriched_prompt, enriched.context)
 
-        # Execute and capture real output for next step
-        output = run_session_sync(
-            project_path=project_path,
+        spec = CommandSpec(
             prompt=enriched.enriched_prompt,
+            project_path=project_path,
             model=model,
             max_turns=skill_meta.max_turns,
-
             permission_mode=skill_meta.permission_mode,
+        )
+
+        # Execute with full Guardian/Observer/Review — auto_confirm since user approved the chain
+        output = execute_spec(
+            spec,
+            task_type=task_type,
+            task_summary=subtask[:100],
+            project_name=project_name,
+            config=config,
+            auto_confirm=True,
         )
 
         if not output:
