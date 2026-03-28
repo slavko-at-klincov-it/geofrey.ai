@@ -1,16 +1,20 @@
-"""Session Monitor — polls tmux sessions, handles confirmations, triggers quality review.
+"""Session Monitor — active guardian that supervises Claude Code sessions.
 
-Replaces fire-and-forget execution with active supervision:
-1. Polls capture_session_output() on interval
+Not fire-and-forget. Not passive polling. Active supervision:
+1. Polls tmux output on interval
 2. Detects Claude asking questions → auto-confirms or asks user
-3. Detects session completion → triggers quality review
-4. Sends review questions to SAME Claude session
-5. Returns final output for observer + learning extraction
+3. GUARDIAN: Detects structural proposals → checks against decisions → warns user
+4. Detects scope drift → warns if too many files changed for task scope
+5. Detects completion → triggers quality review
+6. Returns final output for observer + learning extraction
 """
 
 import logging
+import re
+import subprocess
 import time
 
+from brain.models import SessionStatus
 from brain.review import build_review_questions, format_review_prompt
 from brain.session import (
     _send_keys,
@@ -18,7 +22,6 @@ from brain.session import (
     capture_session_output,
     get_session_status,
 )
-from brain.models import SessionStatus
 
 logger = logging.getLogger("geofrey.monitor")
 
@@ -48,23 +51,126 @@ COMPLETION_PATTERNS = [
     "Finished!",
 ]
 
+# Patterns that indicate Claude is proposing structural changes
+PROPOSAL_SIGNALS = [
+    "I'll move", "I'll restructure", "I'll replace", "I'll remove",
+    "I'll delete", "I'll create a new", "I'll refactor", "I'll change the",
+    "I'll rename", "I'll migrate", "I'll split", "I'll merge",
+    "Let me move", "Let me restructure", "Let me replace", "Let me remove",
+    "Let me delete", "Let me create", "Let me refactor", "Let me rename",
+    "verschiebe", "ersetze", "entferne", "lösche", "erstelle neu",
+    "umstrukturier", "migriere", "ersetzen durch", "umbenenn",
+    "switch to", "replace with", "migrate to", "move to",
+]
 
-def _detect_confirmation_needed(output: str, last_checked: str) -> bool:
+# File operation patterns to extract affected files
+FILE_PATTERNS = [
+    re.compile(r"(?:Created?|Wrote|Modified|Deleted?|Moved?|Renamed?)\s+(?:file\s+)?['\"]?(\S+\.\w+)", re.IGNORECASE),
+    re.compile(r"(?:creating|writing|modifying|deleting|moving|renaming)\s+['\"]?(\S+\.\w+)", re.IGNORECASE),
+]
+
+
+def _get_new_content(output: str, last_checked: str) -> str:
+    """Extract only the new content since last poll."""
+    if last_checked and len(output) > len(last_checked):
+        return output[len(last_checked):]
+    return output[-500:] if output else ""
+
+
+def _detect_confirmation_needed(new_content: str) -> bool:
     """Check if new output contains a confirmation prompt."""
-    # Only check new content since last poll
-    new_content = output[len(last_checked):] if last_checked and output.startswith(last_checked[:50]) else output[-500:]
-    return any(pattern.lower() in new_content.lower() for pattern in CONFIRMATION_PATTERNS)
+    lower = new_content.lower()
+    return any(p.lower() in lower for p in CONFIRMATION_PATTERNS)
 
 
-def _detect_completion(output: str, last_checked: str) -> bool:
+def _detect_completion(new_content: str) -> bool:
     """Check if new output indicates task completion."""
-    new_content = output[len(last_checked):] if last_checked and output.startswith(last_checked[:50]) else output[-500:]
-    return any(pattern.lower() in new_content.lower() for pattern in COMPLETION_PATTERNS)
+    lower = new_content.lower()
+    return any(p.lower() in lower for p in COMPLETION_PATTERNS)
+
+
+def _detect_proposals(new_content: str) -> list[str]:
+    """Detect structural change proposals in Claude's output."""
+    found = []
+    lower = new_content.lower()
+    for signal in PROPOSAL_SIGNALS:
+        if signal.lower() in lower:
+            # Extract the sentence containing the signal
+            idx = lower.find(signal.lower())
+            start = max(0, new_content.rfind("\n", 0, idx) + 1)
+            end = new_content.find("\n", idx)
+            if end == -1:
+                end = min(len(new_content), idx + 200)
+            sentence = new_content[start:end].strip()
+            if sentence and sentence not in found:
+                found.append(sentence)
+    return found
+
+
+def _extract_affected_files(new_content: str) -> list[str]:
+    """Extract file paths mentioned in Claude's output."""
+    files = set()
+    for pattern in FILE_PATTERNS:
+        for match in pattern.finditer(new_content):
+            f = match.group(1)
+            if not f.startswith("http") and "." in f:
+                files.add(f)
+    return sorted(files)
+
+
+def _check_proposals_against_decisions(
+    proposals: list[str],
+    project_name: str,
+    project_path: str,
+    config: dict,
+) -> list[str]:
+    """Check if Claude's proposals conflict with active decisions.
+
+    Returns list of warning strings for the user.
+    """
+    from knowledge.decisions import load_decisions_from_files
+
+    decisions = load_decisions_from_files(project_name, config)
+    active = [d for d in decisions if d.status == "active"]
+    if not active:
+        return []
+
+    warnings = []
+    for proposal in proposals:
+        proposal_lower = proposal.lower()
+        for dec in active:
+            # Check if proposal mentions files in decision's scope
+            scope_match = any(s.lower() in proposal_lower for s in dec.scope if s)
+            # Check if proposal keywords overlap with decision keywords
+            keyword_match = any(kw.lower() in proposal_lower for kw in dec.keywords if kw)
+
+            if scope_match or keyword_match:
+                warnings.append(
+                    f"⚠ GUARDIAN WARNING: Claude proposes: \"{proposal[:100]}\"\n"
+                    f"  Decision {dec.id} ({dec.title}): {dec.change_warning}"
+                )
+    return warnings
+
+
+def _check_scope_drift(
+    files_changed: list[str],
+    original_task: str,
+    threshold: int = 4,
+) -> str | None:
+    """Warn if Claude changed more files than expected for the task scope."""
+    if len(files_changed) <= threshold:
+        return None
+    return (
+        f"⚠ SCOPE DRIFT: Claude changed {len(files_changed)} files for task "
+        f"\"{original_task[:50]}\". Expected ≤{threshold}. "
+        f"Files: {', '.join(files_changed[:5])}"
+    )
 
 
 def monitor_session(
     session_id: str,
     task_type: str,
+    task_summary: str,
     project_name: str,
     project_path: str,
     config: dict,
@@ -73,11 +179,17 @@ def monitor_session(
     run_review: bool = True,
     max_wait: int = 600,
 ) -> str:
-    """Monitor a running tmux session with active supervision.
+    """Monitor a running tmux session with active guardian supervision.
+
+    Three guardian levels run on every poll:
+    1. Proposal Detection → check against decisions → warn user
+    2. Scope Drift → count changed files → warn if excessive
+    3. Quality Review → send review questions after completion
 
     Args:
         session_id: tmux session ID (without "geofrey-" prefix)
         task_type: detected task type for review questions
+        task_summary: short description of the original task
         project_name: project name for decision/learning queries
         project_path: project path for git operations
         config: geofrey config dict
@@ -93,8 +205,10 @@ def monitor_session(
     last_output = ""
     elapsed = 0
     review_sent = False
+    all_files_changed: set[str] = set()
+    warnings_shown: set[str] = set()
 
-    logger.info(f"Monitoring session {session_id} (poll={poll_interval}s, auto_confirm={auto_confirm})")
+    logger.info(f"Guardian monitoring session {session_id} (poll={poll_interval}s)")
 
     while elapsed < max_wait:
         time.sleep(poll_interval)
@@ -111,34 +225,72 @@ def monitor_session(
         if not output or output == last_output:
             continue
 
-        # Check for confirmation prompts
-        if _detect_confirmation_needed(output, last_output):
+        new_content = _get_new_content(output, last_output)
+
+        # === GUARDIAN LEVEL 1: Proposal Detection ===
+        proposals = _detect_proposals(new_content)
+        if proposals:
+            decision_warnings = _check_proposals_against_decisions(
+                proposals, project_name, project_path, config
+            )
+            for warning in decision_warnings:
+                if warning not in warnings_shown:
+                    warnings_shown.add(warning)
+                    logger.warning(warning)
+                    if not auto_confirm:
+                        print(f"\n  {warning}")
+                        try:
+                            response = input("  Continue anyway? [y/N/stop]: ").strip().lower()
+                            if response == "stop":
+                                _send_keys(tmux_name, "no")
+                                logger.info("User stopped session due to guardian warning")
+                                break
+                            elif response != "y":
+                                _send_keys(tmux_name, "no")
+                                continue
+                        except (EOFError, KeyboardInterrupt):
+                            pass
+                    else:
+                        # Overnight: log warning but continue (mark for briefing)
+                        logger.warning(f"AUTO-MODE: Guardian warning logged for briefing")
+
+        # === GUARDIAN LEVEL 2: Track changed files for scope drift ===
+        new_files = _extract_affected_files(new_content)
+        all_files_changed.update(new_files)
+
+        drift_warning = _check_scope_drift(
+            sorted(all_files_changed), task_summary
+        )
+        if drift_warning and drift_warning not in warnings_shown:
+            warnings_shown.add(drift_warning)
+            logger.warning(drift_warning)
+            if not auto_confirm:
+                print(f"\n  {drift_warning}")
+
+        # === Check for confirmation prompts ===
+        if _detect_confirmation_needed(new_content):
             if auto_confirm:
                 logger.info(f"Auto-confirming in session {session_id}")
                 _send_keys(tmux_name, "y")
             else:
-                # Show what Claude is asking and get user input
-                new_lines = output[len(last_output):].strip() if last_output else output[-300:].strip()
-                print(f"\n  [Claude asks]: {new_lines[-200:]}")
+                print(f"\n  [Claude asks]: {new_content[-200:].strip()}")
                 try:
                     user_response = input("  Your response (Enter for 'y'): ").strip()
                     _send_keys(tmux_name, user_response or "y")
                 except (EOFError, KeyboardInterrupt):
                     _send_keys(tmux_name, "y")
 
-        # Check for completion (even if session still alive — Claude might be waiting)
-        if _detect_completion(output, last_output) and not review_sent and run_review:
-            logger.info(f"Completion detected in session {session_id}, sending quality review")
+        # === Check for completion → Quality Review ===
+        if _detect_completion(new_content) and not review_sent and run_review:
+            logger.info(f"Completion detected, sending quality review")
             review_sent = True
 
-            # Build and send review questions
             questions = build_review_questions(task_type, project_name, project_path, config)
             review_prompt = format_review_prompt(questions)
 
             if review_prompt:
                 logger.info(f"Sending {len(questions)} review questions")
                 _send_prompt_via_buffer(tmux_name, review_prompt)
-                # Don't break — wait for Claude to answer the review
 
         last_output = output
 
@@ -147,5 +299,11 @@ def monitor_session(
 
     if elapsed >= max_wait:
         logger.warning(f"Session {session_id} timed out after {max_wait}s")
+
+    # Final scope drift check
+    if all_files_changed:
+        drift = _check_scope_drift(sorted(all_files_changed), task_summary)
+        if drift:
+            logger.info(drift)
 
     return final_output or last_output
