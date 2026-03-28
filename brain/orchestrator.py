@@ -216,6 +216,15 @@ def _run_enrichment_flow(
         Tuple of (CommandSpec or None, enriched_prompt_text, Intent or None).
         CommandSpec is None when project not detected or clarification needed.
     """
+    # 0. Safety check on ORIGINAL user input (before LLM can "clean" destructive intent)
+    raw_issues = validate_prompt(user_input)
+    if has_blockers(raw_issues):
+        _console.print(f"\n{format_gate_results(raw_issues)}")
+        _console.print("\n  [red]BLOCKED: Critical safety issue in input.[/red]")
+        return None, "", None
+    if raw_issues:
+        _console.print(f"\n{format_gate_results(raw_issues)}")
+
     # 1. LLM Intent Understanding (falls back to keyword routing if Ollama unavailable)
     intent = understand_intent(user_input, config, conversation_history)
 
