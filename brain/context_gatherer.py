@@ -153,6 +153,15 @@ def gather_decision_context(
     return format_decision_context([], conflicts)
 
 
+def gather_personal_context() -> str:
+    """Read user profile directly from knowledge-base/context/profile.md.
+
+    Deterministic file read — no LLM, no ChromaDB. Always available.
+    """
+    profile_path = Path(__file__).parent.parent / "knowledge-base" / "context" / "profile.md"
+    return _read_file_if_exists(profile_path)
+
+
 def gather_claude_code_context(user_input: str, task_type: str, config: dict) -> str:
     """Retrieve relevant Claude Code best practices from knowledge base.
 

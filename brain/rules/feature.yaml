@@ -8,6 +8,7 @@ include_dach_context: false
 include_diff_scope: true
 include_decision_context: true
 include_claude_code_context: true
+include_personal_context: true
 post_actions:
   - "Add or update tests for the new feature"
   - "Update architecture docs if structure changed"

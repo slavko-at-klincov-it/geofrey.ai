@@ -8,7 +8,7 @@ from pathlib import Path
 
 import yaml
 
-from brain.context_gatherer import gather_claude_code_context, gather_dach_context, gather_decision_context, gather_project_context
+from brain.context_gatherer import gather_claude_code_context, gather_dach_context, gather_decision_context, gather_personal_context, gather_project_context
 from brain.models import EnrichedPrompt, EnrichmentRule, ProjectContext
 
 
@@ -137,6 +137,7 @@ def _parse_rule_yaml(data: dict) -> EnrichmentRule:
         include_diff_scope=data.get("include_diff_scope", True),
         include_decision_context=data.get("include_decision_context", True),
         include_claude_code_context=data.get("include_claude_code_context", True),
+        include_personal_context=data.get("include_personal_context", True),
         post_actions=data.get("post_actions", []),
         prompt_suffix=data.get("prompt_suffix", ""),
     )
@@ -185,6 +186,10 @@ def _build_enriched_prompt(
 
     # Task section (always present)
     sections.append(f"## Task\n{user_input}")
+
+    # Personal context (user profile — always present for personalized solutions)
+    if rule.include_personal_context and context.personal_context:
+        sections.append("## About the User\n" + context.personal_context)
 
     # Project context section
     project_parts: list[str] = []
@@ -269,6 +274,10 @@ def enrich_prompt(
 
     # Gather project context (respects rule flags internally for ChromaDB queries)
     context = gather_project_context(project_path, project_name, config)
+
+    # Gather personal context (deterministic file read, always available)
+    if rule.include_personal_context:
+        context.personal_context = gather_personal_context()
 
     # Gather decision context if needed
     if rule.include_decision_context:

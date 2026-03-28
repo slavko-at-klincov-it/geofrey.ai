@@ -72,6 +72,7 @@ class ProjectContext:
     session_learnings: str = ""               # Recent learnings for this project
     decision_context: str = ""                # Formatted decision warnings for prompt
     claude_code_context: str = ""             # Relevant Claude Code best practices
+    personal_context: str = ""                # User profile for personalized prompts
 
 
 @dataclass
@@ -146,6 +147,7 @@ class EnrichmentRule:
     include_diff_scope: bool = True
     include_decision_context: bool = True     # Decisions always relevant
     include_claude_code_context: bool = True  # Claude Code best practices
+    include_personal_context: bool = True    # User profile always included
     post_actions: list[str] = field(default_factory=list)
     prompt_suffix: str = ""                   # Always appended to prompt
 

@@ -210,6 +210,15 @@ def run_overnight(config: dict | None = None) -> None:
     if not checks["tmux"][0]:
         logger.warning("tmux not found — sessions will use sync mode.")
 
+    # Overnight research (before task processing)
+    try:
+        from brain.researcher import run_overnight_research
+        research_results = run_overnight_research(config, max_topics=5)
+        if research_results:
+            logger.info(f"Research completed: {len(research_results)} topics")
+    except Exception as e:
+        logger.warning(f"Overnight research failed: {e}")
+
     # Process the task queue
     results = process_queue(config=config)
 

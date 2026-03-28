@@ -96,6 +96,16 @@ def main() -> None:
     subparsers.add_parser("install-daemon", help="Print launchd plist for overnight daemon")
     subparsers.add_parser("preflight", help="Run pre-flight checks for autonomous operation")
 
+    # Questions (geofrey learns about the user)
+    q_parser = subparsers.add_parser("questions", help="Show geofrey's questions about you")
+    subparsers.add_parser("answer", help="Answer a geofrey question").add_argument("question_id", help="Question ID")
+
+    # Interests (overnight research topics)
+    int_parser = subparsers.add_parser("interests", help="Show/manage overnight research interests")
+    int_sub = int_parser.add_subparsers(dest="int_action")
+    int_add = int_sub.add_parser("add", help="Add a research interest")
+    int_add.add_argument("topic", help="Topic to research overnight")
+
     # Scripts
     subparsers.add_parser("embed", help="Embed Claude Code knowledge base (--reset, --changed)")
 
@@ -399,6 +409,27 @@ def main() -> None:
         print("1. Save the above to ~/Library/LaunchAgents/ai.geofrey.overnight.plist")
         print("2. Load:  launchctl load ~/Library/LaunchAgents/ai.geofrey.overnight.plist")
         print("3. Check: launchctl list | grep geofrey")
+
+    elif args.command == "questions":
+        from brain.questions import get_pending_questions, format_questions
+        questions = get_pending_questions()
+        print(format_questions(questions))
+
+    elif args.command == "answer":
+        from brain.questions import answer_question
+        answer = input("  Deine Antwort: ").strip()
+        if answer:
+            answer_question(args.question_id, answer)
+            print(f"  Antwort gespeichert für {args.question_id}.")
+
+    elif args.command == "interests":
+        from brain.researcher import load_interests, add_interest, format_interests
+        if hasattr(args, "int_action") and args.int_action == "add":
+            add_interest(args.topic)
+            print(f"  Interesse '{args.topic}' hinzugefügt.")
+        else:
+            interests = load_interests()
+            print(format_interests(interests))
 
     elif args.command == "preflight":
         from brain.preflight import run_preflight, format_preflight

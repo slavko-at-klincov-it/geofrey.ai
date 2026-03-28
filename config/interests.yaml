@@ -1,0 +1,28 @@
+# geofrey — Overnight Research Interessen
+# geofrey sucht über Nacht nach Neuigkeiten zu diesen Themen.
+# Editiere diese Datei oder nutze: geofrey interests add "Thema"
+
+interests:
+  - topic: "AI Hardware & Effizienz"
+    keywords: ["LLM RAM reduction", "efficient inference", "quantization", "Apple Neural Engine", "local AI models"]
+    priority: high
+
+  - topic: "DACH Regulierung"
+    keywords: ["NIS2 updates", "DSGVO Änderungen", "AI Act EU", "österreichisches Datenschutzgesetz"]
+    priority: high
+
+  - topic: "Claude Code & Anthropic"
+    keywords: ["Claude Code updates", "Anthropic news", "Claude API changes", "MCP servers"]
+    priority: high
+
+  - topic: "Automation & Integration"
+    keywords: ["n8n updates", "Make.com", "Power Automate news", "RPA trends", "workflow automation"]
+    priority: normal
+
+  - topic: "LinkedIn & Content Marketing"
+    keywords: ["LinkedIn algorithm", "content strategy B2B", "DACH marketing"]
+    priority: normal
+
+  - topic: "KMU Digitalisierung"
+    keywords: ["KMU digital transformation", "SMB automation", "Microsoft 365 updates"]
+    priority: normal
