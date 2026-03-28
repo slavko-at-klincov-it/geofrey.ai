@@ -107,31 +107,86 @@ def detect_project(user_message: str) -> tuple[str | None, str | None]:
     return None, None
 
 
-def execute_spec(spec: CommandSpec) -> bool:
-    """Validate, confirm, and execute a CommandSpec.
+def execute_spec(
+    spec: CommandSpec,
+    task_type: str = "code-fix",
+    task_summary: str = "",
+    project_name: str = "",
+    config: dict | None = None,
+    auto_confirm: bool = False,
+) -> str:
+    """Validate, confirm, execute via monitored session, observe, extract learnings.
 
-    Validates prompt content for safety, shows the assembled command,
-    asks for user confirmation, then executes.
+    Full execution lifecycle:
+    1. Show command + safety gates
+    2. User confirmation
+    3. start_session() → tmux with /remote-control
+    4. monitor_session() → guardian supervision + quality review
+    5. observe_output() → triage result
+    6. Return captured output (for conversation memory + chaining)
     """
+    from brain.session import start_session
+    from brain.monitor import monitor_session
+    from brain.observer import observe_output
+
     command = build_command(spec)
 
-    print(f"\n  Command to execute:")
-    print(f"  {command}")
+    _console.print(f"\n  [dim]Command:[/dim] {command[:120]}...")
 
     issues = validate_prompt(spec.prompt)
     if issues:
-        print(f"\n{format_gate_results(issues)}")
+        _console.print(f"\n{format_gate_results(issues)}")
         if has_blockers(issues):
-            print("\n  BLOCKED: Fix critical issues above before executing.")
-            return False
+            _console.print("\n  [red]BLOCKED: Fix critical issues above.[/red]")
+            return ""
 
-    confirm = input("\n  Execute? [y/N]: ").strip().lower()
-    if confirm == "y":
-        print("\n  Running...\n")
-        result = subprocess.run(["bash", "-c", command], shell=False)
-        return result.returncode == 0
-    print("  Skipped.")
-    return False
+    if not auto_confirm:
+        confirm = input("\n  Execute? [y/N]: ").strip().lower()
+        if confirm != "y":
+            print("  Skipped.")
+            return ""
+
+    _console.print("\n  [dim]Starting monitored session...[/dim]")
+
+    # Start tmux session with /remote-control
+    session = start_session(
+        project_path=spec.project_path,
+        prompt=spec.prompt,
+        model=spec.model,
+        max_turns=spec.max_turns,
+        max_budget_usd=spec.max_budget_usd,
+        permission_mode=spec.permission_mode,
+    )
+
+    from brain.models import SessionStatus
+    if session.status == SessionStatus.FAILED:
+        _console.print("  [red]Session failed to start.[/red]")
+        return ""
+
+    # Monitor with guardian supervision + quality review
+    output = monitor_session(
+        session_id=session.id,
+        task_type=task_type,
+        task_summary=task_summary or spec.prompt[:100],
+        project_name=project_name,
+        project_path=spec.project_path,
+        config=config or {},
+        auto_confirm=auto_confirm,
+    )
+
+    # Observe the result
+    if output:
+        observation = observe_output(output, task_summary or spec.prompt[:100], config or {})
+        _console.print(f"\n  [dim]─── observation ───[/dim]")
+        _console.print(f"  [dim]result:[/dim]  {'success' if observation.success else 'failed'}")
+        _console.print(f"  [dim]summary:[/dim] {observation.result_summary[:100]}")
+        if observation.files_changed:
+            _console.print(f"  [dim]files:[/dim]   {', '.join(observation.files_changed[:5])}")
+        if observation.follow_up_needed:
+            _console.print(f"  [dim]follow-up:[/dim] {observation.follow_up_task}")
+        _console.print(f"  [dim]──────────────────[/dim]")
+
+    return output or ""
 
 
 def run_two_phase(spec: CommandSpec, prompt_text: str) -> bool:
@@ -200,7 +255,7 @@ def run_two_phase(spec: CommandSpec, prompt_text: str) -> bool:
         permission_mode="default",
     )
 
-    return execute_spec(exec_spec)
+    return execute_spec(exec_spec, task_type="feature", task_summary=prompt_text[:100], project_name="")
 
 
 def _run_enrichment_flow(
@@ -452,10 +507,20 @@ def interactive():
 
         # Execute: two-phase or direct
         skill_meta = get_skill_meta(intent.task_type if intent else detect_task_type(user_input), config)
+        project_name = intent.project if intent else ""
         if skill_meta.needs_plan and project_has_code(spec.project_path):
             run_two_phase(spec, prompt_text)
         else:
-            execute_spec(spec)
+            output = execute_spec(
+                spec,
+                task_type=intent.task_type if intent else "code-fix",
+                task_summary=intent.summary if intent else user_input,
+                project_name=project_name,
+                config=config,
+            )
+            # Update conversation with result
+            if output and intent:
+                conversation[-1].result_summary = output[:200]
 
 
 def single_task(task: str):
@@ -469,7 +534,14 @@ def single_task(task: str):
 
     # Execute: two-phase or direct
     skill_meta = get_skill_meta(intent.task_type if intent else detect_task_type(task), config)
+    project_name = intent.project if intent else ""
     if skill_meta.needs_plan and project_has_code(spec.project_path):
         run_two_phase(spec, prompt_text)
     else:
-        execute_spec(spec)
+        execute_spec(
+            spec,
+            task_type=intent.task_type if intent else "code-fix",
+            task_summary=intent.summary if intent else task,
+            project_name=project_name,
+            config=config,
+        )

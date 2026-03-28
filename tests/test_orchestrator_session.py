@@ -37,77 +37,84 @@ class TestExecuteSpec:
         defaults.update(kwargs)
         return CommandSpec(**defaults)
 
-    @patch("brain.orchestrator.subprocess.run")
+    @patch("brain.observer.observe_output")
+    @patch("brain.monitor.monitor_session", return_value="Session output here")
+    @patch("brain.session.start_session")
     @patch("brain.orchestrator.input", return_value="y")
     @patch("brain.orchestrator.validate_prompt", return_value=[])
-    def test_clean_prompt_user_confirms(self, mock_validate, mock_input, mock_run):
-        """Clean prompt + user confirms → subprocess.run is called, returns True."""
+    def test_clean_prompt_user_confirms(self, mock_validate, mock_input, mock_start, mock_monitor, mock_observe):
+        """Clean prompt + user confirms → session started, monitored, output returned."""
         from brain.orchestrator import execute_spec
+        from brain.models import SessionStatus, Session
+        from brain.observer import Observation
 
-        mock_run.return_value = MagicMock(returncode=0)
+        mock_start.return_value = Session(id="test1234", status=SessionStatus.RUNNING, tmux_session="geofrey-test1234")
+        mock_observe.return_value = Observation(success=True, result_summary="Done")
         spec = self._make_spec()
 
         result = execute_spec(spec)
 
-        assert result is True
-        mock_run.assert_called_once()
-        assert mock_run.call_args[0][0] == ["bash", "-c", mock_run.call_args[0][0][2]]
+        assert result == "Session output here"
+        mock_start.assert_called_once()
+        mock_monitor.assert_called_once()
 
-    @patch("brain.orchestrator.subprocess.run")
     @patch("brain.orchestrator.input", return_value="n")
     @patch("brain.orchestrator.validate_prompt", return_value=[])
-    def test_clean_prompt_user_declines(self, mock_validate, mock_input, mock_run):
-        """Clean prompt + user declines → skipped, returns False."""
+    def test_clean_prompt_user_declines(self, mock_validate, mock_input):
+        """Clean prompt + user declines → skipped, returns empty string."""
         from brain.orchestrator import execute_spec
 
         spec = self._make_spec()
         result = execute_spec(spec)
 
-        assert result is False
-        mock_run.assert_not_called()
+        assert result == ""
 
-    @patch("brain.orchestrator.subprocess.run")
     @patch("brain.orchestrator.input")
     @patch("brain.orchestrator.has_blockers", return_value=True)
     @patch("brain.orchestrator.validate_prompt", return_value=["[BLOCK] Not a claude command"])
-    def test_blocker_prompt_blocked(self, mock_validate, mock_blockers, mock_input, mock_run):
-        """Prompt with blocker issues → blocked, returns False, no input asked."""
+    def test_blocker_prompt_blocked(self, mock_validate, mock_blockers, mock_input):
+        """Prompt with blocker issues → blocked, returns empty, no input asked."""
         from brain.orchestrator import execute_spec
 
         spec = self._make_spec(prompt="rm -rf / && drop database")
         result = execute_spec(spec)
 
-        assert result is False
-        mock_run.assert_not_called()
+        assert result == ""
         mock_input.assert_not_called()
 
-    @patch("brain.orchestrator.subprocess.run")
+    @patch("brain.observer.observe_output")
+    @patch("brain.monitor.monitor_session", return_value="Output")
+    @patch("brain.session.start_session")
     @patch("brain.orchestrator.input", return_value="y")
     @patch("brain.orchestrator.has_blockers", return_value=False)
     @patch("brain.orchestrator.validate_prompt", return_value=["[WARN] Dangerous pattern: force flag (--force)"])
-    def test_warning_prompt_user_confirms(self, mock_validate, mock_blockers, mock_input, mock_run):
+    def test_warning_prompt_user_confirms(self, mock_validate, mock_blockers, mock_input, mock_start, mock_monitor, mock_observe):
         """Prompt with warnings (no blockers) + user confirms → runs."""
         from brain.orchestrator import execute_spec
+        from brain.models import SessionStatus, Session
+        from brain.observer import Observation
 
-        mock_run.return_value = MagicMock(returncode=0)
+        mock_start.return_value = Session(id="test1234", status=SessionStatus.RUNNING, tmux_session="geofrey-test1234")
+        mock_observe.return_value = Observation(success=True, result_summary="Done")
         spec = self._make_spec(prompt="git push --force")
         result = execute_spec(spec)
 
-        assert result is True
-        mock_run.assert_called_once()
+        assert result == "Output"
+        mock_start.assert_called_once()
 
-    @patch("brain.orchestrator.subprocess.run")
+    @patch("brain.session.start_session")
     @patch("brain.orchestrator.input", return_value="y")
     @patch("brain.orchestrator.validate_prompt", return_value=[])
-    def test_command_failure_returns_false(self, mock_validate, mock_input, mock_run):
-        """Subprocess returns non-zero → execute_spec returns False."""
+    def test_session_fails_returns_empty(self, mock_validate, mock_input, mock_start):
+        """Session fails to start → returns empty string."""
         from brain.orchestrator import execute_spec
+        from brain.models import SessionStatus, Session
 
-        mock_run.return_value = MagicMock(returncode=1)
+        mock_start.return_value = Session(id="test1234", status=SessionStatus.FAILED, tmux_session="geofrey-test1234")
         spec = self._make_spec()
         result = execute_spec(spec)
 
-        assert result is False
+        assert result == ""
 
 
 # ---------------------------------------------------------------------------

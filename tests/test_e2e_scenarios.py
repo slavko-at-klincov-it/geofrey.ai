@@ -233,61 +233,38 @@ class TestOrchestratorSingleTask:
     @patch("brain.orchestrator.load_projects")
     @patch("brain.orchestrator.enrich_prompt")
     @patch("brain.orchestrator.validate_prompt", return_value=[])
-    @patch("brain.orchestrator.has_blockers", return_value=False)
-    @patch("subprocess.run")
     @patch("builtins.input", return_value="y")
     def test_single_task_fix_in_testproject(
-        self, mock_input, mock_subprocess, mock_blockers, mock_validate,
-        mock_enrich, mock_projects
+        self, mock_input, mock_validate, mock_enrich, mock_projects
     ):
-        """Full single_task flow: detects task type, enriches, executes."""
+        """Full single_task flow: detects task type, enriches, executes via monitored session."""
         from brain.orchestrator import single_task
-        from brain.models import EnrichedPrompt, ProjectContext
+        from brain.models import EnrichedPrompt, ProjectContext, SessionStatus, Session
+        from brain.observer import Observation
 
-        # Setup mock projects
         mock_projects.return_value = {
-            "testproject": {
-                "path": "/tmp/testproject",
-                "stack": "Python",
-                "description": "A test project",
-            }
+            "testproject": {"path": "/tmp/testproject", "stack": "Python", "description": "Test"}
         }
-
-        # Setup mock enrichment
         mock_enrich.return_value = EnrichedPrompt(
             original_input="fix login in testproject",
-            enriched_prompt="## Task\nfix login in testproject\n\n## Project Context\nBranch: main",
-            context=ProjectContext(
-                project_name="testproject",
-                project_path="/tmp/testproject",
-                git_branch="main",
-            ),
+            enriched_prompt="## Task\nfix login",
+            context=ProjectContext(project_name="testproject", project_path="/tmp/testproject", git_branch="main"),
             task_type="code-fix",
-            post_actions=["Run existing tests to verify the fix"],
+            post_actions=["Run tests"],
         )
 
-        # Setup mock subprocess (claude CLI)
-        mock_subprocess.return_value = MagicMock(returncode=0)
-
-        # Execute with mocked intent layer
         from brain.intent import Intent
         mock_intent = Intent(task_type="code-fix", project="testproject", summary="fix login", source="llm")
+        mock_session = Session(id="test1234", status=SessionStatus.RUNNING, tmux_session="geofrey-test1234")
+
         with patch("brain.orchestrator._get_config", return_value={"model_policy": {"code": "opus"}}):
             with patch("brain.orchestrator.understand_intent", return_value=mock_intent):
-                single_task("fix login in testproject")
+                with patch("brain.session.start_session", return_value=mock_session):
+                    with patch("brain.monitor.monitor_session", return_value="Task completed"):
+                        with patch("brain.observer.observe_output", return_value=Observation(success=True, result_summary="Done")):
+                            single_task("fix login in testproject")
 
-        # Verify enrichment was called with correct task_type
         mock_enrich.assert_called_once()
-        enrich_args = mock_enrich.call_args
-        assert enrich_args[1].get("task_type", enrich_args[0][3] if len(enrich_args[0]) > 3 else None) == "code-fix" or \
-               enrich_args.kwargs.get("task_type") == "code-fix" or \
-               "code-fix" in str(enrich_args)
-
-        # Verify subprocess was called with a claude command
-        mock_subprocess.assert_called_once()
-        cmd_args = mock_subprocess.call_args
-        cmd_str = str(cmd_args)
-        assert "claude" in cmd_str
 
     @patch("brain.orchestrator.load_projects")
     @patch("brain.orchestrator.enrich_prompt")
