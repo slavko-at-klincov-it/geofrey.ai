@@ -13,6 +13,8 @@ chunking:
 retrieval:
   top_k: 5
 
+workspace: "~/Code"
+
 paths:
   vectordb: "~/.knowledge/vectordb"
   context: "knowledge-base/context"

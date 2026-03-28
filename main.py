@@ -64,12 +64,12 @@ def main() -> None:
     dec_index.add_argument("--project", required=True, help="Project name")
 
     # Projects
-    add_proj = subparsers.add_parser("add-project", help="Register a new project")
+    add_proj = subparsers.add_parser("add-project", help="Create and register a new project")
     add_proj.add_argument("name", help="Project name (e.g. mobile-app)")
-    add_proj.add_argument("path", help="Project path (e.g. ~/Code/mobile-app)")
     add_proj.add_argument("--stack", default="", help="Tech stack (e.g. Python, React)")
     add_proj.add_argument("--description", default="", help="Short description")
-    add_proj.add_argument("--init", action="store_true", help="Create directory + git init")
+    add_proj.add_argument("--no-github", action="store_true", help="Skip GitHub repo creation")
+    add_proj.add_argument("--private", action="store_true", help="Make GitHub repo private (default: private)")
 
     # Skills
     subparsers.add_parser("skills", help="List available task routing skills")
@@ -251,6 +251,7 @@ def main() -> None:
 
     elif args.command == "add-project":
         import os
+        import subprocess as _sp
         from pathlib import Path as P
         import yaml as _yaml
 
@@ -263,28 +264,71 @@ def main() -> None:
             print(f"Project '{args.name}' already exists.")
             sys.exit(1)
 
-        # Optionally create directory + git init
-        resolved = str(P(os.path.expanduser(args.path)).resolve())
-        if args.init:
-            P(resolved).mkdir(parents=True, exist_ok=True)
-            import subprocess as _sp
-            _sp.run(["git", "init"], cwd=resolved, capture_output=True)
-            # Write a basic CLAUDE.md
-            claude_md = P(resolved) / "CLAUDE.md"
-            if not claude_md.exists():
-                claude_md.write_text(f"# {args.name}\n\n{args.description or 'New project.'}\n")
-            print(f"  Created {resolved} with git init + CLAUDE.md")
+        # Resolve workspace path from config
+        workspace = os.path.expanduser(config.get("workspace", "~/Code"))
+        project_path = P(workspace) / args.name
+        relative_path = f"~/Code/{args.name}"
 
+        # 1. Create directory
+        project_path.mkdir(parents=True, exist_ok=True)
+        print(f"  1. Created {project_path}")
+
+        # 2. Git init
+        _sp.run(["git", "init"], cwd=project_path, capture_output=True)
+        print(f"  2. git init")
+
+        # 3. CLAUDE.md
+        claude_md = project_path / "CLAUDE.md"
+        desc = args.description or f"{args.name} project"
+        stack = args.stack or "TBD"
+        claude_md.write_text(
+            f"# {args.name}\n\n{desc}\n\n## Tech Stack\n{stack}\n",
+            encoding="utf-8",
+        )
+        print(f"  3. CLAUDE.md created")
+
+        # 4. .gitignore
+        gitignore = project_path / ".gitignore"
+        if not gitignore.exists():
+            gitignore.write_text(
+                "__pycache__/\n*.pyc\n.venv/\n.env\n.DS_Store\nnode_modules/\n",
+                encoding="utf-8",
+            )
+        print(f"  4. .gitignore created")
+
+        # 5. Initial commit
+        _sp.run(["git", "add", "."], cwd=project_path, capture_output=True)
+        _sp.run(
+            ["git", "-c", "user.name=geofrey", "-c", "user.email=geofrey@local",
+             "commit", "-m", "Initial commit — project scaffolded by geofrey"],
+            cwd=project_path, capture_output=True,
+        )
+        print(f"  5. Initial commit")
+
+        # 6. GitHub repo
+        if not args.no_github:
+            result = _sp.run(
+                ["gh", "repo", "create", args.name, "--private", "--source", str(project_path), "--push"],
+                capture_output=True, text=True,
+            )
+            if result.returncode == 0:
+                print(f"  6. GitHub repo created: {result.stdout.strip()}")
+            else:
+                print(f"  6. GitHub repo creation failed: {result.stderr.strip()}")
+                print(f"     (You can create it manually: gh repo create {args.name} --private --source {project_path} --push)")
+        else:
+            print(f"  6. GitHub repo skipped (--no-github)")
+
+        # 7. Register in projects.yaml
         projects[args.name] = {
-            "path": args.path,
-            "stack": args.stack or "TBD",
-            "description": args.description or f"{args.name} project",
+            "path": relative_path,
+            "stack": stack,
+            "description": desc,
         }
         with open(projects_file, "w") as f:
             _yaml.dump(data, f, default_flow_style=False, allow_unicode=True)
-
-        print(f"  Project '{args.name}' added to projects.yaml")
-        print(f"  Path: {args.path}")
+        print(f"  7. Registered in projects.yaml")
+        print(f"\n  ✓ Project '{args.name}' ready at {project_path}")
 
     elif args.command == "skills":
         from brain.router import list_skills
