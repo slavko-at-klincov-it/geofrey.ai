@@ -842,6 +842,16 @@ Jede Session lernt. Jede neue Session bekommt Learnings + Decisions injiziert. F
 
 ## Offene Fragen
 
+### TODO: Selbstverbesserung (5 Feedback-Loops)
+
+Detaillierte Analyse: [docs/self-improvement-roadmap.md](self-improvement-roadmap.md)
+
+1. **Routing Feedback** — User kann falsches Routing korrigieren → geofrey lernt
+2. **Decision Staleness** — valid_until + 90-Tage Warning für veraltete Decisions
+3. **Outcome Tracking** — exit_code + duration nach jeder Session loggen
+4. **Keyword Evolution** — neue User-Wörter automatisch lernen
+5. **Section Relevanz** — welche Enrichment-Sections liefern Wert?
+
 ---
 
 ## Regeln für die Weiterentwicklung
