@@ -33,13 +33,3 @@ def render_template(name: str, **kwargs: str) -> str:
     for key, value in kwargs.items():
         template = template.replace(f"{{{{{key}}}}}", str(value))
     return template
-
-
-# Backward-compatible constants — loaded from template files.
-# Callers should migrate to render_template() over time.
-ORCHESTRATOR_PROMPT = load_template("orchestrator")
-CHAT_PROMPT = load_template("chat")
-LINKEDIN_PROMPT = load_template("linkedin")
-IMAGE_PROMPT_TEMPLATE = load_template("image")
-SESSION_EXTRACT_PROMPT = load_template("session-extract")
-SESSION_CONSOLIDATE_PROMPT = load_template("session-consolidate")

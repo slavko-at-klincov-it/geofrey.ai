@@ -8,7 +8,7 @@ deterministic routing.
 from dataclasses import dataclass
 from pathlib import Path
 
-from brain.prompts import load_template, SKILLS_DIR
+from brain.prompts import SKILLS_DIR
 
 # Keyword-based routing (DE + EN)
 TASK_KEYWORDS: dict[str, list[str]] = {
@@ -86,14 +86,6 @@ def detect_task_type(user_input: str) -> str:
         return DEFAULT_SKILL
 
     return max(scores, key=scores.get)
-
-
-def get_skill_template(skill_name: str) -> str:
-    """Load skill template. Falls back to orchestrator template if not found."""
-    path = SKILLS_DIR / f"{skill_name}.md"
-    if path.exists():
-        return path.read_text(encoding="utf-8")
-    return load_template("orchestrator")
 
 
 def list_skills() -> list[str]:

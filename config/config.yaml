@@ -27,27 +27,6 @@ decision_system:
   enabled: true
   collection_name: "decisions"
 
-chat:
-  history_length: 5
-
-orchestrator:
-  max_history: 20
-  temperature: 0.3
-
-linkedin:
-  temperature: 0.7
-
-skills:
-  default: "code-fix"
-  enabled:
-    - code-fix
-    - feature
-    - review
-    - research
-    - security
-    - refactor
-    - doc-sync
-
 model_policy:
   code: "opus"
   analysis: "opus"

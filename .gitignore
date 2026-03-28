@@ -27,3 +27,4 @@ logs/
 dist/
 tests/sandbox/
 tests/acceptance/reports/
+.pytest_cache/
