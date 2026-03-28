@@ -273,9 +273,19 @@ def main() -> None:
         project_path.mkdir(parents=True, exist_ok=True)
         print(f"  1. Created {project_path}")
 
+        # Helper to run commands and check results
+        def _run_step(step_num, description, cmd, **kwargs):
+            result = _sp.run(cmd, capture_output=True, text=True, cwd=project_path, **kwargs)
+            if result.returncode == 0:
+                print(f"  {step_num}. {description}")
+                return True
+            else:
+                error = result.stderr.strip() or result.stdout.strip()
+                print(f"  {step_num}. {description} — FAILED: {error}")
+                return False
+
         # 2. Git init
-        _sp.run(["git", "init"], cwd=project_path, capture_output=True)
-        print(f"  2. git init")
+        _run_step(2, "git init", ["git", "init"])
 
         # 3. CLAUDE.md
         claude_md = project_path / "CLAUDE.md"
@@ -297,25 +307,23 @@ def main() -> None:
         print(f"  4. .gitignore created")
 
         # 5. Initial commit
-        _sp.run(["git", "add", "."], cwd=project_path, capture_output=True)
-        _sp.run(
-            ["git", "-c", "user.name=geofrey", "-c", "user.email=geofrey@local",
-             "commit", "-m", "Initial commit — project scaffolded by geofrey"],
-            cwd=project_path, capture_output=True,
-        )
-        print(f"  5. Initial commit")
+        _run_step("5a", "git add", ["git", "add", "."])
+        commit_ok = _run_step("5b", "Initial commit", [
+            "git", "-c", "user.name=geofrey", "-c", "user.email=geofrey@local",
+            "commit", "-m", "Initial commit — project scaffolded by geofrey",
+        ])
 
         # 6. GitHub repo
         if not args.no_github:
-            result = _sp.run(
-                ["gh", "repo", "create", args.name, "--private", "--source", str(project_path), "--push"],
-                capture_output=True, text=True,
-            )
-            if result.returncode == 0:
-                print(f"  6. GitHub repo created: {result.stdout.strip()}")
+            if not commit_ok:
+                print(f"  6. GitHub repo skipped (commit failed)")
             else:
-                print(f"  6. GitHub repo creation failed: {result.stderr.strip()}")
-                print(f"     (You can create it manually: gh repo create {args.name} --private --source {project_path} --push)")
+                gh_ok = _run_step(6, "GitHub repo created", [
+                    "gh", "repo", "create", args.name, "--private",
+                    "--source", str(project_path), "--push",
+                ])
+                if not gh_ok:
+                    print(f"     Fix: gh auth login, then: gh repo create {args.name} --private --source {project_path} --push")
         else:
             print(f"  6. GitHub repo skipped (--no-github)")
 
