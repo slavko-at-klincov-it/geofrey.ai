@@ -105,10 +105,11 @@ Der User wacht auf und findet ein Morning Briefing:
 | `queue.py` | Task Queue: SQLite-Backend, CRUD, Priority-Ordering |
 | `daemon.py` | Overnight Daemon: Queue abarbeiten, Briefing generieren, launchd Plist |
 | `briefing.py` | Morning Briefing: Tasks kategorisieren, Terminal-Formatierung, JSON/MD Export |
-| `orchestrator.py` | Legacy Orchestrator: chat(), single_task(), generate_prompt() |
+| `orchestrator.py` | Orchestrator: interactive(), single_task(), Enrichment Summary Display |
 | `command.py` | CommandSpec + build_command(): deterministischer CLI-Bau |
 | `router.py` | Task-Type Detection: Keyword-Matching (DE+EN), SkillMeta aus Config |
 | `gates.py` | validate_prompt(): Secrets/Dangerous Pattern Check |
+| `preflight.py` | Pre-Flight Checks: Claude CLI, tmux, Ollama, Models, Directories |
 | `scope.py` | Diff Scope Detection: git-Änderungen kategorisieren |
 | `prompts.py` | Template-Loader: load_template(), render_template() |
 | `decision_checker.py` | Decision Conflict Detection: Scope, Keyword, Semantic Matching |
@@ -434,6 +435,10 @@ geofrey skills                            # Verfügbare Skills
 geofrey decisions list [--project X]      # Aktive Decisions anzeigen
 geofrey decisions check "task" --project X  # Conflict Check
 geofrey decisions index --project X       # Re-Index in ChromaDB
+
+# Autonomous Operation
+geofrey preflight                         # Pre-Flight Checks (Claude, tmux, Ollama, Dirs)
+geofrey install-daemon                    # launchd Plist generieren
 
 # Utilities
 geofrey context-setup                     # DACH-Kontext importieren

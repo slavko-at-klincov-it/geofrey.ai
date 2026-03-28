@@ -63,6 +63,20 @@ No existing tool combines Decision Dependencies + Prompt Enrichment + Conflict D
 
 For the full research paper including academic references, state of the art analysis, and architecture design, see [docs/decision-dependency-system.md](docs/decision-dependency-system.md).
 
+### Enrichment Summary
+
+Every enrichment is transparently displayed — like thinking mode:
+
+```
+  ─── geofrey enrichment ───
+  routing:  code-fix (keywords: fix, bug)
+  model:    opus | budget: $5 | turns: 30 | perm: default
+  context:  Task, Project Context, Architecture, Active Decisions, Requirements
+  decisions: 2 active (injected as warnings)
+  prompt:   17 → 1265 chars (x74)
+  ──────────────────────────
+```
+
 ## Quick Start
 
 ```bash
@@ -112,6 +126,10 @@ geofrey status                            # Show collections + chunks
 geofrey decisions list [--project X]      # Show active decisions
 geofrey decisions check "task" --project X  # Conflict check
 geofrey decisions index --project X       # Re-index in ChromaDB
+
+# Autonomous Operation
+geofrey preflight                         # Pre-flight checks (claude, tmux, ollama, dirs)
+geofrey install-daemon                    # Generate launchd plist for overnight daemon
 ```
 
 ## Tech Stack
@@ -136,7 +154,8 @@ geofrey/
 │   ├── queue.py              # Task Queue (SQLite)
 │   ├── daemon.py             # Overnight Daemon
 │   ├── briefing.py           # Morning Briefing
-│   ├── orchestrator.py       # Interactive + single task orchestration
+│   ├── orchestrator.py       # Interactive + single task orchestration + enrichment summary
+│   ├── preflight.py          # Pre-flight checks for autonomous operation
 │   ├── router.py             # Task-type detection (DE+EN keywords)
 │   ├── gates.py              # Prompt validation ([BLOCK] + [WARN])
 │   ├── rules/                # Enrichment rules per task type (YAML)

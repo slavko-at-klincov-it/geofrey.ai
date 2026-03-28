@@ -99,12 +99,13 @@ geofrey/
 │   ├── command.py            # CommandSpec + build_command() — deterministischer Command-Bau
 │   ├── router.py             # Task-Type Detection + SkillMeta (7 Skills, DE+EN Keywords)
 │   ├── gates.py              # validate_prompt() — [BLOCK] + [WARN] Pattern Check
+│   ├── preflight.py          # Pre-Flight Checks für autonomen Betrieb (Claude, tmux, Ollama)
 │   ├── scope.py              # Diff Scope Detection (git-Änderungen kategorisieren)
 │   ├── prompts.py            # Template-Loader (load_template, render_template)
 │   ├── linkedin.py           # LinkedIn Post Pipeline
 │   ├── templates/            # LLM-System-Prompts als Markdown
 │   └── skills/               # Skill-Templates: leiten LLM beim Prompt-Schreiben an
-├── tests/                    # Unit + Integration + E2E Tests (197 Tests, 8 Dateien)
+├── tests/                    # Unit + Integration + E2E + Acceptance Tests (~220 Tests, 9 Dateien)
 ├── knowledge/                # Knowledge Hub
 │   ├── hub.py                # Zentrale API (kein LangChain)
 │   ├── store.py              # ChromaDB Wrapper (multi-collection)
@@ -169,6 +170,10 @@ geofrey skills                            # Verfügbare Skills
 geofrey decisions list [--project X]      # Aktive Decisions anzeigen
 geofrey decisions check "task" --project X  # Conflict Check
 geofrey decisions index --project X       # Re-Index in ChromaDB
+
+# Autonomous Operation
+geofrey preflight                         # Pre-Flight Checks
+geofrey install-daemon                    # launchd Plist generieren
 ```
 
 ## ChromaDB Collections

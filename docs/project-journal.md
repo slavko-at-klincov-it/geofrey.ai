@@ -803,11 +803,11 @@ Jede Session lernt. Jede neue Session bekommt Learnings + Decisions injiziert. F
 
 | Thema | Priorität | Status |
 |-------|-----------|--------|
-| Test-Fixes (Import-Fehler, Mock-Setup) | Hoch | Offen |
-| E2E-Test mit echtem Live-Task | Hoch | Offen |
-| CLAUDE.md: safety.py Referenz entfernen | Quick Fix | Offen |
-| Gemini API (Bild-Generierung) | Niedrig | Bewusst deferred |
-| Phase 2: macOS SwiftUI UI | Mittel | Eigenständiges Projekt |
+| Test-Fixes (Import-Fehler, Mock-Setup) | Hoch | ✅ Erledigt (2026-03-28) |
+| E2E-Test mit echtem Live-Task | Hoch | Offen → siehe docs/TODO.md |
+| CLAUDE.md: safety.py Referenz entfernen | Quick Fix | ✅ War bereits bereinigt |
+| Gemini API (Bild-Generierung) | Niedrig | Bewusst deferred → siehe docs/TODO.md |
+| Phase 2: macOS SwiftUI UI | Mittel | Eigenständiges Projekt → siehe docs/TODO.md |
 
 ### Architektur-Entscheidungen
 
@@ -842,15 +842,9 @@ Jede Session lernt. Jede neue Session bekommt Learnings + Decisions injiziert. F
 
 ## Offene Fragen
 
-### TODO: Selbstverbesserung (5 Feedback-Loops)
+### TODO: Selbstverbesserung + alle offenen Punkte
 
-Detaillierte Analyse: [docs/self-improvement-roadmap.md](self-improvement-roadmap.md)
-
-1. **Routing Feedback** — User kann falsches Routing korrigieren → geofrey lernt
-2. **Decision Staleness** — valid_until + 90-Tage Warning für veraltete Decisions
-3. **Outcome Tracking** — exit_code + duration nach jeder Session loggen
-4. **Keyword Evolution** — neue User-Wörter automatisch lernen
-5. **Section Relevanz** — welche Enrichment-Sections liefern Wert?
+Alle offenen Punkte zentral: [docs/TODO.md](TODO.md)
 
 ---
 
