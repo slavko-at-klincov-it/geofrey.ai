@@ -189,7 +189,7 @@ def execute_spec(
     return output or ""
 
 
-def run_two_phase(spec: CommandSpec, prompt_text: str) -> bool:
+def run_two_phase(spec: CommandSpec, prompt_text: str) -> str:
     """Run two-phase execution: plan first, then execute.
 
     Phase 1: Read-only analysis with --permission-mode plan
@@ -212,15 +212,20 @@ def run_two_phase(spec: CommandSpec, prompt_text: str) -> bool:
     confirm = input("\n  Start Plan-Phase? [y/N]: ").strip().lower()
     if confirm != "y":
         print("  Skipped.")
-        return False
+        return ""
 
     print("\n  Running Plan-Phase...\n")
-    plan_result = subprocess.run(
-        ["bash", "-c", plan_command],
-        shell=False,
-        capture_output=True,
-        text=True,
-    )
+    try:
+        plan_result = subprocess.run(
+            ["bash", "-c", plan_command],
+            shell=False,
+            capture_output=True,
+            text=True,
+            timeout=300,  # 5 min timeout for plan phase
+        )
+    except subprocess.TimeoutExpired:
+        print("  Plan-Phase timed out after 5 minutes.")
+        return ""
 
     plan_output = plan_result.stdout
     if plan_output:
@@ -234,13 +239,13 @@ def run_two_phase(spec: CommandSpec, prompt_text: str) -> bool:
         print(f"  Plan-Phase failed (exit code {plan_result.returncode})")
         if plan_result.stderr:
             print(f"  {plan_result.stderr[:500]}")
-        return False
+        return ""
 
     # Phase 2: Execute with plan context
     confirm = input("  Execute based on this plan? [y/N]: ").strip().lower()
     if confirm != "y":
         print("  Skipped.")
-        return False
+        return ""
 
     execute_prompt = prompt_text
     if plan_output:

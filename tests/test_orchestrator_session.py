@@ -166,7 +166,7 @@ class TestRunTwoPhase:
         spec = self._make_spec()
         result = run_two_phase(spec, "Implement auth module")
 
-        assert result is False
+        assert result == ""
         mock_exec.assert_not_called()
 
     @patch("brain.orchestrator.execute_spec")
@@ -179,7 +179,7 @@ class TestRunTwoPhase:
         spec = self._make_spec()
         result = run_two_phase(spec, "Implement auth module")
 
-        assert result is False
+        assert result == ""
         mock_run.assert_not_called()
         mock_exec.assert_not_called()
 
@@ -196,7 +196,7 @@ class TestRunTwoPhase:
         spec = self._make_spec()
         result = run_two_phase(spec, "Implement auth module")
 
-        assert result is False
+        assert result == ""
         mock_exec.assert_not_called()
 
     @patch("brain.orchestrator.execute_spec", return_value=True)
