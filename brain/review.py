@@ -78,24 +78,59 @@ def _find_importers(file_path: str, project_path: str) -> list[str]:
         return []
 
 
+def _post_actions_to_questions(post_actions: list[str]) -> list[str]:
+    """Convert post-action statements into review questions.
+
+    "Run existing tests to verify the fix" → "Did you run existing tests to verify the fix?"
+    """
+    questions = []
+    for action in post_actions:
+        # Clean up and convert to question
+        clean = action.strip().rstrip(".")
+        if clean.lower().startswith("never "):
+            questions.append(f"Did you ensure: {clean}?")
+        elif clean.lower().startswith(("run ", "add ", "update ", "check ", "produce ", "save ", "verify ", "preserve ")):
+            questions.append(f"Did you {clean[0].lower()}{clean[1:]}?")
+        else:
+            questions.append(f"Did you: {clean}?")
+    return questions
+
+
 def build_review_questions(
     task_type: str,
     project_name: str,
     project_path: str,
     config: dict,
 ) -> list[str]:
-    """Build quality review questions from 3 sources (all Python, no LLM).
+    """Build quality review questions from 4 sources (all Python, no LLM).
 
-    1. Generic per task-type (hardcoded best practices)
-    2. Decision-based (changed files → matching decisions → warnings)
-    3. File-dependency-based (changed files → who imports them?)
+    1. Post-actions from enrichment rule (converted to questions)
+    2. Generic per task-type (hardcoded best practices)
+    3. Decision-based (changed files → matching decisions → warnings)
+    4. File-dependency-based (changed files → who imports them?)
 
     Returns list of question strings ready to send to Claude Code.
     """
     questions: list[str] = []
 
-    # Source 1: Generic per task-type
-    questions.extend(REVIEW_QUESTIONS.get(task_type, REVIEW_QUESTIONS["code-fix"]))
+    # Source 1: Post-actions from enrichment rule → converted to questions
+    from brain.enricher import load_enrichment_rules
+    rules = load_enrichment_rules()
+    rule = rules.get(task_type)
+    if rule and rule.post_actions:
+        questions.extend(_post_actions_to_questions(rule.post_actions))
+
+    # Source 2: Generic per task-type (skip if already covered by post_actions)
+    existing_lower = {q.lower() for q in questions}
+    for q in REVIEW_QUESTIONS.get(task_type, []):
+        # Skip if a similar question already exists (fuzzy: check key words overlap)
+        q_words = set(q.lower().split())
+        already_covered = any(
+            len(q_words & set(eq.split())) >= 3
+            for eq in existing_lower
+        )
+        if not already_covered:
+            questions.append(q)
 
     # Source 2: Decision-based
     changed_files = _get_changed_files(project_path)
