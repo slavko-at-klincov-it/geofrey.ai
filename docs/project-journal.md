@@ -821,6 +821,74 @@ Jede Session lernt. Jede neue Session bekommt Learnings + Decisions injiziert. F
 
 ---
 
+## 2026-03-28 — Größte Session: Vom Script zum Agenten
+
+### Überblick
+
+Massive Session die geofrey fundamental transformiert hat. Von einem Prompt-Enrichment-Script zu einem autonomen Agenten mit 4-Layer Architektur, Guardian System, und proaktiver Intelligenz.
+
+### Was gebaut wurde
+
+**Architektur-Wandel: 3 Säulen → 4 Layer**
+- Layer 1 (Brain): LLM Intent Layer wiederhergestellt — Qwen3.5 versteht natürliche Sprache, nicht nur Keywords
+- Layer 2 (Enrichment): Personal Context ("## About the User") in JEDEM Prompt
+- Layer 3 (Execution): execute_spec() nutzt jetzt monitor_session() statt subprocess.run()
+- Layer 4 (Observation): Observer triagiert Output, Review stellt Prüffragen
+
+**Guardian Monitor (DEC-006):**
+- Erkennt wenn Claude strukturelle Änderungen vorschlägt
+- Prüft gegen aktive Decisions in Echtzeit
+- User kann korrigieren — Korrektur wird MIT Decision-Kontext an Claude gesendet
+- Entstand aus User-Feedback: "Claude ändert die Richtung, nicht ich"
+
+**10 Findings aus Agent-Diskussion:**
+1. Guardian/Observer/Review im Interactive Mode angebunden ✅
+2. Timing-Gap akzeptiert (DEC-007) ✅
+3. max_budget_usd entfernt, max_turns=200 ✅
+4. Orphaned RUNNING Tasks Recovery ✅
+5. Projekt-Erstellung (add-project mit Git + GitHub) ✅
+6. JSONL Zuordnung per Timestamp ✅
+7. Große Sessions Verarbeitungslimit — offen
+8. Decisions Akkumulation — offen
+9. Self-Protection — offen
+10. Post-Actions → Review Questions ✅
+
+**Weitere Features:**
+- Overnight Research Agent (Claude Code Sonnet für Web-Suche)
+- Konfigurierbare Interessen (config/interests.yaml, 6 Themen)
+- Proaktive Fragen-Queue (geofrey lernt den User kennen)
+- Erweitertes User-Profil (aus 1.999 Nachrichtenanalyse)
+- 50 Acceptance Tests + 100 Live LLM Tests
+- Safety Gate auf Original-Input (P0 Sicherheitslücke gefixt)
+- Few-Shot Examples + Temperature 0.3 für bessere LLM-Outputs
+
+### Bug-Fixes
+- "vulnerability" keyword matchte nicht "vulnerabilities" (Stem-Fix)
+- "pr" keyword false positive auf "prüfe", "problem", "process" (entfernt)
+- session-consolidate verlor Decision-Struktur (Format-Fix)
+- Observer war Dead Code (angebunden)
+- Task-Chaining nutzte Stub statt echten Output (gefixt)
+
+### Decisions angelegt
+- DEC-003: Learning Loop braucht LLM + Embeddings
+- DEC-004: 77 Claude Code Chunks sind Legacy
+- DEC-005: Intent Layer braucht LLM, nicht Keywords
+- DEC-006: geofrey ist Guardian der Projekt-Vision
+- DEC-007: Guardian Timing-Gap akzeptiert
+
+### Architektur-Erkenntnisse
+- "Python ist statisch, User-Bedürfnisse sind dynamisch" → Intent Layer war nötig
+- "Der Orchestrator wurde zu einem Keyword-Router reduziert" → genau das Problem das geofrey lösen soll
+- "Claude ändert die Richtung, nicht ich" → Guardian Monitor war nötig
+- 35% Korrekturen in 1.999 Nachrichten = User holt Claude zurück auf Kurs
+
+### Zahlen
+- 13.158 LOC, 284 Tests, 23 brain/ Module, 7 Decisions
+- 100 Live-Prompts: 90% korrekt, 0 Crashes
+- 50 Acceptance Tests: 50/50 PASS
+
+---
+
 ## 2026-03-28 — Offene Punkte abgearbeitet
 
 ### Erledigte Punkte

@@ -2,32 +2,36 @@
 
 > A system that knows the context can prompt better than the user.
 
-**Proof:** 17 characters of user input → 14,436 characters of enriched prompt. Deterministic, no LLM.
+**Proof:** 17 characters of user input → 3,100+ characters of enriched prompt with user profile, decisions, and Claude Code best practices.
 
-geofrey is an autonomous personal agent that runs locally on macOS. It is not a CLI wrapper or chatbot. geofrey knows the user, their projects, their DACH market context, and enriches every input with the right context automatically.
+geofrey is an autonomous personal agent that runs locally on macOS. It is not a CLI wrapper or chatbot. geofrey knows the user, their projects, their DACH market context, and actively supervises Claude Code sessions to prevent architectural drift.
 
-## Three Pillars
+## Four-Layer Architecture
 
 ```
-User Input → Prompt Enrichment Engine → Session Manager → Claude Code CLI
-                     ↓                         ↓
-              Knowledge Layer            Overnight Daemon
-              (ChromaDB, Learnings)      (Task Queue, Agents)
-                                               ↓
-                                         Morning Briefing
+User Input
+  → Layer 1: BRAIN (Qwen3.5-9B) — understand intent, write task brief
+  → Layer 2: ENRICHMENT (Python) — gather context, decisions, user profile
+  → Layer 3: EXECUTION (Claude Code) — monitored session with Guardian
+  → Layer 4: OBSERVATION (Qwen3.5) — triage output, extract learnings
+  → [Loop: learnings feed into next session's enrichment]
 ```
 
-### 1. Prompt Enrichment (deterministic, no LLM)
+### Layer 1: Brain (LLM Intent Understanding)
 
-User types `"fix the login bug"` — geofrey builds a structured prompt with git state, architecture docs, session learnings, DACH regulatory context, and task-specific rules. All Python, no LLM call.
+User types `"die Login-Seite geht nicht mehr"` — Qwen3.5 understands the intent, detects the project, writes a professional task brief with hypotheses and relevant files. Falls back to keyword routing if Ollama is unavailable.
 
-### 2. Session Automation (tmux + Claude Code)
+### Layer 2: Enrichment (Deterministic Python)
 
-Claude Code sessions are started in tmux, monitored, output captured, and learnings extracted via a Map-Reduce pipeline (Qwen3.5 via Ollama).
+Python gathers git state, architecture docs, user profile, active decisions, session learnings, and Claude Code best practices. Builds a structured prompt. No LLM needed.
 
-### 3. Overnight Agent (launchd daemon)
+### Layer 3: Execution (Guardian-Monitored Sessions)
 
-Tasks are queued during the day. At 02:00, the daemon processes them autonomously and generates a morning briefing.
+Claude Code sessions run in tmux with active supervision. The Guardian Monitor detects when Claude proposes changes that conflict with documented decisions and warns the user BEFORE they confirm.
+
+### Layer 4: Observation (Post-Session Intelligence)
+
+After completion: LLM triages the output (success/failure/follow-up), quality review questions are sent to Claude, and session learnings are extracted and indexed for future sessions.
 
 ## Decision Dependency System
 
