@@ -234,7 +234,24 @@ def _run_enrichment_flow(
         _console.print(f"  [dim]subtasks:[/dim]   {' → '.join(intent.subtasks)}")
     _console.print("  [dim]────────────────────────[/dim]")
 
-    # 2. Handle clarification — LLM detected ambiguity
+    # 2. Handle multi-step tasks — LLM decomposed into subtasks
+    if intent.subtasks and len(intent.subtasks) > 1:
+        # Resolve project first
+        project_name = intent.project
+        project_path = None
+        if project_name:
+            projects = load_projects()
+            project_info = projects.get(project_name)
+            if project_info:
+                project_path = project_info["path"]
+        if not project_name:
+            project_name, project_path = detect_project(user_input)
+        if project_path and project_name:
+            _run_subtask_chain(intent.subtasks, project_name, project_path, config, conversation_history)
+            return None, "", intent  # Chain handled execution internally
+        # Fall through to single-task flow if no project
+
+    # 3. Handle clarification — LLM detected ambiguity
     if intent.clarification:
         _console.print(f"\n  [yellow]geofrey:[/yellow] {intent.clarification}")
         try:
@@ -269,33 +286,20 @@ def _run_enrichment_flow(
     # 4. Get skill meta
     skill_meta = get_skill_meta(intent.task_type, config)
 
-    # 5. Enrich prompt (Python gathers all context deterministically)
-    enriched = enrich_prompt(user_input, project_name, project_path, intent.task_type, config)
+    # 5. Enrich prompt — use LLM task_brief instead of raw user input if available
+    task_input = intent.task_brief if intent.task_brief else user_input
+    enriched = enrich_prompt(task_input, project_name, project_path, intent.task_type, config)
 
-    # 6. If LLM suggested an approach, prepend it to the prompt
-    if intent.approach:
-        enriched_text = enriched.enriched_prompt.replace(
-            "## Task\n",
-            f"## Task\n",
-        )
-        # Add approach after task section
-        if intent.approach not in enriched.enriched_prompt:
-            enriched_text = enriched.enriched_prompt.replace(
-                f"## Task\n{user_input}",
-                f"## Task\n{user_input}\n\nApproach: {intent.approach}",
-            )
-            enriched = enriched._replace(enriched_prompt=enriched_text) if hasattr(enriched, '_replace') else enriched
-
-    # 7. Resolve model
+    # 6. Resolve model
     model = resolve_model(skill_meta.model_category, config)
 
-    # 8. Show enrichment summary
+    # 7. Show enrichment summary
     _show_enrichment_summary(
         user_input, intent.task_type, skill_meta, model,
         enriched.enriched_prompt, enriched.context,
     )
 
-    # 9. Build CommandSpec
+    # 8. Build CommandSpec
     spec = CommandSpec(
         prompt=enriched.enriched_prompt,
         project_path=project_path,
@@ -306,6 +310,58 @@ def _run_enrichment_flow(
     )
 
     return spec, enriched.enriched_prompt, intent
+
+
+def _run_subtask_chain(
+    subtasks: list[str],
+    project_name: str,
+    project_path: str,
+    config: dict,
+    conversation_history: list[str] | None = None,
+) -> None:
+    """Execute subtasks sequentially, passing output forward.
+
+    Each subtask runs through the full enrichment pipeline. Output from
+    one step becomes context for the next.
+    """
+    from brain.session import run_session_sync
+    from brain.command import resolve_model
+
+    _console.print(f"\n  [yellow]Multi-step task: {len(subtasks)} subtasks[/yellow]")
+    previous_output = ""
+
+    for i, subtask in enumerate(subtasks, 1):
+        _console.print(f"\n  [yellow]─── Step {i}/{len(subtasks)}: {subtask[:60]} ───[/yellow]")
+
+        # Add previous output as context
+        task_input = subtask
+        if previous_output:
+            task_input += f"\n\nContext from previous step:\n{previous_output[:2000]}"
+
+        # Enrich and build
+        task_type = detect_task_type(task_input)
+        skill_meta = get_skill_meta(task_type, config)
+        enriched = enrich_prompt(task_input, project_name, project_path, task_type, config)
+        model = resolve_model(skill_meta.model_category, config)
+
+        _show_enrichment_summary(task_input, task_type, skill_meta, model,
+                                 enriched.enriched_prompt, enriched.context)
+
+        spec = CommandSpec(
+            prompt=enriched.enriched_prompt,
+            project_path=project_path,
+            model=model,
+            max_turns=skill_meta.max_turns,
+            max_budget_usd=skill_meta.max_budget_usd,
+            permission_mode=skill_meta.permission_mode,
+        )
+
+        if not execute_spec(spec):
+            _console.print(f"  [red]Step {i} skipped or failed. Stopping chain.[/red]")
+            break
+
+        # Capture output for next step
+        previous_output = f"Step {i} ({subtask}) completed."
 
 
 def interactive():
@@ -323,8 +379,10 @@ def interactive():
     print("  Type 'quit' to exit")
     print("=" * 50)
 
+    from brain.models import ConversationTurn
+
     config = _get_config()
-    conversation_history: list[str] = []
+    conversation: list[ConversationTurn] = []
 
     while True:
         try:
@@ -338,15 +396,30 @@ def interactive():
             print("  Bye!")
             break
 
-        conversation_history.append(f"User: {user_input}")
+        conversation.append(ConversationTurn(role="user", text=user_input))
 
-        spec, prompt_text, intent = _run_enrichment_flow(user_input, config, conversation_history)
+        # Build conversation history for intent layer
+        history = [
+            f"{'User' if t.role == 'user' else 'geofrey'}: {t.text}"
+            + (f" ({t.task_type}, project={t.project})" if t.task_type else "")
+            for t in conversation[-10:]
+        ]
+
+        spec, prompt_text, intent = _run_enrichment_flow(user_input, config, history)
         if spec is None:
+            if intent:
+                conversation.append(ConversationTurn(
+                    role="geofrey", text=intent.summary or user_input,
+                    project=intent.project, task_type=intent.task_type,
+                ))
             continue
 
         # Track intent for conversation context
         if intent:
-            conversation_history.append(f"geofrey: {intent.summary} ({intent.task_type})")
+            conversation.append(ConversationTurn(
+                role="geofrey", text=intent.summary or user_input,
+                project=intent.project, task_type=intent.task_type,
+            ))
 
         # Execute: two-phase or direct
         skill_meta = get_skill_meta(intent.task_type if intent else detect_task_type(user_input), config)

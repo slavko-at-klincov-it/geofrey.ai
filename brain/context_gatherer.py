@@ -153,6 +153,16 @@ def gather_decision_context(
     return format_decision_context([], conflicts)
 
 
+def gather_claude_code_context(user_input: str, task_type: str, config: dict) -> str:
+    """Retrieve relevant Claude Code best practices from knowledge base.
+
+    Queries the claude_code ChromaDB collection with the task description
+    to find relevant workflows, patterns, and tips.
+    """
+    query = f"{task_type} {user_input}"
+    return _query_chromadb(config, "claude_code", query, top_k=2)
+
+
 def gather_dach_context(config: dict) -> str:
     """Retrieve DACH personal context from ChromaDB.
 

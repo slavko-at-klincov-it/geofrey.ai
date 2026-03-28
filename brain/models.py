@@ -71,6 +71,7 @@ class ProjectContext:
     architecture: str = ""                    # Architecture doc if exists
     session_learnings: str = ""               # Recent learnings for this project
     decision_context: str = ""                # Formatted decision warnings for prompt
+    claude_code_context: str = ""             # Relevant Claude Code best practices
 
 
 @dataclass
@@ -144,6 +145,7 @@ class EnrichmentRule:
     include_dach_context: bool = False
     include_diff_scope: bool = True
     include_decision_context: bool = True     # Decisions always relevant
+    include_claude_code_context: bool = True  # Claude Code best practices
     post_actions: list[str] = field(default_factory=list)
     prompt_suffix: str = ""                   # Always appended to prompt
 
@@ -166,3 +168,15 @@ class Decision:
     enables: list[str] = field(default_factory=list)
     conflicts_with: list[str] = field(default_factory=list)
     supersedes: list[str] = field(default_factory=list)
+
+
+@dataclass
+class ConversationTurn:
+    """A single turn in geofrey's conversation with the user."""
+    role: str                                 # "user" | "geofrey"
+    text: str
+    project: str | None = None
+    task_type: str | None = None
+    result_summary: str | None = None
+    files_changed: list[str] = field(default_factory=list)
+    timestamp: datetime = field(default_factory=datetime.now)

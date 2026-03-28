@@ -7,6 +7,7 @@ include_session_learnings: true
 include_dach_context: false
 include_diff_scope: true
 include_decision_context: true
+include_claude_code_context: true
 post_actions:
   - "Run ALL tests after each change to ensure no regressions"
   - "Preserve existing behavior - no functional changes"

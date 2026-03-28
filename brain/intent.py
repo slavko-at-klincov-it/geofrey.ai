@@ -29,6 +29,7 @@ class Intent:
     subtasks: list[str] = field(default_factory=list)
     relevant_files: list[str] = field(default_factory=list)
     approach: str | None = None
+    task_brief: str = ""              # LLM-composed task description for Claude Code
     source: str = "llm"  # "llm" or "keyword-fallback"
 
 
@@ -129,6 +130,7 @@ def understand_intent(
             subtasks=parsed.get("subtasks", []),
             relevant_files=parsed.get("relevant_files", []),
             approach=parsed.get("approach"),
+            task_brief=parsed.get("task_brief", ""),
             source="llm",
         )
 

@@ -8,7 +8,7 @@ from pathlib import Path
 
 import yaml
 
-from brain.context_gatherer import gather_dach_context, gather_decision_context, gather_project_context
+from brain.context_gatherer import gather_claude_code_context, gather_dach_context, gather_decision_context, gather_project_context
 from brain.models import EnrichedPrompt, EnrichmentRule, ProjectContext
 
 
@@ -136,6 +136,7 @@ def _parse_rule_yaml(data: dict) -> EnrichmentRule:
         include_dach_context=data.get("include_dach_context", False),
         include_diff_scope=data.get("include_diff_scope", True),
         include_decision_context=data.get("include_decision_context", True),
+        include_claude_code_context=data.get("include_claude_code_context", True),
         post_actions=data.get("post_actions", []),
         prompt_suffix=data.get("prompt_suffix", ""),
     )
@@ -223,6 +224,10 @@ def _build_enriched_prompt(
     if rule.include_decision_context and context.decision_context:
         sections.append("## Active Decisions\n" + context.decision_context)
 
+    # Claude Code best practices
+    if rule.include_claude_code_context and context.claude_code_context:
+        sections.append("## Claude Code Best Practices\n" + context.claude_code_context)
+
     # DACH context
     if rule.include_dach_context and dach_context:
         sections.append("## DACH Context\n" + dach_context)
@@ -270,6 +275,10 @@ def enrich_prompt(
         context.decision_context = gather_decision_context(
             project_path, project_name, user_input, config
         )
+
+    # Gather Claude Code best practices
+    if rule.include_claude_code_context:
+        context.claude_code_context = gather_claude_code_context(user_input, task_type, config)
 
     # Gather DACH context if needed
     dach_context = ""

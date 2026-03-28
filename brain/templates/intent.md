@@ -21,6 +21,7 @@ Analyze the user's input and respond with ONLY this JSON (no other text):
   "task_type": "one of the types above",
   "project": "project name or null if unclear",
   "summary": "1-sentence summary of what the user wants",
+  "task_brief": "2-3 sentence detailed description of what Claude Code should do. Include: what to investigate, likely root causes, specific files to check, acceptance criteria. This replaces the user's raw input as the task description for Claude Code.",
   "clarification": "question to ask the user if intent is ambiguous, or null",
   "subtasks": ["list of subtasks if this is a multi-step request, or empty"],
   "relevant_files": ["files the user mentioned or that are likely relevant, or empty"],
