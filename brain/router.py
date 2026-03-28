@@ -21,7 +21,7 @@ TASK_KEYWORDS: dict[str, list[str]] = {
         "hinzufüg", "neu", "develop", "make",
     ],
     "review": [
-        "review", "check", "pr", "pull request", "code quality", "prüf",
+        "review", "check", "pull request", "code quality", "prüf",
         "überprüf", "anschau", "bewert",
     ],
     "research": [
