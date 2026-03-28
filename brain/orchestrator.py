@@ -22,11 +22,15 @@ from pathlib import Path
 
 import yaml
 
+from rich.console import Console
+
 from knowledge.store import load_config
 from brain.enricher import enrich_prompt
-from brain.router import detect_task_type, get_skill_meta
+from brain.router import detect_task_type, get_skill_meta, TASK_KEYWORDS, _keyword_matches
 from brain.command import CommandSpec, build_command, resolve_model, project_has_code
 from brain.gates import validate_prompt, format_gate_results, has_blockers
+
+_console = Console()
 
 
 def _get_config(config: dict | None = None) -> dict:
@@ -42,6 +46,51 @@ def load_projects() -> dict:
     with open(projects_file, encoding="utf-8") as f:
         data = yaml.safe_load(f)
     return data.get("projects", {})
+
+
+def _show_enrichment_summary(
+    user_input: str,
+    task_type: str,
+    skill_meta,
+    model: str,
+    enriched_prompt: str,
+    context,
+) -> None:
+    """Show a compact, dim summary of what geofrey enriched.
+
+    Displayed like thinking mode — transparent but not blocking.
+    """
+    # Matched keywords
+    input_lower = user_input.lower()
+    matched_kws = []
+    for kw in TASK_KEYWORDS.get(task_type, []):
+        if _keyword_matches(kw, input_lower):
+            matched_kws.append(kw)
+
+    # Sections in the enriched prompt
+    sections = [line[3:] for line in enriched_prompt.split("\n") if line.startswith("## ")]
+
+    # Decision count
+    decision_lines = [l for l in enriched_prompt.split("\n") if l.strip().startswith("**DEC-")]
+    n_decisions = len(decision_lines)
+
+    # Build summary
+    _console.print()
+    _console.print("  [dim]─── geofrey enrichment ───[/dim]")
+    _console.print(f"  [dim]routing:[/dim]  {task_type} [dim](keywords: {', '.join(matched_kws) or 'none — default'})[/dim]")
+    _console.print(f"  [dim]model:[/dim]    {model} [dim]| budget: ${skill_meta.max_budget_usd:.0f} | turns: {skill_meta.max_turns} | perm: {skill_meta.permission_mode}[/dim]")
+
+    if skill_meta.needs_plan:
+        _console.print(f"  [dim]mode:[/dim]     [yellow]two-phase[/yellow] [dim](plan → approve → execute)[/dim]")
+
+    _console.print(f"  [dim]context:[/dim]  {', '.join(sections)}")
+
+    if n_decisions > 0:
+        _console.print(f"  [dim]decisions:[/dim] {n_decisions} active [dim](injected as warnings)[/dim]")
+
+    ratio = len(enriched_prompt) / max(len(user_input), 1)
+    _console.print(f"  [dim]prompt:[/dim]   {len(user_input)} → {len(enriched_prompt)} chars [dim](x{ratio:.0f})[/dim]")
+    _console.print("  [dim]──────────────────────────[/dim]")
 
 
 def detect_project(user_message: str) -> tuple[str | None, str | None]:
@@ -178,16 +227,16 @@ def _run_enrichment_flow(
     # 3. Enrich prompt (Python gathers all context, no LLM call)
     enriched = enrich_prompt(user_input, project_name, project_path, task_type, config)
 
-    # 4. Show preview
-    print(f"\n  Task type: {task_type}")
-    print(f"  Project:   {project_name} ({project_path})")
-    print(f"\n  Enriched prompt preview:")
-    print(f"  {enriched.enriched_prompt[:500]}")
-    if len(enriched.enriched_prompt) > 500:
-        print(f"  ... ({len(enriched.enriched_prompt)} chars total)")
-
-    # 5. Resolve model and build CommandSpec
+    # 4. Resolve model
     model = resolve_model(skill_meta.model_category, config)
+
+    # 5. Show enrichment summary (dim, non-blocking — like thinking mode)
+    _show_enrichment_summary(
+        user_input, task_type, skill_meta, model,
+        enriched.enriched_prompt, enriched.context,
+    )
+
+    # 6. Build CommandSpec
     spec = CommandSpec(
         prompt=enriched.enriched_prompt,
         project_path=project_path,
