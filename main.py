@@ -49,6 +49,28 @@ def main() -> None:
     learnings_parser.add_argument("project", nargs="?", help="Project name")
     learnings_parser.add_argument("--query", help="Search learnings via RAG")
 
+    # Decisions
+    dec_parser = subparsers.add_parser("decisions", help="Decision management")
+    dec_sub = dec_parser.add_subparsers(dest="dec_action")
+
+    dec_list = dec_sub.add_parser("list", help="List active decisions")
+    dec_list.add_argument("--project", help="Project name filter")
+
+    dec_check = dec_sub.add_parser("check", help="Check a task against active decisions")
+    dec_check.add_argument("task_desc", help="Task description to check")
+    dec_check.add_argument("--project", required=True, help="Project name")
+
+    dec_index = dec_sub.add_parser("index", help="Re-index decisions into ChromaDB")
+    dec_index.add_argument("--project", required=True, help="Project name")
+
+    # Projects
+    add_proj = subparsers.add_parser("add-project", help="Create and register a new project")
+    add_proj.add_argument("name", help="Project name (e.g. mobile-app)")
+    add_proj.add_argument("--stack", default="", help="Tech stack (e.g. Python, React)")
+    add_proj.add_argument("--description", default="", help="Short description")
+    add_proj.add_argument("--no-github", action="store_true", help="Skip GitHub repo creation")
+    add_proj.add_argument("--private", action="store_true", help="Make GitHub repo private (default: private)")
+
     # Skills
     subparsers.add_parser("skills", help="List available task routing skills")
 
@@ -72,6 +94,7 @@ def main() -> None:
     subparsers.add_parser("briefing", help="Show the morning briefing")
     subparsers.add_parser("overnight", help="Run the full overnight cycle")
     subparsers.add_parser("install-daemon", help="Print launchd plist for overnight daemon")
+    subparsers.add_parser("preflight", help="Run pre-flight checks for autonomous operation")
 
     # Web UI
     app_parser = subparsers.add_parser("app", help="Start the geofrey web UI")
@@ -186,6 +209,140 @@ def main() -> None:
         else:
             print(view_learnings(project=args.project, config=config))
 
+    elif args.command == "decisions":
+        from knowledge.decisions import load_decisions_from_files, index_decisions
+        from brain.decision_checker import check_decision_conflicts
+
+        if args.dec_action == "list":
+            decisions_base = __import__("pathlib").Path(config["paths"].get("decisions", "knowledge-base/decisions"))
+            if args.project:
+                projects = [args.project]
+            elif decisions_base.exists():
+                projects = [d.name for d in sorted(decisions_base.iterdir()) if d.is_dir()]
+            else:
+                projects = []
+
+            if not projects:
+                print("No decisions found.")
+            else:
+                for proj in projects:
+                    decs = load_decisions_from_files(proj, config)
+                    active = [d for d in decs if d.status == "active"]
+                    if not active:
+                        continue
+                    print(f"\n{proj} ({len(active)} active):")
+                    for d in active:
+                        print(f"  {d.id}  [{d.category:14s}]  {d.title}")
+                        if d.change_warning:
+                            print(f"         ⚠ {d.change_warning}")
+
+        elif args.dec_action == "check":
+            conflicts = check_decision_conflicts(args.task_desc, args.project, [], config)
+            if not conflicts:
+                print("No conflicts found.")
+            else:
+                print(f"{len(conflicts)} relevant decision(s):\n")
+                for c in conflicts:
+                    print(c)
+                    print()
+
+        elif args.dec_action == "index":
+            decs = load_decisions_from_files(args.project, config)
+            count = index_decisions(decs, config)
+            print(f"Indexed {count} decisions for {args.project}.")
+
+        else:
+            print("Usage: geofrey decisions {list|check|index}")
+
+    elif args.command == "add-project":
+        import os
+        import subprocess as _sp
+        from pathlib import Path as P
+        import yaml as _yaml
+
+        projects_file = P(__file__).parent / "config" / "projects.yaml"
+        with open(projects_file) as f:
+            data = _yaml.safe_load(f) or {}
+
+        projects = data.setdefault("projects", {})
+        if args.name in projects:
+            print(f"Project '{args.name}' already exists.")
+            sys.exit(1)
+
+        # Resolve workspace path from config
+        workspace = os.path.expanduser(config.get("workspace", "~/Code"))
+        project_path = P(workspace) / args.name
+        relative_path = f"~/Code/{args.name}"
+
+        # 1. Create directory
+        project_path.mkdir(parents=True, exist_ok=True)
+        print(f"  1. Created {project_path}")
+
+        # Helper to run commands and check results
+        def _run_step(step_num, description, cmd, **kwargs):
+            result = _sp.run(cmd, capture_output=True, text=True, cwd=project_path, **kwargs)
+            if result.returncode == 0:
+                print(f"  {step_num}. {description}")
+                return True
+            else:
+                error = result.stderr.strip() or result.stdout.strip()
+                print(f"  {step_num}. {description} — FAILED: {error}")
+                return False
+
+        # 2. Git init
+        _run_step(2, "git init", ["git", "init"])
+
+        # 3. CLAUDE.md
+        claude_md = project_path / "CLAUDE.md"
+        desc = args.description or f"{args.name} project"
+        stack = args.stack or "TBD"
+        claude_md.write_text(
+            f"# {args.name}\n\n{desc}\n\n## Tech Stack\n{stack}\n",
+            encoding="utf-8",
+        )
+        print(f"  3. CLAUDE.md created")
+
+        # 4. .gitignore
+        gitignore = project_path / ".gitignore"
+        if not gitignore.exists():
+            gitignore.write_text(
+                "__pycache__/\n*.pyc\n.venv/\n.env\n.DS_Store\nnode_modules/\n",
+                encoding="utf-8",
+            )
+        print(f"  4. .gitignore created")
+
+        # 5. Initial commit
+        _run_step("5a", "git add", ["git", "add", "."])
+        commit_ok = _run_step("5b", "Initial commit", [
+            "git", "-c", "user.name=geofrey", "-c", "user.email=geofrey@local",
+            "commit", "-m", "Initial commit — project scaffolded by geofrey",
+        ])
+
+        # 6. GitHub repo
+        if not args.no_github:
+            if not commit_ok:
+                print(f"  6. GitHub repo skipped (commit failed)")
+            else:
+                gh_ok = _run_step(6, "GitHub repo created", [
+                    "gh", "repo", "create", args.name, "--private",
+                    "--source", str(project_path), "--push",
+                ])
+                if not gh_ok:
+                    print(f"     Fix: gh auth login, then: gh repo create {args.name} --private --source {project_path} --push")
+        else:
+            print(f"  6. GitHub repo skipped (--no-github)")
+
+        # 7. Register in projects.yaml
+        projects[args.name] = {
+            "path": relative_path,
+            "stack": stack,
+            "description": desc,
+        }
+        with open(projects_file, "w") as f:
+            _yaml.dump(data, f, default_flow_style=False, allow_unicode=True)
+        print(f"  7. Registered in projects.yaml")
+        print(f"\n  ✓ Project '{args.name}' ready at {project_path}")
+
     elif args.command == "skills":
         from brain.router import list_skills
         print("Available skills (task routing):")
@@ -254,6 +411,13 @@ def main() -> None:
         application = create_app()
         print(f"  geofrey Web UI: http://{args.host}:{args.port}")
         uvicorn.run(application, host=args.host, port=args.port)
+
+    elif args.command == "preflight":
+        from brain.preflight import run_preflight, format_preflight
+        results = run_preflight(config)
+        print(format_preflight(results))
+        all_ok = all(ok for ok, _ in results.values())
+        sys.exit(0 if all_ok else 1)
 
     elif args.command == "embed":
         import subprocess

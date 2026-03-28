@@ -24,7 +24,8 @@ def init_db(db_path: str | None = None) -> str:
     db_path = db_path or DEFAULT_DB_PATH
     Path(db_path).parent.mkdir(parents=True, exist_ok=True)
 
-    conn = sqlite3.connect(db_path)
+    conn = sqlite3.connect(db_path, timeout=5.0)
+    conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("""
         CREATE TABLE IF NOT EXISTS tasks (
             id TEXT PRIMARY KEY,
@@ -43,6 +44,12 @@ def init_db(db_path: str | None = None) -> str:
             depends_on TEXT
         )
     """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS meta (
+            key TEXT PRIMARY KEY,
+            value TEXT
+        )
+    """)
     conn.commit()
     conn.close()
     return db_path
@@ -55,7 +62,7 @@ def _get_conn(db_path: str | None = None) -> sqlite3.Connection:
     """
     db_path = db_path or DEFAULT_DB_PATH
     init_db(db_path)
-    conn = sqlite3.connect(db_path)
+    conn = sqlite3.connect(db_path, timeout=5.0)
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -155,6 +162,45 @@ def get_task(task_id: str, db_path: str | None = None) -> Task | None:
     return _row_to_task(row)
 
 
+def recover_orphaned_tasks(max_running_minutes: int = 60, db_path: str | None = None) -> int:
+    """Mark tasks stuck in RUNNING for too long as FAILED.
+
+    If the daemon crashes while a task is RUNNING, the task stays
+    RUNNING forever. This function recovers those orphaned tasks
+    by marking them FAILED with an error message.
+
+    Called at the start of process_queue() to clean up before processing.
+
+    Returns number of tasks recovered.
+    """
+    conn = _get_conn(db_path)
+    rows = conn.execute(
+        "SELECT * FROM tasks WHERE status = ?",
+        (TaskStatus.RUNNING.value,),
+    ).fetchall()
+
+    recovered = 0
+    now = datetime.now()
+    for row in rows:
+        started = datetime.fromisoformat(row["started_at"]) if row["started_at"] else None
+        if started and (now - started).total_seconds() > max_running_minutes * 60:
+            conn.execute(
+                "UPDATE tasks SET status = ?, error = ?, completed_at = ? WHERE id = ?",
+                (
+                    TaskStatus.FAILED.value,
+                    f"Orphaned: stuck in RUNNING for >{max_running_minutes} minutes (daemon crash?)",
+                    now.isoformat(),
+                    row["id"],
+                ),
+            )
+            recovered += 1
+
+    if recovered:
+        conn.commit()
+    conn.close()
+    return recovered
+
+
 def get_pending_tasks(db_path: str | None = None, max_tasks: int | None = None) -> list[Task]:
     """Get all pending tasks, ordered by priority (highest first), then creation time."""
     conn = _get_conn(db_path)
@@ -221,12 +267,35 @@ def update_task(task_id: str, db_path: str | None = None, **kwargs) -> Task:
 
 
 def get_overnight_summary(db_path: str | None = None) -> dict:
-    """Get a summary of all tasks grouped by status.
+    """Get a summary of tasks since the last briefing.
+
+    Only includes tasks that were completed/failed/updated after the
+    last briefing timestamp. Pending/running tasks are always included.
 
     Returns a dict with counts and task lists per status category.
     """
     conn = _get_conn(db_path)
-    rows = conn.execute("SELECT * FROM tasks ORDER BY created_at DESC").fetchall()
+
+    # Get last briefing timestamp
+    meta_row = conn.execute(
+        "SELECT value FROM meta WHERE key = 'last_briefing_at'"
+    ).fetchone()
+    since = meta_row["value"] if meta_row else None
+
+    # Build query: filter completed/failed by timestamp, always show pending/running
+    if since:
+        rows = conn.execute(
+            """SELECT * FROM tasks WHERE
+               status IN ('pending', 'running')
+               OR (status IN ('done', 'failed', 'needs_input') AND completed_at > ?)
+               ORDER BY created_at DESC""",
+            (since,),
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            "SELECT * FROM tasks ORDER BY created_at DESC"
+        ).fetchall()
+
     conn.close()
 
     summary: dict = {
@@ -250,3 +319,15 @@ def get_overnight_summary(db_path: str | None = None) -> dict:
             summary[f"tasks_{status}"].append(task)
 
     return summary
+
+
+def mark_briefing_shown(db_path: str | None = None) -> None:
+    """Record that a briefing was shown, so next summary only shows new tasks."""
+    conn = _get_conn(db_path)
+    now = datetime.now().isoformat()
+    conn.execute(
+        "INSERT OR REPLACE INTO meta (key, value) VALUES ('last_briefing_at', ?)",
+        (now,),
+    )
+    conn.commit()
+    conn.close()

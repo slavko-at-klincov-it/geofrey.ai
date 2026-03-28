@@ -659,12 +659,192 @@ geofrey install-daemon              # launchd Plist generieren
 
 ---
 
+## 2026-03-26 — Safety Hardening + Decision Dependency Research
+
+### Kontext
+
+Session begann mit dem Weitermachen an Router Keyword-Kollisionen (Commit 934c47f), eskalierte zu einem vollständigen Projekt-Review, und mündete in der Entdeckung des Decision Dependency Problems — einer fundamentalen Lücke in allen AI Coding Assistants.
+
+### Was gebaut wurde
+
+#### 1. Permission Model (session.py)
+**Commit:** (dieser Batch)
+**Warum:** `--dangerously-skip-permissions` war in ALLEN Sessions hardcoded. Das ist gefährlich für autonome Overnight-Execution wo niemand reviewt. SkillMeta hatte bereits `permission_mode` pro Task-Typ, aber es wurde nie an session.py durchgereicht.
+**Was:** `_build_claude_cmd()` zentralisiert Command-Bau mit 3 Modi: `skip` (autonomous), `default` (user approves), `plan` (read-only). Daemon übergibt `permission_mode` aus SkillMeta → agent_config → BaseAgent → session.
+**Betrifft:** brain/session.py, brain/agents/base.py, brain/daemon.py
+
+#### 2. Safety Konsolidierung (gates.py, safety.py gelöscht)
+**Commit:** (dieser Batch)
+**Warum:** Drei disconnected Safety-Systeme existierten: safety.py (RAG-Chunks, nie in Enricher integriert), gates.py (nur [WARN], nie [BLOCK]), Claude Code's eigene Safety. Keines war mit dem anderen verbunden. safety.py's `get_safety_context()` wurde nur in der orphaned `retrieve_context()` aufgerufen.
+**Was:** safety.py gelöscht. gates.py mit Regex-basierten [BLOCK] Patterns erweitert (rm -rf /, drop database, force push main/master). `has_blockers()` funktioniert jetzt tatsächlich.
+**Betrifft:** brain/gates.py (rewritten), brain/safety.py (deleted), brain/orchestrator.py (imports cleaned)
+
+#### 3. Dead Code Cleanup
+**Commit:** (dieser Batch)
+**Warum:** Projekt-Review identifizierte orphaned Code: `retrieve_context()` (Legacy RAG, nicht im aktiven Flow), `get_projects_text()` (nirgends aufgerufen), `validate_command()` (deprecated), unused Model Fields.
+**Was entfernt:**
+- `orchestrator.retrieve_context()` — ersetzt durch Enricher Pipeline
+- `orchestrator.get_projects_text()` — nirgends verwendet
+- `gates.validate_command()` — deprecated, Command-Struktur von Python garantiert
+- `Session.output` + `Session.learnings_extracted` — nie populated
+- `ProjectContext.known_issues` — nie populated
+- Imports: os, chromadb, ollama aus orchestrator.py (nur für gelöschte Funktionen)
+
+#### 4. Briefing Memory
+**Commit:** (dieser Batch)
+**Warum:** `get_overnight_summary()` gab ALLE completed Tasks zurück, nicht nur seit dem letzten Briefing. Das Morning Briefing zeigte immer die gleichen Tasks.
+**Was:** `meta` Tabelle in SQLite für `last_briefing_at` Timestamp. `get_overnight_summary()` filtert jetzt auf Tasks nach dem letzten Briefing. `show_briefing()` ruft `mark_briefing_shown()` auf.
+**Betrifft:** brain/queue.py, brain/briefing.py
+
+#### 5. Decision Dependency System — Research & Plugin
+**Warum:** Beim Projekt-Review fiel auf: Claude Code weiß nicht WARUM Code so ist wie er ist. Sieht State, nicht Intent. Führt zu Loops wo bewusste Entscheidungen rückgängig gemacht werden. Keine Lösung existiert — nicht in Claude Code, nicht in Cursor, Copilot, Aider.
+**Was gebaut:**
+- `docs/decision-dependency-system.md` — Vollständige Research: Problem, Stand der Technik (5 Papers, 8 Tools), Architektur-Entwurf, Quellen
+- `~/Code/decision-guard/` — Separates Projekt: Claude Code Plugin mit 4 Skills + 4 Hooks. Zero Dependencies, pure Shell+Markdown. Getestet (10/10 Tests bestanden).
+**Was kommt als nächstes:** Volle Python-Implementierung direkt in geofrey's Enricher (Plan liegt unter .claude/plans/). ChromaDB Semantic Search, Dependency Graph Walker, automatische Extraction aus Sessions.
+
+### Tests
+
+167 Tests → alle bestanden nach den Änderungen. 11 neue Tests:
+- 4 TestGatesExtended: [BLOCK] vs [WARN] Pattern Validation
+- 4 TestSessionPermissions: permission_mode in _build_claude_cmd() und run_session_sync()
+- 3 TestBriefingMemory: mark_briefing_shown(), Filter by Last Briefing, No Briefing Shows All
+
+### Architektur-Entscheidungen
+
+| Entscheidung | Warum | Betrifft |
+|---|---|---|
+| safety.py gelöscht, gates.py ist Single Source of Truth | 3 disconnected Systeme, safety.py war nie integriert | Wer Safety ändern will → nur gates.py |
+| Permission Mode per Skill statt global --dangerously-skip-permissions | Overnight Security Tasks sollten nicht alles überspringen | session.py, daemon.py, agents/base.py |
+| Briefing Memory in SQLite meta Tabelle | Kein neues Storage-System, meta Tabelle existierte bereits | queue.py, briefing.py |
+| Decision Dependency als Python-Code in geofrey, nicht als Plugin | geofrey sitzt VOR dem LLM → 100% deterministische Injection, ChromaDB Semantic Search, automatische Extraction | Enricher Pipeline, neue Dateien |
+
+---
+
+## 2026-03-27 — Decision Dependency System Implementation + Projekt-Audit
+
+### Kontext
+
+Volle Implementierung des Decision Dependency Systems (6 Schritte, 6 Commits) + Remote-Control für Claude App Visibility + Dokumentation (README, CLAUDE.md, Architecture Update) + vollständige Projektanalyse.
+
+### Was gebaut wurde
+
+#### 1. Decision Dependency System — 6 Commits
+
+| Schritt | Commit | Was |
+|---------|--------|-----|
+| 1 | `66f9aab` | Decision Dataclass in models.py, ProjectContext.decision_context, EnrichmentRule.include_decision_context |
+| 2 | `633b6b6` | `knowledge/decisions.py` — Load, Index, Query (semantic), Scope-Matching, Dependency Walker |
+| 3 | `1d9c4c6` | `brain/decision_checker.py` — 3-Level Conflict Detection (Scope, Keyword, Semantic) |
+| 4 | `11861ab` | Enricher Integration — gather_decision_context(), "## Active Decisions" Section, 7 YAML Rules |
+| 5 | `e2a9492` | Session Intelligence erweitert — structured Decision Extraction, auto-save als Markdown |
+| 6 | `a8dc28f` | Config, CLI Commands (decisions list/check/index), 30 Tests (alle grün) |
+
+**Architektur-Kern:** Decisions als Markdown+YAML Frontmatter (Source of Truth) + ChromaDB als semantischer Index. Drei Matching-Level: Scope-Overlap → Keyword → ChromaDB Embedding Similarity. Python Graph Traversal für Dependency Chains (depends_on, enables). Alles deterministisch, kein LLM im kritischen Pfad.
+
+#### 2. Remote-Control für Claude App
+**Commit:** `a8734bb`
+**Warum:** Jede geofrey-Session soll in der Claude App sichtbar und interagierbar sein.
+**Was:** Sessions starten jetzt interaktiv (kein `-p` Flag), `/remote-control` wird via tmux send-keys gesendet, Prompt via tmux load-buffer/paste-buffer (handelt 14K+ Zeichen).
+**Betrifft:** brain/session.py
+
+#### 3. Dokumentation — Repo Prod-Ready
+**Commit:** `d066961`
+- **README.md** erstellt — Englisch, Decision Dependency System als Kernfeature, Quick Start, CLI, Tech Stack
+- **CLAUDE.md** aktualisiert — decision_checker.py, decisions.py, decisions Collection, CLI Commands
+- **docs/architecture.md** aktualisiert — Decision System Section mit Flow-Diagramm, Architektur-Tabelle, Format, Lifecycle
+- **Seed Decisions** — DEC-001 (Safety Consolidation) + DEC-002 (Permission Model) in knowledge-base/decisions/geofrey/
+
+### Vollständige Projektanalyse — Phase 1 Bewertung
+
+#### Zielvorgabe vs. Realität
+
+| Phase | Status | Bewertung |
+|-------|--------|-----------|
+| Phase 1: Core (Terminal) | **95% fertig** | Nur Gemini API deferred (manuell reicht) |
+| Phase 2: Native UI | 0% | Nicht gestartet |
+| Phase 3: Proaktive Intelligenz | 0% | Nicht gestartet |
+| Phase 4: Extensions | 0% | Nicht gestartet |
+
+#### Ideologie: "Python-First, kein LLM im kritischen Pfad"
+
+**Eingehalten.** LLM wird nur an 3 Stellen im Produktionscode verwendet:
+1. `intelligence.py` — Session Learnings extrahieren (Post-Processing, nicht kritischer Pfad)
+2. `linkedin.py` — Content-Generierung (by Design)
+3. `ollama.embed` — Vektor-Encoding für ChromaDB (kein Reasoning)
+
+Der gesamte Enrichment-Flow (Routing → Context → Decisions → Prompt → Safety → Command) ist 100% deterministischer Python-Code.
+
+#### Code-Zustand
+
+| Metrik | Ergebnis |
+|--------|----------|
+| Python-Module | 24 (16 brain/ + 8 knowledge/) — alle komplett |
+| Stubs / TODO / FIXME | 0 |
+| Dead Code | 0 |
+| CLI Commands | 23 — alle funktionsfähig |
+| ChromaDB Collections | 7 konfiguriert |
+| Enrichment Rules | 7 YAML + 7 Skill Templates |
+| Tests | 197 in 8 Dateien |
+| Docstrings (Module) | 100% |
+| Git Status | Clean, alles committed + pushed |
+
+#### Logik: Der Kreislauf ist geschlossen
+
+```
+User Input → detect_task_type() → enrich_prompt() → check_decisions()
+→ validate_prompt() → execute (frische Session) → post_process()
+→ extract_learnings() → index → nächste Session profitiert
+```
+
+Jede Session lernt. Jede neue Session bekommt Learnings + Decisions injiziert. Frische Session mit angereichertem Kontext > lange Session mit Context Drift.
+
+#### Offene Punkte
+
+| Thema | Priorität | Status |
+|-------|-----------|--------|
+| Test-Fixes (Import-Fehler, Mock-Setup) | Hoch | ✅ Erledigt (2026-03-28) |
+| E2E-Test mit echtem Live-Task | Hoch | Offen → siehe docs/TODO.md |
+| CLAUDE.md: safety.py Referenz entfernen | Quick Fix | ✅ War bereits bereinigt |
+| Gemini API (Bild-Generierung) | Niedrig | Bewusst deferred → siehe docs/TODO.md |
+| Phase 2: macOS SwiftUI UI | Mittel | Eigenständiges Projekt → siehe docs/TODO.md |
+
+### Architektur-Entscheidungen
+
+| Entscheidung | Warum |
+|---|---|
+| Decision System als Python-Code im Enricher | geofrey sitzt VOR dem LLM → 100% deterministische Injection, nicht 60-75% CLAUDE.md Compliance |
+| Markdown+YAML als Decision Format | Kompatibel mit decision-guard Plugin, maschinenlesbar, Source of Truth |
+| 3-Level Matching (Scope → Keyword → Semantic) | Scope ist präzise, Keywords sind schnell, Semantic fängt Edge Cases |
+| Sessions interaktiv starten für /remote-control | Jede Session in Claude App sichtbar und interagierbar |
+| Prompt via tmux load-buffer statt send-keys | Handelt 14K+ Zeichen zuverlässig |
+
+---
+
+## 2026-03-28 — Offene Punkte abgearbeitet
+
+### Erledigte Punkte
+
+| Punkt | Lösung |
+|-------|--------|
+| Test-Fixes (Import-Fehler, Mock-Setup) | decisions.py defensive config access + session test mock assertion → 197/197 pass |
+| CLAUDE.md: safety.py Referenz | War bereits bereinigt |
+| Knowledge Base Chunks reviewen | 33 redundante Chunks gelöscht (CLI-Flags, Permissions, Models, Env-Vars, Commands, System-Prompt). 110 → 77 Chunks. Python handled den Rest deterministisch. |
+| CLI_Maestro / knowledge-assistant | User-Entscheidung: Löschen. Alles ist in geofrey migriert. |
+
+### Offene Punkte
+
+| Punkt | Status |
+|-------|--------|
+| LinkedIn Daten-Export | User macht das separat |
+| E2E-Test mit echtem Live-Task | Nächste Session |
+| Phase 2: macOS SwiftUI UI | Eigenständiges Projekt, Zeitpunkt offen |
+
 ## Offene Fragen
 
-1. Sollen CLI_Maestro und knowledge-assistant als Archive bestehen bleiben oder gelöscht werden?
-2. Wann starten wir mit der nativen macOS UI?
-3. Mehr LinkedIn Posts: User muss LinkedIn Daten-Export machen
-4. Knowledge Base Chunks reviewen: CLI-Syntax Chunks können reduziert werden (Python handled das jetzt)
+### TODO: Selbstverbesserung + alle offenen Punkte
+
+Alle offenen Punkte zentral: [docs/TODO.md](TODO.md)
 
 ---
 

@@ -1,36 +1,37 @@
-"""geofrey brain — orchestrates prompt enrichment, command building, and session execution.
+"""geofrey brain — orchestrates intent understanding, enrichment, and execution.
 
-New architecture (Prompt Enrichment Engine):
+Architecture:
 
   1. User types input
-  2. detect_task_type() → task_type (keyword-based, deterministic)
+  2. LLM Intent Layer (Qwen3.5) → understand intent, detect project, resolve ambiguity
+     Falls back to keyword routing if Ollama unavailable.
   3. get_skill_meta() → skill defaults (model, budget, turns, plan mode)
-  4. detect_project() → project_name, project_path
-  5. enrich_prompt() → Python gathers context and builds a structured prompt
-     (replaces old LLM-based prompt generation entirely)
-  6. resolve_model() → select Claude Code model from config policy
-  7. Build CommandSpec with enriched prompt + skill defaults
-  8. Two-phase (plan → execute) or direct execution
+  4. enrich_prompt() → Python gathers context deterministically
+  5. resolve_model() → select Claude Code model from config policy
+  6. Build CommandSpec with enriched prompt + skill defaults
+  7. Two-phase (plan → execute) or direct execution
 
-Python handles ALL deterministic logic. No LLM call needed for prompt
-construction — the enricher gathers git state, architecture docs, session
-learnings, DACH context, and post-actions automatically based on task type.
+LLM handles DYNAMIC logic: intent understanding, ambiguity, follow-ups.
+Python handles DETERMINISTIC logic: context gathering, prompt building,
+CLI construction, safety gates, decision injection.
 """
 
-import os
 import subprocess
 from pathlib import Path
 
 import yaml
-import chromadb
-import ollama
+
+from rich.console import Console
 
 from knowledge.store import load_config
 from brain.enricher import enrich_prompt
-from brain.router import detect_task_type, get_skill_meta
-from brain.safety import get_safety_context, ALWAYS_INJECT
+from brain.models import EnrichedPrompt
+from brain.intent import understand_intent, Intent
+from brain.router import detect_task_type, get_skill_meta, TASK_KEYWORDS, _keyword_matches
 from brain.command import CommandSpec, build_command, resolve_model, project_has_code
 from brain.gates import validate_prompt, format_gate_results, has_blockers
+
+_console = Console()
 
 
 def _get_config(config: dict | None = None) -> dict:
@@ -48,76 +49,49 @@ def load_projects() -> dict:
     return data.get("projects", {})
 
 
-def get_projects_text() -> str:
-    """Format project registry as human-readable text for LLM context."""
-    projects = load_projects()
-    lines = [f"- {name}: {info['path']} ({info['stack']}) — {info['description']}"
-             for name, info in projects.items()]
-    return "\n".join(lines) if lines else "(No projects configured)"
+def _show_enrichment_summary(
+    user_input: str,
+    task_type: str,
+    skill_meta,
+    model: str,
+    enriched_prompt: str,
+    context,
+) -> None:
+    """Show a compact, dim summary of what geofrey enriched.
 
-
-def retrieve_context(query: str, top_k: int = 3, config: dict | None = None) -> str:
-    """Retrieve relevant knowledge chunks via RAG.
-
-    Note: This function is kept for external callers (e.g., LinkedIn flow).
-    The main orchestrator flow now uses the enricher pipeline instead.
+    Displayed like thinking mode — transparent but not blocking.
     """
-    config = _get_config(config)
-    db_path = str(Path(os.path.expanduser(config["paths"]["vectordb"])))
+    # Matched keywords
+    input_lower = user_input.lower()
+    matched_kws = []
+    for kw in TASK_KEYWORDS.get(task_type, []):
+        if _keyword_matches(kw, input_lower):
+            matched_kws.append(kw)
 
-    try:
-        client = chromadb.PersistentClient(path=db_path)
-        collection = client.get_collection("claude_code")
-    except ValueError:
-        return "(Knowledge base not initialized. Run: python main.py embed)"
+    # Sections in the enriched prompt
+    sections = [line[3:] for line in enriched_prompt.split("\n") if line.startswith("## ")]
 
-    # Query embedding
-    try:
-        response = ollama.embed(model=config["embedding"]["model"], input=query)
-        query_embedding = response["embeddings"][0]
-    except Exception as e:
-        return f"(Embedding failed: {e}. Is Ollama running?)"
+    # Decision count
+    decision_lines = [l for l in enriched_prompt.split("\n") if l.strip().startswith("**DEC-")]
+    n_decisions = len(decision_lines)
 
-    # Retrieve relevant chunks
-    results = collection.query(
-        query_embeddings=[query_embedding], n_results=top_k,
-        include=["documents", "metadatas", "distances"],
-    )
+    # Build summary
+    _console.print()
+    _console.print("  [dim]─── geofrey enrichment ───[/dim]")
+    _console.print(f"  [dim]routing:[/dim]  {task_type} [dim](keywords: {', '.join(matched_kws) or 'none — default'})[/dim]")
+    _console.print(f"  [dim]model:[/dim]    {model} [dim]| turns: {skill_meta.max_turns} | perm: {skill_meta.permission_mode}[/dim]")
 
-    # Always inject safety
-    safety_text = get_safety_context(client)
+    if skill_meta.needs_plan:
+        _console.print(f"  [dim]mode:[/dim]     [yellow]two-phase[/yellow] [dim](plan → approve → execute)[/dim]")
 
-    # Personal context (profile only — keeps it small for 9B)
-    personal_text = ""
-    try:
-        ctx_col = client.get_collection("context_personal")
-        profile = ctx_col.get(ids=["ctx_profile"], include=["documents"])
-        if profile["documents"]:
-            personal_text = profile["documents"][0]
-    except ValueError:
-        pass
+    _console.print(f"  [dim]context:[/dim]  {', '.join(sections)}")
 
-    # Combine
-    context_parts = []
-    if personal_text:
-        context_parts.append("=== PERSONAL CONTEXT ===")
-        context_parts.append(personal_text)
-    if safety_text:
-        context_parts.append("\n" + safety_text)
+    if n_decisions > 0:
+        _console.print(f"  [dim]decisions:[/dim] {n_decisions} active [dim](injected as warnings)[/dim]")
 
-    context_parts.append("\n=== RELEVANT KNOWLEDGE ===")
-    seen_ids = set(ALWAYS_INJECT)
-    for i in range(len(results["ids"][0])):
-        doc_id = results["ids"][0][i]
-        if doc_id not in seen_ids:
-            title = results["metadatas"][0][i].get("title", "")
-            content = results["documents"][0][i]
-            score = 1 - results["distances"][0][i]
-            context_parts.append(f"\n--- {title} (relevance: {score:.2f}) ---")
-            context_parts.append(content)
-            seen_ids.add(doc_id)
-
-    return "\n".join(context_parts)
+    ratio = len(enriched_prompt) / max(len(user_input), 1)
+    _console.print(f"  [dim]prompt:[/dim]   {len(user_input)} → {len(enriched_prompt)} chars [dim](x{ratio:.0f})[/dim]")
+    _console.print("  [dim]──────────────────────────[/dim]")
 
 
 def detect_project(user_message: str) -> tuple[str | None, str | None]:
@@ -133,34 +107,89 @@ def detect_project(user_message: str) -> tuple[str | None, str | None]:
     return None, None
 
 
-def execute_spec(spec: CommandSpec) -> bool:
-    """Validate, confirm, and execute a CommandSpec.
+def execute_spec(
+    spec: CommandSpec,
+    task_type: str = "code-fix",
+    task_summary: str = "",
+    project_name: str = "",
+    config: dict | None = None,
+    auto_confirm: bool = False,
+) -> str:
+    """Validate, confirm, execute via monitored session, observe, extract learnings.
 
-    Validates prompt content for safety, shows the assembled command,
-    asks for user confirmation, then executes.
+    Full execution lifecycle:
+    1. Show command + safety gates
+    2. User confirmation
+    3. start_session() → tmux with /remote-control
+    4. monitor_session() → guardian supervision + quality review
+    5. observe_output() → triage result
+    6. Return captured output (for conversation memory + chaining)
     """
+    from brain.session import start_session
+    from brain.monitor import monitor_session
+    from brain.observer import observe_output
+
     command = build_command(spec)
 
-    print(f"\n  Command to execute:")
-    print(f"  {command}")
+    _console.print(f"\n  [dim]Command:[/dim] {command[:120]}...")
 
     issues = validate_prompt(spec.prompt)
     if issues:
-        print(f"\n{format_gate_results(issues)}")
+        _console.print(f"\n{format_gate_results(issues)}")
         if has_blockers(issues):
-            print("\n  BLOCKED: Fix critical issues above before executing.")
-            return False
+            _console.print("\n  [red]BLOCKED: Fix critical issues above.[/red]")
+            return ""
 
-    confirm = input("\n  Execute? [y/N]: ").strip().lower()
-    if confirm == "y":
-        print("\n  Running...\n")
-        result = subprocess.run(["bash", "-c", command], shell=False)
-        return result.returncode == 0
-    print("  Skipped.")
-    return False
+    if not auto_confirm:
+        confirm = input("\n  Execute? [y/N]: ").strip().lower()
+        if confirm != "y":
+            print("  Skipped.")
+            return ""
+
+    _console.print("\n  [dim]Starting monitored session...[/dim]")
+
+    # Start tmux session with /remote-control
+    session = start_session(
+        project_path=spec.project_path,
+        prompt=spec.prompt,
+        model=spec.model,
+        max_turns=spec.max_turns,
+
+        permission_mode=spec.permission_mode,
+    )
+
+    from brain.models import SessionStatus
+    if session.status == SessionStatus.FAILED:
+        _console.print("  [red]Session failed to start.[/red]")
+        return ""
+
+    # Monitor with guardian supervision + quality review
+    output = monitor_session(
+        session_id=session.id,
+        task_type=task_type,
+        task_summary=task_summary or spec.prompt[:100],
+        project_name=project_name,
+        project_path=spec.project_path,
+        config=config or {},
+        auto_confirm=auto_confirm,
+    )
+
+    # Observe the result
+    if output:
+        observation = observe_output(output, task_summary or spec.prompt[:100], config or {})
+        _console.print(f"\n  [dim]─── observation ───[/dim]")
+        _console.print(f"  [dim]result:[/dim]  {'success' if observation.success else 'failed'}")
+        _console.print(f"  [dim]summary:[/dim] {observation.result_summary[:100]}")
+        if observation.files_changed:
+            _console.print(f"  [dim]files:[/dim]   {', '.join(observation.files_changed[:5])}")
+        if observation.follow_up_needed:
+            _console.print(f"  [dim]follow-up:[/dim] {observation.follow_up_task}")
+        _console.print(f"  [dim]──────────────────[/dim]")
+
+    return output or ""
 
 
-def run_two_phase(spec: CommandSpec, prompt_text: str) -> bool:
+def run_two_phase(spec: CommandSpec, prompt_text: str) -> str:
     """Run two-phase execution: plan first, then execute.
 
     Phase 1: Read-only analysis with --permission-mode plan
@@ -172,8 +201,7 @@ def run_two_phase(spec: CommandSpec, prompt_text: str) -> bool:
         prompt=f"Analyze the codebase and create a detailed implementation plan for the following task. Do NOT make any changes. Only read, analyze, and output a structured plan.\n\nTask: {prompt_text}",
         project_path=spec.project_path,
         model=spec.model,
-        max_turns=15,
-        max_budget_usd=2.0,
+        max_turns=50,
         permission_mode="plan",
     )
 
@@ -183,15 +211,20 @@ def run_two_phase(spec: CommandSpec, prompt_text: str) -> bool:
     confirm = input("\n  Start Plan-Phase? [y/N]: ").strip().lower()
     if confirm != "y":
         print("  Skipped.")
-        return False
+        return ""
 
     print("\n  Running Plan-Phase...\n")
-    plan_result = subprocess.run(
-        ["bash", "-c", plan_command],
-        shell=False,
-        capture_output=True,
-        text=True,
-    )
+    try:
+        plan_result = subprocess.run(
+            ["bash", "-c", plan_command],
+            shell=False,
+            capture_output=True,
+            text=True,
+            timeout=300,  # 5 min timeout for plan phase
+        )
+    except subprocess.TimeoutExpired:
+        print("  Plan-Phase timed out after 5 minutes.")
+        return ""
 
     plan_output = plan_result.stdout
     if plan_output:
@@ -205,13 +238,13 @@ def run_two_phase(spec: CommandSpec, prompt_text: str) -> bool:
         print(f"  Plan-Phase failed (exit code {plan_result.returncode})")
         if plan_result.stderr:
             print(f"  {plan_result.stderr[:500]}")
-        return False
+        return ""
 
     # Phase 2: Execute with plan context
     confirm = input("  Execute based on this plan? [y/N]: ").strip().lower()
     if confirm != "y":
         print("  Skipped.")
-        return False
+        return ""
 
     execute_prompt = prompt_text
     if plan_output:
@@ -222,80 +255,227 @@ def run_two_phase(spec: CommandSpec, prompt_text: str) -> bool:
         project_path=spec.project_path,
         model=spec.model,
         max_turns=spec.max_turns,
-        max_budget_usd=spec.max_budget_usd,
+
         permission_mode="default",
     )
 
-    return execute_spec(exec_spec)
+    return execute_spec(exec_spec, task_type="feature", task_summary=prompt_text[:100], project_name="")
 
 
 def _run_enrichment_flow(
     user_input: str,
     config: dict,
-) -> tuple[CommandSpec | None, str]:
+    conversation_history: list[str] | None = None,
+) -> tuple[CommandSpec | None, str, Intent | None]:
     """Core enrichment flow shared by interactive() and single_task().
 
-    Returns:
-        Tuple of (CommandSpec or None, enriched_prompt_text).
-        CommandSpec is None when no project was detected.
-    """
-    # 1. Route task
-    task_type = detect_task_type(user_input)
-    skill_meta = get_skill_meta(task_type, config)
+    Uses LLM Intent Layer (Qwen3.5) to understand what the user wants,
+    then Python enrichment to gather context deterministically.
 
-    # 2. Detect project
-    project_name, project_path = detect_project(user_input)
+    Returns:
+        Tuple of (CommandSpec or None, enriched_prompt_text, Intent or None).
+        CommandSpec is None when project not detected or clarification needed.
+    """
+    # 0. Safety check on ORIGINAL user input (before LLM can "clean" destructive intent)
+    raw_issues = validate_prompt(user_input)
+    if has_blockers(raw_issues):
+        _console.print(f"\n{format_gate_results(raw_issues)}")
+        _console.print("\n  [red]BLOCKED: Critical safety issue in input.[/red]")
+        return None, "", None
+    if raw_issues:
+        _console.print(f"\n{format_gate_results(raw_issues)}")
+
+    # 1. LLM Intent Understanding (falls back to keyword routing if Ollama unavailable)
+    intent = understand_intent(user_input, config, conversation_history)
+
+    # Show intent summary
+    _console.print()
+    _console.print("  [dim]─── geofrey intent ───[/dim]")
+    _console.print(f"  [dim]understood:[/dim] {intent.summary}")
+    _console.print(f"  [dim]type:[/dim]       {intent.task_type} [dim]({intent.source})[/dim]")
+    if intent.project:
+        _console.print(f"  [dim]project:[/dim]    {intent.project}")
+    if intent.approach:
+        _console.print(f"  [dim]approach:[/dim]   {intent.approach}")
+    if intent.relevant_files:
+        _console.print(f"  [dim]files:[/dim]      {', '.join(intent.relevant_files)}")
+    if intent.subtasks:
+        _console.print(f"  [dim]subtasks:[/dim]   {' → '.join(intent.subtasks)}")
+    _console.print("  [dim]────────────────────────[/dim]")
+
+    # 2. Handle multi-step tasks — LLM decomposed into subtasks
+    if intent.subtasks and len(intent.subtasks) > 1:
+        # Resolve project first
+        project_name = intent.project
+        project_path = None
+        if project_name:
+            projects = load_projects()
+            project_info = projects.get(project_name)
+            if project_info:
+                project_path = project_info["path"]
+        if not project_name:
+            project_name, project_path = detect_project(user_input)
+        if project_path and project_name:
+            _run_subtask_chain(intent.subtasks, project_name, project_path, config, conversation_history)
+            return None, "", intent  # Chain handled execution internally
+        # Fall through to single-task flow if no project
+
+    # 3. Handle clarification — LLM detected ambiguity
+    if intent.clarification:
+        _console.print(f"\n  [yellow]geofrey:[/yellow] {intent.clarification}")
+        try:
+            answer = input("  You: ").strip()
+        except (EOFError, KeyboardInterrupt):
+            return None, "", intent
+        if answer:
+            # Re-run with clarification as additional context
+            combined = f"{user_input} — {answer}"
+            return _run_enrichment_flow(combined, config, conversation_history)
+        return None, "", intent
+
+    # 3. Resolve project
+    project_name = intent.project
+    project_path = None
+
+    if project_name:
+        projects = load_projects()
+        project_info = projects.get(project_name)
+        if project_info:
+            project_path = project_info["path"]
+
+    if not project_name:
+        # Fallback: try string matching
+        project_name, project_path = detect_project(user_input)
 
     if not project_path or not project_name:
-        print(f"\n  Task type: {task_type}")
-        print("  (No project detected — specify a project name to generate a command)")
-        return None, ""
+        _console.print(f"\n  [dim]Task type: {intent.task_type}[/dim]")
+        _console.print("  [dim](No project detected — specify a project name)[/dim]")
+        return None, "", intent
 
-    # 3. Enrich prompt (Python gathers all context, no LLM call)
-    enriched = enrich_prompt(user_input, project_name, project_path, task_type, config)
+    # 4. Get skill meta
+    skill_meta = get_skill_meta(intent.task_type, config)
 
-    # 4. Show preview
-    print(f"\n  Task type: {task_type}")
-    print(f"  Project:   {project_name} ({project_path})")
-    print(f"\n  Enriched prompt preview:")
-    print(f"  {enriched.enriched_prompt[:500]}")
-    if len(enriched.enriched_prompt) > 500:
-        print(f"  ... ({len(enriched.enriched_prompt)} chars total)")
+    # 5. Enrich prompt — use LLM task_brief instead of raw user input if available
+    task_input = intent.task_brief if intent.task_brief else user_input
+    enriched = enrich_prompt(task_input, project_name, project_path, intent.task_type, config)
 
-    # 5. Resolve model and build CommandSpec
+    # 5b. Inject intent metadata (relevant_files, approach) into enriched prompt
+    meta_additions = []
+    if intent.relevant_files:
+        meta_additions.append(f"Focus on these files: {', '.join(intent.relevant_files)}")
+    if intent.approach and intent.approach not in enriched.enriched_prompt:
+        meta_additions.append(f"Approach: {intent.approach}")
+    if meta_additions:
+        enriched = EnrichedPrompt(
+            original_input=enriched.original_input,
+            enriched_prompt=enriched.enriched_prompt.replace(
+                "## Task\n", "## Task\n" + "\n".join(meta_additions) + "\n\n", 1
+            ),
+            context=enriched.context,
+            task_type=enriched.task_type,
+            post_actions=enriched.post_actions,
+        )
+
+    # 6. Resolve model
     model = resolve_model(skill_meta.model_category, config)
+
+    # 7. Show enrichment summary
+    _show_enrichment_summary(
+        user_input, intent.task_type, skill_meta, model,
+        enriched.enriched_prompt, enriched.context,
+    )
+
+    # 8. Build CommandSpec
     spec = CommandSpec(
         prompt=enriched.enriched_prompt,
         project_path=project_path,
         model=model,
         max_turns=skill_meta.max_turns,
-        max_budget_usd=skill_meta.max_budget_usd,
         permission_mode=skill_meta.permission_mode,
     )
 
-    return spec, enriched.enriched_prompt
+    return spec, enriched.enriched_prompt, intent
+
+
+def _run_subtask_chain(
+    subtasks: list[str],
+    project_name: str,
+    project_path: str,
+    config: dict,
+    conversation_history: list[str] | None = None,
+) -> None:
+    """Execute subtasks sequentially via execute_spec (Guardian + Observer + Review).
+
+    Each subtask goes through the full pipeline: enrichment → monitored execution.
+    Output from one step becomes context for the next. User confirmed the chain
+    at the start, so individual steps use auto_confirm=True.
+    """
+    _console.print(f"\n  [yellow]Multi-step task: {len(subtasks)} subtasks[/yellow]")
+    previous_output = ""
+
+    for i, subtask in enumerate(subtasks, 1):
+        _console.print(f"\n  [yellow]─── Step {i}/{len(subtasks)}: {subtask[:60]} ───[/yellow]")
+
+        # Add previous output as context
+        task_input = subtask
+        if previous_output:
+            task_input += f"\n\nContext from previous step:\n{previous_output[:2000]}"
+
+        # Enrich and build
+        task_type = detect_task_type(task_input)
+        skill_meta = get_skill_meta(task_type, config)
+        enriched = enrich_prompt(task_input, project_name, project_path, task_type, config)
+        model = resolve_model(skill_meta.model_category, config)
+
+        _show_enrichment_summary(task_input, task_type, skill_meta, model,
+                                 enriched.enriched_prompt, enriched.context)
+
+        spec = CommandSpec(
+            prompt=enriched.enriched_prompt,
+            project_path=project_path,
+            model=model,
+            max_turns=skill_meta.max_turns,
+            permission_mode=skill_meta.permission_mode,
+        )
+
+        # Execute with full Guardian/Observer/Review — auto_confirm since user approved the chain
+        output = execute_spec(
+            spec,
+            task_type=task_type,
+            task_summary=subtask[:100],
+            project_name=project_name,
+            config=config,
+            auto_confirm=True,
+        )
+
+        if not output:
+            _console.print(f"  [red]Step {i} produced no output. Stopping chain.[/red]")
+            break
+
+        # Pass real output to next step
+        previous_output = output[:2000]
+        _console.print(f"  [green]Step {i} completed ({len(output)} chars output)[/green]")
 
 
 def interactive():
-    """Run geofrey in interactive chat mode.
+    """Run geofrey in interactive chat mode with LLM intent understanding.
 
     Flow per iteration:
       1. User types input
-      2. detect_task_type → keyword routing
-      3. get_skill_meta → model/budget/turns/plan defaults
-      4. detect_project → project name + path
-      5. enrich_prompt → Python gathers context, builds structured prompt
-      6. Show enriched prompt preview (first 500 chars)
-      7. resolve_model → select Claude Code model
-      8. Build CommandSpec with enriched prompt + skill defaults
-      9. Two-phase or direct execution
+      2. LLM Intent Layer → understand intent, detect project, resolve ambiguity
+      3. Python Enrichment → gather context, build structured prompt
+      4. Show enrichment summary (transparent, like thinking mode)
+      5. Two-phase or direct execution
     """
     print("=" * 50)
     print("  geofrey — Personal AI Assistant")
     print("  Type 'quit' to exit")
     print("=" * 50)
 
+    from brain.models import ConversationTurn
+
     config = _get_config()
+    conversation: list[ConversationTurn] = []
 
     while True:
         try:
@@ -309,32 +489,68 @@ def interactive():
             print("  Bye!")
             break
 
-        print("\n  Processing...\n")
+        conversation.append(ConversationTurn(role="user", text=user_input))
 
-        spec, prompt_text = _run_enrichment_flow(user_input, config)
+        # Build conversation history for intent layer
+        history = [
+            f"{'User' if t.role == 'user' else 'geofrey'}: {t.text}"
+            + (f" ({t.task_type}, project={t.project})" if t.task_type else "")
+            for t in conversation[-10:]
+        ]
+
+        spec, prompt_text, intent = _run_enrichment_flow(user_input, config, history)
         if spec is None:
+            if intent:
+                conversation.append(ConversationTurn(
+                    role="geofrey", text=intent.summary or user_input,
+                    project=intent.project, task_type=intent.task_type,
+                ))
             continue
 
+        # Track intent for conversation context
+        if intent:
+            conversation.append(ConversationTurn(
+                role="geofrey", text=intent.summary or user_input,
+                project=intent.project, task_type=intent.task_type,
+            ))
+
         # Execute: two-phase or direct
-        skill_meta = get_skill_meta(detect_task_type(user_input), config)
+        skill_meta = get_skill_meta(intent.task_type if intent else detect_task_type(user_input), config)
+        project_name = intent.project if intent else ""
         if skill_meta.needs_plan and project_has_code(spec.project_path):
             run_two_phase(spec, prompt_text)
         else:
-            execute_spec(spec)
+            output = execute_spec(
+                spec,
+                task_type=intent.task_type if intent else "code-fix",
+                task_summary=intent.summary if intent else user_input,
+                project_name=project_name,
+                config=config,
+            )
+            # Update conversation with result
+            if output and intent:
+                conversation[-1].result_summary = output[:200]
 
 
 def single_task(task: str):
-    """Process a single task using the enrichment flow."""
+    """Process a single task using LLM intent + enrichment flow."""
     config = _get_config()
     print(f"  Task: {task}\n")
 
-    spec, prompt_text = _run_enrichment_flow(task, config)
+    spec, prompt_text, intent = _run_enrichment_flow(task, config)
     if spec is None:
         return
 
     # Execute: two-phase or direct
-    skill_meta = get_skill_meta(detect_task_type(task), config)
+    skill_meta = get_skill_meta(intent.task_type if intent else detect_task_type(task), config)
+    project_name = intent.project if intent else ""
     if skill_meta.needs_plan and project_has_code(spec.project_path):
         run_two_phase(spec, prompt_text)
     else:
-        execute_spec(spec)
+        execute_spec(
+            spec,
+            task_type=intent.task_type if intent else "code-fix",
+            task_summary=intent.summary if intent else task,
+            project_name=project_name,
+            config=config,
+        )

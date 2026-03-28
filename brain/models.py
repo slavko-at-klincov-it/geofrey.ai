@@ -70,7 +70,8 @@ class ProjectContext:
     claude_md: str = ""                       # Project's CLAUDE.md content
     architecture: str = ""                    # Architecture doc if exists
     session_learnings: str = ""               # Recent learnings for this project
-    known_issues: str = ""                    # Known bugs/problems
+    decision_context: str = ""                # Formatted decision warnings for prompt
+    claude_code_context: str = ""             # Relevant Claude Code best practices
 
 
 @dataclass
@@ -106,8 +107,6 @@ class Session:
     status: SessionStatus = SessionStatus.STARTING
     started_at: datetime = field(default_factory=datetime.now)
     completed_at: datetime | None = None
-    output: str = ""                          # Captured output
-    learnings_extracted: bool = False
 
 
 # --- Briefing Models ---
@@ -145,5 +144,39 @@ class EnrichmentRule:
     include_session_learnings: bool = True
     include_dach_context: bool = False
     include_diff_scope: bool = True
+    include_decision_context: bool = True     # Decisions always relevant
+    include_claude_code_context: bool = True  # Claude Code best practices
     post_actions: list[str] = field(default_factory=list)
     prompt_suffix: str = ""                   # Always appended to prompt
+
+
+@dataclass
+class Decision:
+    """A recorded architectural/design decision with dependencies."""
+    id: str
+    title: str
+    status: str = "active"                    # active | superseded | reverted | deprecated
+    date: str = ""
+    project: str = ""
+    category: str = "architecture"            # architecture | implementation | tooling | convention | security | design
+    description: str = ""
+    rationale: str = ""
+    change_warning: str = ""                  # Note to future Claude: what NOT to do
+    scope: list[str] = field(default_factory=list)
+    keywords: list[str] = field(default_factory=list)
+    depends_on: list[str] = field(default_factory=list)
+    enables: list[str] = field(default_factory=list)
+    conflicts_with: list[str] = field(default_factory=list)
+    supersedes: list[str] = field(default_factory=list)
+
+
+@dataclass
+class ConversationTurn:
+    """A single turn in geofrey's conversation with the user."""
+    role: str                                 # "user" | "geofrey"
+    text: str
+    project: str | None = None
+    task_type: str | None = None
+    result_summary: str | None = None
+    files_changed: list[str] = field(default_factory=list)
+    timestamp: datetime = field(default_factory=datetime.now)

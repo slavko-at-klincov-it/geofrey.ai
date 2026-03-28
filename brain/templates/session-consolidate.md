@@ -8,4 +8,6 @@ RAW LEARNINGS:
 
 Output clean JSON with same categories. Merge similar items, remove exact duplicates, keep specifics.
 
-{"decisions": ["..."], "bugs": ["..."], "discoveries": ["..."], "negative_knowledge": ["..."], "configuration": ["..."], "patterns": ["..."]}
+IMPORTANT: For "decisions", preserve the structured format with title, rationale, category, scope, keywords, and change_warning. Do NOT reduce decisions to simple strings.
+
+{"decisions": [{"title": "...", "rationale": "...", "category": "...", "scope": ["..."], "keywords": ["..."], "change_warning": "..."}], "bugs": ["..."], "discoveries": ["..."], "negative_knowledge": ["..."], "configuration": ["..."], "patterns": ["..."]}

@@ -6,6 +6,8 @@ include_architecture: false
 include_session_learnings: true
 include_dach_context: true
 include_diff_scope: false
+include_decision_context: true
+include_claude_code_context: true
 post_actions:
   - "Structure findings clearly with concrete examples"
   - "Save key findings for future reference"

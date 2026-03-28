@@ -6,6 +6,8 @@ include_architecture: false
 include_session_learnings: true
 include_dach_context: false
 include_diff_scope: true
+include_decision_context: true
+include_claude_code_context: true
 post_actions:
   - "Run existing tests to verify the fix"
   - "Document the root cause in a brief comment"

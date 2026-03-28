@@ -77,9 +77,10 @@ Task Queue (SQLite) → Daemon → Agents → Morning Briefing
 ```
 geofrey/
 ├── brain/                    # Agent-Logik (Drei Säulen)
-│   ├── models.py             # Shared Dataclasses: Task, Session, EnrichedPrompt, BriefingItem, EnrichmentRule
+│   ├── models.py             # Shared Dataclasses: Task, Session, EnrichedPrompt, BriefingItem, EnrichmentRule, Decision
 │   ├── enricher.py           # Prompt Enrichment Engine: Regeln laden, Kontext sammeln, Prompt bauen
-│   ├── context_gatherer.py   # Kontext sammeln: Git, CLAUDE.md, ChromaDB, Diff Scope
+│   ├── context_gatherer.py   # Kontext sammeln: Git, CLAUDE.md, ChromaDB, Diff Scope, Decisions
+│   ├── decision_checker.py   # Decision Conflict Detection (Scope, Keyword, Semantic)
 │   ├── session.py            # Session Manager: tmux starten/überwachen/capturen
 │   ├── queue.py              # Task Queue: SQLite-Backend, CRUD, Priority-Ordering
 │   ├── daemon.py             # Overnight Daemon: Queue abarbeiten, Briefing generieren, launchd
@@ -94,16 +95,17 @@ geofrey/
 │   │   ├── research.yaml
 │   │   ├── security.yaml
 │   │   └── doc-sync.yaml
-│   ├── orchestrator.py       # Legacy Orchestrator: chat(), single_task()
+│   ├── orchestrator.py       # Orchestrator: interactive(), single_task(), two-phase execution
 │   ├── command.py            # CommandSpec + build_command() — deterministischer Command-Bau
 │   ├── router.py             # Task-Type Detection + SkillMeta (7 Skills, DE+EN Keywords)
-│   ├── gates.py              # validate_prompt() — Secrets/Dangerous Pattern Check
+│   ├── gates.py              # validate_prompt() — [BLOCK] + [WARN] Pattern Check
+│   ├── preflight.py          # Pre-Flight Checks für autonomen Betrieb (Claude, tmux, Ollama)
 │   ├── scope.py              # Diff Scope Detection (git-Änderungen kategorisieren)
 │   ├── prompts.py            # Template-Loader (load_template, render_template)
-│   ├── safety.py             # Safety-Chunks, RAG-Injection
 │   ├── linkedin.py           # LinkedIn Post Pipeline
 │   ├── templates/            # LLM-System-Prompts als Markdown
 │   └── skills/               # Skill-Templates: leiten LLM beim Prompt-Schreiben an
+├── tests/                    # Unit + Integration + E2E + Acceptance Tests (~220 Tests, 9 Dateien)
 ├── knowledge/                # Knowledge Hub
 │   ├── hub.py                # Zentrale API (kein LangChain)
 │   ├── store.py              # ChromaDB Wrapper (multi-collection)
@@ -111,11 +113,13 @@ geofrey/
 │   ├── context.py            # DACH Personal Context Manager
 │   ├── linkedin.py           # LinkedIn Post Ingestion + Style Guide
 │   ├── sessions.py           # Claude Code Session Pipeline + Inbox
-│   └── intelligence.py       # Session Intelligence — Learnings aus Sessions extrahieren
+│   ├── intelligence.py       # Session Intelligence — Learnings aus Sessions extrahieren
+│   └── decisions.py          # Decision Storage + Retrieval + Dependency Walker
 ├── knowledge-base/           # RAG Knowledge Chunks (Markdown, Source of Truth)
-│   ├── claude-code/          # 110 Chunks über Claude Code
+│   ├── claude-code/          # 77 Chunks über Claude Code
 │   ├── context/              # DACH-Kontext Dateien (Profil, DSGVO, NIS2, etc.)
-│   └── sessions/             # Extrahierte Session-Learnings pro Projekt
+│   ├── sessions/             # Extrahierte Session-Learnings pro Projekt
+│   └── decisions/            # Decision Log pro Projekt (Markdown + YAML Frontmatter)
 ├── ui/                       # Native macOS App (SwiftUI) — Phase 2
 ├── config/
 │   ├── config.yaml           # Modelle, Pfade, Chunk-Settings, Skill-Defaults
@@ -127,9 +131,10 @@ geofrey/
 ├── data/
 │   └── linkedin/             # LinkedIn Posts (all_posts.md + neue)
 ├── docs/
-│   ├── architecture.md       # Technische Architektur (Drei Säulen)
-│   ├── project-journal.md    # Entwicklungs-Log
-│   └── vision.md             # Produkt-Vision und Roadmap
+│   ├── architecture.md                # Technische Architektur (Drei Säulen)
+│   ├── decision-dependency-system.md  # Research: Decision Dependency Problem + Lösung
+│   ├── project-journal.md             # Entwicklungs-Log
+│   └── vision.md                      # Produkt-Vision und Roadmap
 ├── main.py                   # CLI Entry Point (20 Commands)
 ├── requirements.txt
 └── CLAUDE.md                 # Diese Datei
@@ -160,6 +165,15 @@ geofrey learn                             # Session Learnings extrahieren
 geofrey learnings [project] [--query]     # Learnings anzeigen/suchen
 geofrey status                            # Collections + Chunks
 geofrey skills                            # Verfügbare Skills
+
+# Decisions
+geofrey decisions list [--project X]      # Aktive Decisions anzeigen
+geofrey decisions check "task" --project X  # Conflict Check
+geofrey decisions index --project X       # Re-Index in ChromaDB
+
+# Autonomous Operation
+geofrey preflight                         # Pre-Flight Checks
+geofrey install-daemon                    # launchd Plist generieren
 ```
 
 ## ChromaDB Collections
@@ -168,21 +182,24 @@ Alle in `~/.knowledge/vectordb/` (shared):
 
 | Collection | Inhalt | Update-Frequenz |
 |---|---|---|
-| `claude_code` | 110 Chunks Claude Code Expertenwissen | Täglich (Cron 03:00) |
+| `claude_code` | 77 Chunks Claude Code Expertenwissen | Täglich (Cron 03:00) |
 | `context_personal` | DACH-Kontext (Profil, DSGVO, NIS2, EU Data Boundary) | Manuell |
 | `knowledge` | Allgemeine Recherche-Ergebnisse | Nach jeder Session / Inbox |
 | `linkedin_style` | LinkedIn Posts als Stil-Referenz | Nach jedem bestätigten Post |
 | `sessions` | Claude Code Session-Summaries | Automatisch |
 | `session_learnings` | Extrahierte Learnings pro Projekt (Decisions, Bugs, Discoveries, etc.) | Nach `learn` Command |
+| `decisions` | Architektur-Entscheidungen mit Dependencies, Scope, Warnings | Nach `decisions index` oder `learn` |
 
 ## Safety — Non-Negotiable
 
-- Safety-Chunks werden IMMER via RAG in den LLM-Kontext injiziert
-- validate_prompt() prüft auf Secrets und Dangerous Patterns
+- **gates.py** validiert Prompts: `[BLOCK]` verhindert Ausführung (rm -rf /, drop database, force push main), `[WARN]` ist advisory
 - --cwd, --model, --max-budget-usd werden von Python garantiert (nicht vom LLM)
+- **Permission Model** (session.py): `skip` = --dangerously-skip-permissions (autonomous), `default` = User approves, `plan` = read-only
+- Daemon übergibt `permission_mode` aus SkillMeta an Agent → Session
 - User-Bestätigung vor Ausführung (interaktiv) oder Agent-Autonomie mit Budget-Limit (overnight)
 - Overnight Sessions nur in tmux (isoliert), mit Budget-Limit
 - Plan-Phase (read-only) vor Execution bei Feature/Refactor auf bestehenden Projekten
+- **Briefing Memory**: `mark_briefing_shown()` trackt letztes Briefing, Summary zeigt nur neue Tasks
 
 ## Code-Stil
 

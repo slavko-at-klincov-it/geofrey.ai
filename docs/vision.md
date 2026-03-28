@@ -121,7 +121,7 @@ User: "Schreib ein Angebot für Kunde X, Power Platform Beratung"
 - [x] Skill-Based Task Routing — 7 Skills (2026-03-25)
 - [x] Quality Gates (Pre-Execution Validierung) (2026-03-25)
 - [x] Diff Scope Detection (2026-03-25)
-- [x] Knowledge Base Expansion (97 → 110 Chunks) (2026-03-25)
+- [x] Knowledge Base Expansion (97 → 77 Chunks) (2026-03-25)
 - [x] Python-First Architecture — LLM nur für Prompt-Text (2026-03-25)
 - [x] Model-Policy — Opus für Code/Analysis, Sonnet für Content (2026-03-25)
 - [x] Zwei-Phasen Plan-Mode — Read-only vor Execution (2026-03-25)

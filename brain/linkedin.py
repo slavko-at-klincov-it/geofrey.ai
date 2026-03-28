@@ -103,12 +103,15 @@ def generate_post(topic: str, config: dict | None = None) -> str:
         {"role": "user", "content": prompt},
     ]
 
-    response = ollama.chat(
-        model=config["llm"]["model"],
-        messages=messages,
-        think=False,
-        options={"temperature": config.get("linkedin", {}).get("temperature", 0.7), "num_predict": 800},
-    )
+    try:
+        response = ollama.chat(
+            model=config["llm"]["model"],
+            messages=messages,
+            think=False,
+            options={"temperature": config.get("linkedin", {}).get("temperature", 0.7), "num_predict": 800},
+        )
+    except Exception as e:
+        raise RuntimeError(f"Ollama nicht erreichbar: {e}. Läuft 'ollama serve'?") from e
 
     return response["message"]["content"]
 

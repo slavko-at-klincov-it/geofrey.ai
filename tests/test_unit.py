@@ -29,7 +29,7 @@ class TestConfig:
         from knowledge.store import load_config
 
         config = load_config()
-        required_keys = {"llm", "embedding", "paths", "orchestrator", "linkedin", "chunking", "retrieval", "chat"}
+        required_keys = {"llm", "embedding", "paths", "chunking", "retrieval", "model_policy", "skill_defaults"}
         assert required_keys.issubset(config.keys()), f"Missing keys: {required_keys - config.keys()}"
 
     def test_config_paths_exist(self):
@@ -284,62 +284,29 @@ class TestSessions:
 # ---------------------------------------------------------------------------
 
 class TestPrompts:
-    def test_prompts_defined(self):
-        """Verify all prompt constants exist and are non-empty strings."""
-        from brain.prompts import (
-            CHAT_PROMPT,
-            IMAGE_PROMPT_TEMPLATE,
-            LINKEDIN_PROMPT,
-            ORCHESTRATOR_PROMPT,
-            SESSION_CONSOLIDATE_PROMPT,
-            SESSION_EXTRACT_PROMPT,
-        )
+    def test_load_template(self):
+        """Verify load_template() loads existing templates."""
+        from brain.prompts import load_template
+        for name in ["orchestrator", "chat", "linkedin", "image", "session-extract", "session-consolidate"]:
+            template = load_template(name)
+            assert isinstance(template, str), f"{name} template is not a string"
+            assert len(template.strip()) > 0, f"{name} template is empty"
 
-        for name, prompt in [
-            ("ORCHESTRATOR_PROMPT", ORCHESTRATOR_PROMPT),
-            ("CHAT_PROMPT", CHAT_PROMPT),
-            ("LINKEDIN_PROMPT", LINKEDIN_PROMPT),
-            ("IMAGE_PROMPT_TEMPLATE", IMAGE_PROMPT_TEMPLATE),
-            ("SESSION_EXTRACT_PROMPT", SESSION_EXTRACT_PROMPT),
-            ("SESSION_CONSOLIDATE_PROMPT", SESSION_CONSOLIDATE_PROMPT),
-        ]:
-            assert isinstance(prompt, str), f"{name} is not a string"
-            assert len(prompt.strip()) > 0, f"{name} is empty"
-
-    def test_prompt_placeholders(self):
-        """Verify ORCHESTRATOR_PROMPT contains required placeholders."""
-        from brain.prompts import ORCHESTRATOR_PROMPT
-
-        assert "{projects}" in ORCHESTRATOR_PROMPT
-        assert "{personal_context}" in ORCHESTRATOR_PROMPT
+    def test_render_template_substitution(self):
+        """Verify render_template() substitutes placeholders."""
+        from brain.prompts import render_template
+        result = render_template("session-extract", project_name="test", session_date="2026-01-01", chunk_text="hello")
+        assert "test" in result
+        assert "2026-01-01" in result
+        assert "hello" in result
 
     def test_session_extract_prompt_placeholders(self):
-        """Verify SESSION_EXTRACT_PROMPT contains required placeholders."""
-        from brain.prompts import SESSION_EXTRACT_PROMPT
-
-        assert "{project_name}" in SESSION_EXTRACT_PROMPT
-        assert "{session_date}" in SESSION_EXTRACT_PROMPT
-        assert "{chunk_text}" in SESSION_EXTRACT_PROMPT
-
-
-# ---------------------------------------------------------------------------
-# 6. Safety Tests
-# ---------------------------------------------------------------------------
-
-class TestSafety:
-    def test_always_inject_ids(self):
-        """Verify ALWAYS_INJECT contains expected chunk IDs."""
-        from brain.safety import ALWAYS_INJECT
-
-        assert isinstance(ALWAYS_INJECT, list)
-        assert len(ALWAYS_INJECT) > 0
-        expected_ids = [
-            "safety__safety-scope",
-            "safety__safety-secrets",
-            "safety__safety-patterns",
-        ]
-        for expected_id in expected_ids:
-            assert expected_id in ALWAYS_INJECT, f"Missing safety chunk: {expected_id}"
+        """Verify session-extract template contains required placeholders."""
+        from brain.prompts import load_template
+        template = load_template("session-extract")
+        assert "{{project_name}}" in template
+        assert "{{session_date}}" in template
+        assert "{{chunk_text}}" in template
 
 
 # ---------------------------------------------------------------------------

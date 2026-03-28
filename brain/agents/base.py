@@ -34,23 +34,36 @@ class BaseAgent:
         project_path = task.project_path or "."
         model = self.config.get("model", "opus")
         max_turns = self.config.get("max_turns", 50)
-        max_budget_usd = self.config.get("max_budget_usd", 10.0)
+        permission_mode = self.config.get("permission_mode", "skip")
 
         return run_session_sync(
             project_path=project_path,
             prompt=enriched_prompt.enriched_prompt,
             model=model,
             max_turns=max_turns,
-            max_budget_usd=max_budget_usd,
+            permission_mode=permission_mode,
         )
 
     def post_process(self, task: Task, output: str) -> None:
-        """Post-process task output: extract session learnings.
+        """Post-process task output: observe result + extract session learnings.
 
-        Finds the most recently modified JSONL session file for the
-        project and runs the intelligence extraction pipeline.
+        1. Observe: LLM triages output (success/failure/follow-up)
+        2. Learn: Extract session learnings from JSONL
         Fail-safe: errors are logged, never raised.
         """
+        # 1. Observe output
+        try:
+            from brain.observer import observe_output
+            observation = observe_output(output, task.description, self.config)
+            logger.info(
+                f"Task {task.id[:8]} observation: success={observation.success}, "
+                f"summary={observation.result_summary}, "
+                f"follow_up={observation.follow_up_needed}"
+            )
+        except Exception as e:
+            logger.warning(f"Observation failed for task {task.id[:8]}: {e}")
+
+        # 2. Extract session learnings
         if not task.project_path:
             return
 
@@ -74,7 +87,17 @@ class BaseAgent:
             if not jsonls:
                 return
 
+            # Find the JSONL that was modified AFTER this task started
+            # (prevents picking up a JSONL from a parallel session)
             latest = jsonls[0]
+            if task.started_at:
+                for jsonl in jsonls:
+                    file_mtime = jsonl.stat().st_mtime
+                    task_start = task.started_at.timestamp()
+                    if file_mtime >= task_start:
+                        latest = jsonl
+                        break
+                    # If no JSONL was modified after task start, use newest (fallback)
             project_name = task.project or project_path.name
 
             logger.info(f"Extracting learnings from session {latest.stem[:8]} for {project_name}")

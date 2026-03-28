@@ -13,6 +13,8 @@ chunking:
 retrieval:
   top_k: 5
 
+workspace: "~/Code"
+
 paths:
   vectordb: "~/.knowledge/vectordb"
   context: "knowledge-base/context"
@@ -20,28 +22,12 @@ paths:
   inbox: "~/knowledge/inbox"
   linkedin_posts: "data/linkedin/all_posts.md"
   session_learnings: "knowledge-base/sessions"
+  decisions: "knowledge-base/decisions"
   claude_projects: "~/.claude/projects"
 
-chat:
-  history_length: 5
-
-orchestrator:
-  max_history: 20
-  temperature: 0.3
-
-linkedin:
-  temperature: 0.7
-
-skills:
-  default: "code-fix"
-  enabled:
-    - code-fix
-    - feature
-    - review
-    - research
-    - security
-    - refactor
-    - doc-sync
+decision_system:
+  enabled: true
+  collection_name: "decisions"
 
 model_policy:
   code: "opus"
@@ -51,43 +37,36 @@ model_policy:
 skill_defaults:
   code-fix:
     model_category: "code"
-    max_budget_usd: 5.0
-    max_turns: 30
+    max_turns: 200
     permission_mode: "default"
     needs_plan: false
   feature:
     model_category: "code"
-    max_budget_usd: 10.0
-    max_turns: 50
+    max_turns: 200
     permission_mode: "default"
     needs_plan: true
   refactor:
     model_category: "code"
-    max_budget_usd: 10.0
-    max_turns: 50
+    max_turns: 200
     permission_mode: "default"
     needs_plan: true
   review:
     model_category: "analysis"
-    max_budget_usd: 2.0
-    max_turns: 15
+    max_turns: 200
     permission_mode: "plan"
     needs_plan: false
   research:
     model_category: "analysis"
-    max_budget_usd: 5.0
-    max_turns: 20
+    max_turns: 200
     permission_mode: "plan"
     needs_plan: false
   security:
     model_category: "analysis"
-    max_budget_usd: 5.0
-    max_turns: 20
+    max_turns: 200
     permission_mode: "plan"
     needs_plan: false
   doc-sync:
     model_category: "content"
-    max_budget_usd: 3.0
-    max_turns: 30
+    max_turns: 200
     permission_mode: "default"
     needs_plan: false
