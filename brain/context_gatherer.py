@@ -126,6 +126,43 @@ def gather_project_context(project_path: str, project_name: str, config: dict | 
     )
 
 
+def gather_decision_context(
+    project_path: str,
+    project_name: str,
+    user_input: str,
+    config: dict,
+) -> str:
+    """Gather relevant decisions for this task.
+
+    1. Get affected files from git diff
+    2. Check scope overlap, keyword overlap, semantic search
+    3. Walk dependency chains for matched decisions
+    4. Format as prompt section with warnings
+    """
+    from brain.decision_checker import check_decision_conflicts, format_decision_context
+
+    # Get affected files from git status
+    git_status = _run_git(["diff", "--name-only"], project_path)
+    staged = _run_git(["diff", "--cached", "--name-only"], project_path)
+    affected = [f for f in (git_status + "\n" + staged).splitlines() if f.strip()]
+
+    conflicts = check_decision_conflicts(user_input, project_name, affected, config)
+    if not conflicts:
+        return ""
+
+    return format_decision_context([], conflicts)
+
+
+def gather_claude_code_context(user_input: str, task_type: str, config: dict) -> str:
+    """Retrieve relevant Claude Code best practices from knowledge base.
+
+    Queries the claude_code ChromaDB collection with the task description
+    to find relevant workflows, patterns, and tips.
+    """
+    query = f"{task_type} {user_input}"
+    return _query_chromadb(config, "claude_code", query, top_k=2)
+
+
 def gather_dach_context(config: dict) -> str:
     """Retrieve DACH personal context from ChromaDB.
 

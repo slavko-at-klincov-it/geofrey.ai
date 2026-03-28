@@ -10,7 +10,7 @@ from datetime import datetime
 from pathlib import Path
 
 from brain.models import BriefingItem, MorningBriefing, TaskStatus
-from brain.queue import get_overnight_summary
+from brain.queue import get_overnight_summary, mark_briefing_shown
 from knowledge.store import load_config
 
 # Paths
@@ -232,7 +232,8 @@ def _item_to_dict(item: BriefingItem) -> dict:
 def show_briefing() -> None:
     """Load and print the latest morning briefing to the terminal.
 
-    If no briefing file exists, prints a helpful message.
+    Marks the briefing as shown so the next summary only includes
+    new tasks. If no briefing file exists, prints a helpful message.
     """
     if not BRIEFING_MD_PATH.exists():
         print("No briefing available. Run overnight processing first.")
@@ -240,3 +241,5 @@ def show_briefing() -> None:
 
     content = BRIEFING_MD_PATH.read_text(encoding="utf-8")
     print(content)
+
+    mark_briefing_shown()

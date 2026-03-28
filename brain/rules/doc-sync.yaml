@@ -6,6 +6,8 @@ include_architecture: true
 include_session_learnings: false
 include_dach_context: false
 include_diff_scope: true
+include_decision_context: true
+include_claude_code_context: true
 post_actions:
   - "NEVER delete documentation content — only update, add, or flag conflicts"
   - "Update project-journal.md if it exists"

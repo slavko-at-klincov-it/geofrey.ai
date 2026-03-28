@@ -8,7 +8,7 @@ from pathlib import Path
 
 import yaml
 
-from brain.context_gatherer import gather_dach_context, gather_project_context
+from brain.context_gatherer import gather_claude_code_context, gather_dach_context, gather_decision_context, gather_project_context
 from brain.models import EnrichedPrompt, EnrichmentRule, ProjectContext
 
 
@@ -135,6 +135,8 @@ def _parse_rule_yaml(data: dict) -> EnrichmentRule:
         include_session_learnings=data.get("include_session_learnings", True),
         include_dach_context=data.get("include_dach_context", False),
         include_diff_scope=data.get("include_diff_scope", True),
+        include_decision_context=data.get("include_decision_context", True),
+        include_claude_code_context=data.get("include_claude_code_context", True),
         post_actions=data.get("post_actions", []),
         prompt_suffix=data.get("prompt_suffix", ""),
     )
@@ -184,10 +186,6 @@ def _build_enriched_prompt(
     # Task section (always present)
     sections.append(f"## Task\n{user_input}")
 
-    # Prompt suffix from rule
-    if rule.prompt_suffix:
-        sections.append(f"{rule.prompt_suffix}")
-
     # Project context section
     project_parts: list[str] = []
     if rule.include_git_status and context.git_branch:
@@ -218,9 +216,21 @@ def _build_enriched_prompt(
             "## Known Context from Previous Sessions\n" + context.session_learnings
         )
 
+    # Decision context
+    if rule.include_decision_context and context.decision_context:
+        sections.append("## Active Decisions\n" + context.decision_context)
+
+    # Claude Code best practices
+    if rule.include_claude_code_context and context.claude_code_context:
+        sections.append("## Claude Code Best Practices\n" + context.claude_code_context)
+
     # DACH context
     if rule.include_dach_context and dach_context:
         sections.append("## DACH Context\n" + dach_context)
+
+    # Prompt suffix as final guidance (moved to end for better Claude Code performance)
+    if rule.prompt_suffix:
+        sections.append(f"## Approach\n{rule.prompt_suffix}")
 
     # Post-actions as requirements
     if rule.post_actions:
@@ -259,6 +269,16 @@ def enrich_prompt(
 
     # Gather project context (respects rule flags internally for ChromaDB queries)
     context = gather_project_context(project_path, project_name, config)
+
+    # Gather decision context if needed
+    if rule.include_decision_context:
+        context.decision_context = gather_decision_context(
+            project_path, project_name, user_input, config
+        )
+
+    # Gather Claude Code best practices
+    if rule.include_claude_code_context:
+        context.claude_code_context = gather_claude_code_context(user_input, task_type, config)
 
     # Gather DACH context if needed
     dach_context = ""

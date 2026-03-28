@@ -15,7 +15,7 @@ from brain.command import resolve_model
 from brain.enricher import enrich_prompt
 from brain.gates import has_blockers, validate_prompt
 from brain.models import TaskStatus
-from brain.queue import get_pending_tasks, update_task
+from brain.queue import get_pending_tasks, recover_orphaned_tasks, update_task
 from brain.router import detect_task_type, get_skill_meta
 from knowledge.store import load_config
 
@@ -58,6 +58,12 @@ def process_queue(config: dict | None = None, max_tasks: int = 10) -> list[dict]
     from brain.agents import run_agent
 
     config = config or load_config()
+
+    # Recover tasks stuck in RUNNING from previous crashes
+    recovered = recover_orphaned_tasks(max_running_minutes=60)
+    if recovered:
+        logger.info(f"Recovered {recovered} orphaned task(s) stuck in RUNNING state.")
+
     pending = get_pending_tasks(max_tasks=max_tasks)
     results: list[dict] = []
 
@@ -118,11 +124,11 @@ def process_queue(config: dict | None = None, max_tasks: int = 10) -> list[dict]
             if issues:
                 logger.warning(f"Task {task.id[:8]} safety warnings: {issues}")
 
-            # Run the agent with model/turns/budget via config
+            # Run the agent with model/turns/budget/permissions via config
             agent_config = dict(config)
             agent_config["model"] = model
             agent_config["max_turns"] = skill_meta.max_turns
-            agent_config["max_budget_usd"] = skill_meta.max_budget_usd
+            agent_config["permission_mode"] = skill_meta.permission_mode
 
             agent_result = run_agent(
                 task=task,
@@ -188,6 +194,22 @@ def run_overnight(config: dict | None = None) -> None:
     start_time = datetime.now()
     logger.info(f"=== Overnight run started at {start_time.strftime('%Y-%m-%d %H:%M:%S')} ===")
 
+    # Pre-flight checks
+    from brain.preflight import run_preflight, format_preflight
+    checks = run_preflight(config)
+    logger.info(format_preflight(checks))
+
+    if not checks["claude"][0]:
+        logger.error("ABORT: claude CLI not in PATH. Cannot execute tasks.")
+        return
+    if not checks["directories"][0]:
+        logger.error(f"ABORT: {checks['directories'][1]}")
+        return
+    if not checks["ollama_running"][0]:
+        logger.warning(f"Ollama not running — session intelligence will be skipped.")
+    if not checks["tmux"][0]:
+        logger.warning("tmux not found — sessions will use sync mode.")
+
     # Process the task queue
     results = process_queue(config=config)
 
@@ -217,11 +239,18 @@ def get_launchd_plist() -> str:
     Schedule: 02:00 every night
     The user installs this manually into ~/Library/LaunchAgents/.
 
+    Includes EnvironmentVariables so launchd has correct PATH (for claude,
+    ollama, git), HOME, and USER — without these, the daemon runs in a
+    minimal environment where most tools are not in PATH.
+
     Returns:
         The plist XML content as a string.
     """
+    import os as _os
     project_root = Path(__file__).parent.parent.resolve()
     log_path = KNOWLEDGE_DIR / "geofrey-overnight.log"
+    user = _os.environ.get("USER", "nobody")
+    home = str(Path.home())
 
     return f"""<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
@@ -230,6 +259,19 @@ def get_launchd_plist() -> str:
 <dict>
     <key>Label</key>
     <string>ai.geofrey.overnight</string>
+
+    <key>UserName</key>
+    <string>{user}</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <key>HOME</key>
+        <string>{home}</string>
+        <key>USER</key>
+        <string>{user}</string>
+    </dict>
 
     <key>ProgramArguments</key>
     <array>

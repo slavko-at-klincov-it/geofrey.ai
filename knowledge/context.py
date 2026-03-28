@@ -53,17 +53,5 @@ class ContextManager:
         console.print(f"[green]Ingested {total} context files into {COLLECTION_NAME}.[/green]")
         return total
 
-    def get_context_prefix(self) -> str:
-        """Load ALL personal context chunks as formatted block."""
-        result = self.store.collection.get(include=["documents", "metadatas"])
-        if not result["documents"]:
-            return ""
-        parts = ["=== PERSÖNLICHER KONTEXT (gilt immer) ==="]
-        for doc, meta in zip(result["documents"], result["metadatas"]):
-            ctx_type = meta.get("context_type", "unknown")
-            parts.append(f"\n--- {ctx_type} ---")
-            parts.append(doc)
-        return "\n".join(parts)
-
     def count(self) -> int:
         return self.store.count()

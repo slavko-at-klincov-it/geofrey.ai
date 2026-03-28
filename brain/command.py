@@ -20,8 +20,7 @@ class CommandSpec:
     prompt: str
     project_path: str
     model: str = "opus"
-    max_turns: int = 30
-    max_budget_usd: float = 5.0
+    max_turns: int = 200
     permission_mode: str = "default"
 
 
@@ -36,7 +35,6 @@ def build_command(spec: CommandSpec) -> str:
         "--cwd", shlex.quote(str(Path(spec.project_path).expanduser())),
         "--model", spec.model,
         "--max-turns", str(spec.max_turns),
-        "--max-budget-usd", f"{spec.max_budget_usd:.2f}",
     ]
     if spec.permission_mode != "default":
         parts.extend(["--permission-mode", spec.permission_mode])
