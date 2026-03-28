@@ -239,7 +239,8 @@ def create_app() -> FastAPI:
                     from knowledge.hub import KnowledgeHub
                     def _context():
                         hub = KnowledgeHub()
-                        profile = hub.get_profile_context()
+                        profile_results = hub.query(message, collections=["context_personal"], top_k=3)
+                        profile = "\n\n".join(r["text"][:300] for r in profile_results) if profile_results else ""
                         rag = hub.query(message, collections=["knowledge", "claude_code"], top_k=3)
                         rag_text = "\n\n".join(r["text"][:300] for r in rag) if rag else ""
                         return profile, rag_text
