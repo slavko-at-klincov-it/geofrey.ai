@@ -1,34 +1,26 @@
-# geofrey — Known Projects Registry
-# geofrey uses this to scope Claude Code sessions and enrich prompts.
-
 projects:
-  geofrey:
-    path: "~/Code/geofrey"
-    stack: "Python, Qwen3.5-9B, ChromaDB"
-    description: "Personal AI Agent — Prompt Enrichment, Session Automation, Overnight Agent"
-
-  meus:
-    path: "~/Code/meus"
-    stack: "React Native, Expo, TypeScript"
-    description: "Core project — mobile/desktop app"
-
   aibuchhalter:
-    path: "~/Code/AIBuchhalter"
-    stack: "Python"
-    description: "Accounting app, needs invoices/offers feature"
-
+    description: Accounting app, needs invoices/offers feature
+    path: ~/Code/AIBuchhalter
+    stack: Python
   crm:
-    path: "~/Code/CRM"
-    stack: "TBD"
-    description: "CRM — not started yet"
-
+    description: CRM — not started yet
+    path: ~/Code/CRM
+    stack: TBD
+  geofrey:
+    description: Personal AI Agent — Prompt Enrichment, Session Automation, Overnight
+      Agent
+    path: ~/Code/geofrey
+    stack: Python, Qwen3.5-9B, ChromaDB
   klincovit-website:
-    path: "~/Code/klincovit-website"
-    stack: "HTML, CSS, JS"
-    description: "Business website, static"
-
+    description: Business website, static
+    path: ~/Code/klincovit-website
+    stack: HTML, CSS, JS
   linkedin-automat:
-    path: "~/Code/LinkedIn_Automat"
-    stack: "Python"
-    description: "LinkedIn automation tool, unfinished"
-
+    description: LinkedIn automation tool, unfinished
+    path: ~/Code/LinkedIn_Automat
+    stack: Python
+  meus:
+    description: Core project — mobile/desktop app
+    path: ~/Code/meus
+    stack: React Native, Expo, TypeScript

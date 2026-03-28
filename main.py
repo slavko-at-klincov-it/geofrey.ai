@@ -63,6 +63,14 @@ def main() -> None:
     dec_index = dec_sub.add_parser("index", help="Re-index decisions into ChromaDB")
     dec_index.add_argument("--project", required=True, help="Project name")
 
+    # Projects
+    add_proj = subparsers.add_parser("add-project", help="Register a new project")
+    add_proj.add_argument("name", help="Project name (e.g. mobile-app)")
+    add_proj.add_argument("path", help="Project path (e.g. ~/Code/mobile-app)")
+    add_proj.add_argument("--stack", default="", help="Tech stack (e.g. Python, React)")
+    add_proj.add_argument("--description", default="", help="Short description")
+    add_proj.add_argument("--init", action="store_true", help="Create directory + git init")
+
     # Skills
     subparsers.add_parser("skills", help="List available task routing skills")
 
@@ -240,6 +248,43 @@ def main() -> None:
 
         else:
             print("Usage: geofrey decisions {list|check|index}")
+
+    elif args.command == "add-project":
+        import os
+        from pathlib import Path as P
+        import yaml as _yaml
+
+        projects_file = P(__file__).parent / "config" / "projects.yaml"
+        with open(projects_file) as f:
+            data = _yaml.safe_load(f) or {}
+
+        projects = data.setdefault("projects", {})
+        if args.name in projects:
+            print(f"Project '{args.name}' already exists.")
+            sys.exit(1)
+
+        # Optionally create directory + git init
+        resolved = str(P(os.path.expanduser(args.path)).resolve())
+        if args.init:
+            P(resolved).mkdir(parents=True, exist_ok=True)
+            import subprocess as _sp
+            _sp.run(["git", "init"], cwd=resolved, capture_output=True)
+            # Write a basic CLAUDE.md
+            claude_md = P(resolved) / "CLAUDE.md"
+            if not claude_md.exists():
+                claude_md.write_text(f"# {args.name}\n\n{args.description or 'New project.'}\n")
+            print(f"  Created {resolved} with git init + CLAUDE.md")
+
+        projects[args.name] = {
+            "path": args.path,
+            "stack": args.stack or "TBD",
+            "description": args.description or f"{args.name} project",
+        }
+        with open(projects_file, "w") as f:
+            _yaml.dump(data, f, default_flow_style=False, allow_unicode=True)
+
+        print(f"  Project '{args.name}' added to projects.yaml")
+        print(f"  Path: {args.path}")
 
     elif args.command == "skills":
         from brain.router import list_skills
