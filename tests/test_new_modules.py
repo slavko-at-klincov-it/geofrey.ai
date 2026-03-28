@@ -35,8 +35,7 @@ class TestCommandBuilder:
             prompt="Fix the login bug",
             project_path="/tmp/myproject",
             model="opus",
-            max_turns=30,
-            max_budget_usd=5.0,
+            max_turns=200,
             permission_mode="default",
         )
         cmd = build_command(spec)
@@ -47,9 +46,7 @@ class TestCommandBuilder:
         assert "--model" in cmd
         assert "opus" in cmd
         assert "--max-turns" in cmd
-        assert "30" in cmd
-        assert "--max-budget-usd" in cmd
-        assert "5.00" in cmd
+        assert "200" in cmd
         # default permission_mode should NOT add --permission-mode
         assert "--permission-mode" not in cmd
 
@@ -156,7 +153,6 @@ class TestRouter:
             "skill_defaults": {
                 "feature": {
                     "model_category": "sonnet",
-                    "max_budget_usd": 20.0,
                     "max_turns": 100,
                     "permission_mode": "plan",
                     "needs_plan": False,
@@ -166,7 +162,6 @@ class TestRouter:
         meta = get_skill_meta("feature", config)
         assert meta.name == "feature"
         assert meta.model_category == "sonnet"
-        assert meta.max_budget_usd == 20.0
         assert meta.max_turns == 100
         assert meta.permission_mode == "plan"
         assert meta.needs_plan is False
@@ -179,8 +174,7 @@ class TestRouter:
         meta = get_skill_meta("code-fix", config)
         assert meta.name == "code-fix"
         assert meta.model_category == "code"
-        assert meta.max_budget_usd == 5.0
-        assert meta.max_turns == 30
+        assert meta.max_turns == 200
         assert meta.permission_mode == "default"
         assert meta.needs_plan is False
 
@@ -588,8 +582,7 @@ class TestModels:
 
         spec = CommandSpec(prompt="test", project_path="/tmp")
         assert spec.model == "opus"
-        assert spec.max_turns == 30
-        assert spec.max_budget_usd == 5.0
+        assert spec.max_turns == 200
         assert spec.permission_mode == "default"
 
     def test_enrichment_rule_defaults(self):
@@ -635,7 +628,6 @@ class TestAgents:
         assert result["questions"] == []
 
     def test_base_agent_passes_config_to_session(self):
-        """BaseAgent passes max_turns and max_budget_usd from config to run_session_sync."""
         from brain.agents.base import BaseAgent
         from brain.models import AgentType, EnrichedPrompt, Task
 
@@ -645,7 +637,7 @@ class TestAgents:
             enriched_prompt="enriched test",
             task_type="code-fix",
         )
-        config = {"model": "sonnet", "max_turns": 20, "max_budget_usd": 3.0}
+        config = {"model": "sonnet", "max_turns": 20, "permission_mode": "skip"}
         agent = BaseAgent(config)
 
         with patch("brain.agents.base.run_session_sync", return_value="ok") as mock_sync:
@@ -656,7 +648,6 @@ class TestAgents:
             prompt="enriched test",
             model="sonnet",
             max_turns=20,
-            max_budget_usd=3.0,
             permission_mode="skip",
         )
 

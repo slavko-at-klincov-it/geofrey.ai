@@ -29,7 +29,7 @@ def _build_claude_cmd(
     project_path: str,
     model: str = "opus",
     max_turns: int = 50,
-    max_budget_usd: float = 10.0,
+
     permission_mode: str = "skip",
 ) -> str:
     """Build a Claude Code CLI command string.
@@ -55,7 +55,7 @@ def _build_claude_cmd(
         parts.append(f"-p {shlex.quote(prompt)}")
 
     parts.append(f"--max-turns {max_turns}")
-    parts.append(f"--max-budget-usd {max_budget_usd:.2f}")
+
 
     return " ".join(parts)
 
@@ -113,7 +113,7 @@ def start_session(
     model: str = "opus",
     task_id: str | None = None,
     max_turns: int = 50,
-    max_budget_usd: float = 10.0,
+
     permission_mode: str = "skip",
     remote_control: bool = True,
 ) -> Session:
@@ -150,7 +150,7 @@ def start_session(
         project_path=resolved_path,
         model=model,
         max_turns=max_turns,
-        max_budget_usd=max_budget_usd,
+
         permission_mode=permission_mode,
     )
 
@@ -271,7 +271,7 @@ def run_session_sync(
     prompt: str,
     model: str = "opus",
     max_turns: int = 50,
-    max_budget_usd: float = 10.0,
+
     permission_mode: str = "skip",
 ) -> str:
     """Run Claude Code synchronously (no tmux) and return output.
@@ -289,7 +289,7 @@ def run_session_sync(
         project_path=resolved_path,
         model=model,
         max_turns=max_turns,
-        max_budget_usd=max_budget_usd,
+
         permission_mode=permission_mode,
     )
 

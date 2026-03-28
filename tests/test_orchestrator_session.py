@@ -31,7 +31,6 @@ class TestExecuteSpec:
             project_path="/tmp/myproject",
             model="opus",
             max_turns=30,
-            max_budget_usd=5.0,
             permission_mode="default",
         )
         defaults.update(kwargs)
@@ -129,7 +128,6 @@ class TestRunTwoPhase:
             project_path="/tmp/myproject",
             model="opus",
             max_turns=50,
-            max_budget_usd=10.0,
             permission_mode="default",
         )
         defaults.update(kwargs)
@@ -235,8 +233,7 @@ class TestRunEnrichmentFlow:
         from brain.intent import Intent
 
         mock_skill.return_value = SkillMeta(
-            name="code-fix", model_category="code", needs_plan=False,
-            max_budget_usd=5.0, max_turns=30, permission_mode="default",
+            name="code-fix", model_category="code", needs_plan=False, max_turns=200, permission_mode="default",
         )
         mock_enrich.return_value = EnrichedPrompt(
             original_input="fix login in meus",
@@ -264,8 +261,7 @@ class TestRunEnrichmentFlow:
         from brain.intent import Intent
 
         mock_skill.return_value = SkillMeta(
-            name="code-fix", model_category="code", needs_plan=False,
-            max_budget_usd=5.0, max_turns=30, permission_mode="default",
+            name="code-fix", model_category="code", needs_plan=False, max_turns=200, permission_mode="default",
         )
         mock_intent = Intent(task_type="code-fix", project=None, summary="fix something", source="keyword-fallback")
 
@@ -348,8 +344,7 @@ class TestSingleTask:
         with patch("brain.orchestrator.get_skill_meta") as mock_skill:
             from brain.router import SkillMeta
             mock_skill.return_value = SkillMeta(
-                name="code-fix", model_category="code", needs_plan=False,
-                max_budget_usd=5.0, max_turns=30, permission_mode="default",
+                name="code-fix", model_category="code", needs_plan=False, max_turns=200, permission_mode="default",
             )
             single_task("fix login in meus")
 
@@ -372,8 +367,7 @@ class TestSingleTask:
         with patch("brain.orchestrator.get_skill_meta") as mock_skill:
             from brain.router import SkillMeta
             mock_skill.return_value = SkillMeta(
-                name="feature", model_category="code", needs_plan=True,
-                max_budget_usd=10.0, max_turns=50, permission_mode="default",
+                name="feature", model_category="code", needs_plan=True, max_turns=200, permission_mode="default",
             )
             single_task("add auth module in meus")
 
@@ -645,10 +639,9 @@ class TestRunSessionSync:
 
         run_session_sync(
             "/tmp/proj", "Do something",
-            model="sonnet", max_turns=20, max_budget_usd=3.0,
+            model="sonnet", max_turns=20,
         )
 
         cmd_str = mock_run.call_args[0][0][2]
         assert "--model sonnet" in cmd_str
         assert "--max-turns 20" in cmd_str
-        assert "--max-budget-usd 3.00" in cmd_str

@@ -99,13 +99,13 @@ def list_skills() -> list[str]:
 
 # Hardcoded fallback defaults if config has no skill_defaults section
 _SKILL_FALLBACKS: dict[str, dict] = {
-    "code-fix": {"model_category": "code", "max_budget_usd": 5.0, "max_turns": 30, "permission_mode": "default", "needs_plan": False},
-    "feature": {"model_category": "code", "max_budget_usd": 10.0, "max_turns": 50, "permission_mode": "default", "needs_plan": True},
-    "refactor": {"model_category": "code", "max_budget_usd": 10.0, "max_turns": 50, "permission_mode": "default", "needs_plan": True},
-    "review": {"model_category": "analysis", "max_budget_usd": 2.0, "max_turns": 15, "permission_mode": "plan", "needs_plan": False},
-    "research": {"model_category": "analysis", "max_budget_usd": 5.0, "max_turns": 20, "permission_mode": "plan", "needs_plan": False},
-    "security": {"model_category": "analysis", "max_budget_usd": 5.0, "max_turns": 20, "permission_mode": "plan", "needs_plan": False},
-    "doc-sync": {"model_category": "content", "max_budget_usd": 3.0, "max_turns": 30, "permission_mode": "default", "needs_plan": False},
+    "code-fix": {"model_category": "code", "max_turns": 200, "permission_mode": "default", "needs_plan": False},
+    "feature": {"model_category": "code", "max_turns": 200, "permission_mode": "default", "needs_plan": True},
+    "refactor": {"model_category": "code", "max_turns": 200, "permission_mode": "default", "needs_plan": True},
+    "review": {"model_category": "analysis", "max_turns": 200, "permission_mode": "plan", "needs_plan": False},
+    "research": {"model_category": "analysis", "max_turns": 200, "permission_mode": "plan", "needs_plan": False},
+    "security": {"model_category": "analysis", "max_turns": 200, "permission_mode": "plan", "needs_plan": False},
+    "doc-sync": {"model_category": "content", "max_turns": 200, "permission_mode": "default", "needs_plan": False},
 }
 
 
@@ -116,7 +116,6 @@ class SkillMeta:
     name: str
     model_category: str
     needs_plan: bool
-    max_budget_usd: float
     max_turns: int
     permission_mode: str
 
@@ -131,7 +130,6 @@ def get_skill_meta(skill_name: str, config: dict) -> SkillMeta:
         name=skill_name,
         model_category=skill_cfg.get("model_category", fallback["model_category"]),
         needs_plan=skill_cfg.get("needs_plan", fallback["needs_plan"]),
-        max_budget_usd=skill_cfg.get("max_budget_usd", fallback["max_budget_usd"]),
         max_turns=skill_cfg.get("max_turns", fallback["max_turns"]),
         permission_mode=skill_cfg.get("permission_mode", fallback.get("permission_mode", "default")),
     )

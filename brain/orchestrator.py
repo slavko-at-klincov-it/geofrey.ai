@@ -79,7 +79,7 @@ def _show_enrichment_summary(
     _console.print()
     _console.print("  [dim]─── geofrey enrichment ───[/dim]")
     _console.print(f"  [dim]routing:[/dim]  {task_type} [dim](keywords: {', '.join(matched_kws) or 'none — default'})[/dim]")
-    _console.print(f"  [dim]model:[/dim]    {model} [dim]| budget: ${skill_meta.max_budget_usd:.0f} | turns: {skill_meta.max_turns} | perm: {skill_meta.permission_mode}[/dim]")
+    _console.print(f"  [dim]model:[/dim]    {model} [dim]| turns: {skill_meta.max_turns} | perm: {skill_meta.permission_mode}[/dim]")
 
     if skill_meta.needs_plan:
         _console.print(f"  [dim]mode:[/dim]     [yellow]two-phase[/yellow] [dim](plan → approve → execute)[/dim]")
@@ -154,7 +154,7 @@ def execute_spec(
         prompt=spec.prompt,
         model=spec.model,
         max_turns=spec.max_turns,
-        max_budget_usd=spec.max_budget_usd,
+
         permission_mode=spec.permission_mode,
     )
 
@@ -201,8 +201,7 @@ def run_two_phase(spec: CommandSpec, prompt_text: str) -> str:
         prompt=f"Analyze the codebase and create a detailed implementation plan for the following task. Do NOT make any changes. Only read, analyze, and output a structured plan.\n\nTask: {prompt_text}",
         project_path=spec.project_path,
         model=spec.model,
-        max_turns=15,
-        max_budget_usd=2.0,
+        max_turns=50,
         permission_mode="plan",
     )
 
@@ -256,7 +255,7 @@ def run_two_phase(spec: CommandSpec, prompt_text: str) -> str:
         project_path=spec.project_path,
         model=spec.model,
         max_turns=spec.max_turns,
-        max_budget_usd=spec.max_budget_usd,
+
         permission_mode="default",
     )
 
@@ -392,7 +391,6 @@ def _run_enrichment_flow(
         project_path=project_path,
         model=model,
         max_turns=skill_meta.max_turns,
-        max_budget_usd=skill_meta.max_budget_usd,
         permission_mode=skill_meta.permission_mode,
     )
 
@@ -440,7 +438,7 @@ def _run_subtask_chain(
             prompt=enriched.enriched_prompt,
             model=model,
             max_turns=skill_meta.max_turns,
-            max_budget_usd=skill_meta.max_budget_usd,
+
             permission_mode=skill_meta.permission_mode,
         )
 

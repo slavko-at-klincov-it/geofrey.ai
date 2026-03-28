@@ -522,7 +522,6 @@ class TestRouterEnricherIntegration:
         skill_meta = get_skill_meta(task_type, config)
         assert skill_meta.model_category == "code"
         assert skill_meta.needs_plan is True
-        assert skill_meta.max_budget_usd == 10.0
 
         # Step 3: Enrich
         mock_ctx.return_value = mock_project_context

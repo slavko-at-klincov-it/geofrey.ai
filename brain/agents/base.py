@@ -34,7 +34,6 @@ class BaseAgent:
         project_path = task.project_path or "."
         model = self.config.get("model", "opus")
         max_turns = self.config.get("max_turns", 50)
-        max_budget_usd = self.config.get("max_budget_usd", 10.0)
         permission_mode = self.config.get("permission_mode", "skip")
 
         return run_session_sync(
@@ -42,7 +41,6 @@ class BaseAgent:
             prompt=enriched_prompt.enriched_prompt,
             model=model,
             max_turns=max_turns,
-            max_budget_usd=max_budget_usd,
             permission_mode=permission_mode,
         )
 
