@@ -187,6 +187,17 @@ geofrey/
 | [docs/decision-dependency-system.md](docs/decision-dependency-system.md) | Research paper: the Decision Dependency problem + solution |
 | [docs/vision.md](docs/vision.md) | Product vision and roadmap |
 
+## Claude Code Compliance
+
+geofrey is fully compliant with Claude Code's terms of use. What geofrey does is **prompt engineering + automation** — not circumvention:
+
+- **Prompt Enrichment is legitimate** — geofrey adds project context, architecture docs, and learnings before passing the prompt to Claude Code via the official `-p` flag. This is what the flag was built for.
+- **CLI flags are official features** — `-p`, `--model`, `--cwd`, `--dangerously-skip-permissions` are documented, supported flags designed for programmatic use.
+- **No access sharing** — every Claude Code call runs under the user's own Anthropic subscription. geofrey does not proxy, resell, or share access.
+- **Safety is strengthened, not weakened** — `gates.py` blocks dangerous patterns (`rm -rf /`, `drop database`, `force push main`) *before* they reach Claude Code. Budget limits and permission modes add additional guardrails.
+
+geofrey is a local tool that makes the user's own Claude Code subscription more effective — like a well-crafted CLAUDE.md, but automated and context-aware.
+
 ## Safety
 
 - `gates.py` validates all prompts: `[BLOCK]` prevents execution (rm -rf, drop database, force push), `[WARN]` is advisory
