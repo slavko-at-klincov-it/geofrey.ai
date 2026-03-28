@@ -186,10 +186,6 @@ def _build_enriched_prompt(
     # Task section (always present)
     sections.append(f"## Task\n{user_input}")
 
-    # Prompt suffix from rule
-    if rule.prompt_suffix:
-        sections.append(f"{rule.prompt_suffix}")
-
     # Project context section
     project_parts: list[str] = []
     if rule.include_git_status and context.git_branch:
@@ -231,6 +227,10 @@ def _build_enriched_prompt(
     # DACH context
     if rule.include_dach_context and dach_context:
         sections.append("## DACH Context\n" + dach_context)
+
+    # Prompt suffix as final guidance (moved to end for better Claude Code performance)
+    if rule.prompt_suffix:
+        sections.append(f"## Approach\n{rule.prompt_suffix}")
 
     # Post-actions as requirements
     if rule.post_actions:

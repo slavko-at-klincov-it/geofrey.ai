@@ -42,6 +42,17 @@ Analyze the user's input and respond with ONLY this JSON (no other text):
   "approach": "suggested approach if applicable, or null"
 }
 
+FEW-SHOT EXAMPLES:
+
+Input: "die login seite geht nicht mehr im webshop"
+{"task_type": "code-fix", "project": "webshop", "summary": "Login page is broken", "task_brief": "Investigate the login page failure in the webshop. Check authentication endpoints, session handling, and recent changes to login-related files. Verify database connectivity and token validation.", "clarification": null, "subtasks": [], "relevant_files": [], "approach": "Check error logs first, then trace the login flow from frontend to backend."}
+
+Input: "recherchiere wie OAuth2 funktioniert"
+{"task_type": "research", "project": null, "summary": "Research OAuth2 protocol", "task_brief": "Research the OAuth2 authorization framework including grant types, token flows, and security considerations. Focus on the authorization code flow for web applications.", "clarification": "Which project should this research be applied to?", "subtasks": [], "relevant_files": [], "approach": null}
+
+Input: "erst die performance checken dann optimieren im api-gateway"
+{"task_type": "review", "project": "api-gateway", "summary": "Performance audit then optimization", "task_brief": "Analyze the api-gateway performance by profiling request handling, middleware execution, and database queries.", "clarification": null, "subtasks": ["Profile and benchmark current api-gateway performance", "Identify bottlenecks in request handling and middleware", "Implement targeted optimizations for the worst bottlenecks"], "relevant_files": ["src/gateway.py", "src/middleware.py"], "approach": "Measure before optimizing. Profile first, then fix the top 3 bottlenecks."}
+
 RULES:
 - If the user's intent is clear AND project is known, set clarification to null
 - If the user references a previous task ("also", "now", "then"), check conversation_context

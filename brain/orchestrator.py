@@ -25,6 +25,7 @@ from rich.console import Console
 
 from knowledge.store import load_config
 from brain.enricher import enrich_prompt
+from brain.models import EnrichedPrompt
 from brain.intent import understand_intent, Intent
 from brain.router import detect_task_type, get_skill_meta, TASK_KEYWORDS, _keyword_matches
 from brain.command import CommandSpec, build_command, resolve_model, project_has_code
@@ -299,6 +300,23 @@ def _run_enrichment_flow(
     task_input = intent.task_brief if intent.task_brief else user_input
     enriched = enrich_prompt(task_input, project_name, project_path, intent.task_type, config)
 
+    # 5b. Inject intent metadata (relevant_files, approach) into enriched prompt
+    meta_additions = []
+    if intent.relevant_files:
+        meta_additions.append(f"Focus on these files: {', '.join(intent.relevant_files)}")
+    if intent.approach and intent.approach not in enriched.enriched_prompt:
+        meta_additions.append(f"Approach: {intent.approach}")
+    if meta_additions:
+        enriched = EnrichedPrompt(
+            original_input=enriched.original_input,
+            enriched_prompt=enriched.enriched_prompt.replace(
+                "## Task\n", "## Task\n" + "\n".join(meta_additions) + "\n\n", 1
+            ),
+            context=enriched.context,
+            task_type=enriched.task_type,
+            post_actions=enriched.post_actions,
+        )
+
     # 6. Resolve model
     model = resolve_model(skill_meta.model_category, config)
 
@@ -356,21 +374,23 @@ def _run_subtask_chain(
         _show_enrichment_summary(task_input, task_type, skill_meta, model,
                                  enriched.enriched_prompt, enriched.context)
 
-        spec = CommandSpec(
-            prompt=enriched.enriched_prompt,
+        # Execute and capture real output for next step
+        output = run_session_sync(
             project_path=project_path,
+            prompt=enriched.enriched_prompt,
             model=model,
             max_turns=skill_meta.max_turns,
             max_budget_usd=skill_meta.max_budget_usd,
             permission_mode=skill_meta.permission_mode,
         )
 
-        if not execute_spec(spec):
-            _console.print(f"  [red]Step {i} skipped or failed. Stopping chain.[/red]")
+        if not output:
+            _console.print(f"  [red]Step {i} produced no output. Stopping chain.[/red]")
             break
 
-        # Capture output for next step
-        previous_output = f"Step {i} ({subtask}) completed."
+        # Pass real output to next step
+        previous_output = output[:2000]
+        _console.print(f"  [green]Step {i} completed ({len(output)} chars output)[/green]")
 
 
 def interactive():

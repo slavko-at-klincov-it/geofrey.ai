@@ -47,12 +47,25 @@ class BaseAgent:
         )
 
     def post_process(self, task: Task, output: str) -> None:
-        """Post-process task output: extract session learnings.
+        """Post-process task output: observe result + extract session learnings.
 
-        Finds the most recently modified JSONL session file for the
-        project and runs the intelligence extraction pipeline.
+        1. Observe: LLM triages output (success/failure/follow-up)
+        2. Learn: Extract session learnings from JSONL
         Fail-safe: errors are logged, never raised.
         """
+        # 1. Observe output
+        try:
+            from brain.observer import observe_output
+            observation = observe_output(output, task.description, self.config)
+            logger.info(
+                f"Task {task.id[:8]} observation: success={observation.success}, "
+                f"summary={observation.result_summary}, "
+                f"follow_up={observation.follow_up_needed}"
+            )
+        except Exception as e:
+            logger.warning(f"Observation failed for task {task.id[:8]}: {e}")
+
+        # 2. Extract session learnings
         if not task.project_path:
             return
 

@@ -15,10 +15,12 @@ TASK_KEYWORDS: dict[str, list[str]] = {
     "code-fix": [
         "fix", "bug", "error", "crash", "broken", "failing", "debug", "issue",
         "problem", "fehler", "kaputt", "reparier", "beheb",
+        "abstürz", "hängt", "timeout", "freeze", "geht nicht",
     ],
     "feature": [
         "add", "implement", "create", "build", "new feature", "erstell", "bau",
         "hinzufüg", "neu", "develop", "make",
+        "erweit", "unterstütz", "integrier",
     ],
     "review": [
         "review", "check", "pull request", "code quality", "prüf",
@@ -31,15 +33,17 @@ TASK_KEYWORDS: dict[str, list[str]] = {
     "security": [
         "security", "audit", "dsgvo", "gdpr", "nis2", "vulnerabilit",
         "sicherheit", "datenschutz", "security compliance",
+        "angreif", "schwachstell",
     ],
     "refactor": [
         "refactor", "cleanup", "clean up", "simplify", "restructure",
         "extract", "rename", "aufräum", "vereinfach", "umstrukturier",
+        "verbess", "optimier", "modernisier",
     ],
     "doc-sync": [
         "docs", "documentation", "sync", "update docs", "document",
         "changelog", "readme", "journal", "doku", "dokumentation",
-        "aktualisier", "sync docs", "doc-sync", "release notes",
+        "aktualisier", "sync docs", "doc-sync", "release notes", "schreib",
     ],
 }
 

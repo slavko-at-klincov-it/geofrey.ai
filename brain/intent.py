@@ -108,6 +108,7 @@ def understand_intent(
             model=model,
             messages=[{"role": "user", "content": prompt}],
             think=False,
+            options={"temperature": 0.3},
         )
         raw = response["message"]["content"]
         parsed = _parse_intent_json(raw)
