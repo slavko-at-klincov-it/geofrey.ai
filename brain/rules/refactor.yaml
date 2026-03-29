@@ -12,4 +12,5 @@ include_personal_context: true
 post_actions:
   - "Run ALL tests after each change to ensure no regressions"
   - "Preserve existing behavior - no functional changes"
+  - "Verify that no function signatures, types, or constants were changed without checking all callers"
 prompt_suffix: "Preserve existing behavior. Run tests after each change."

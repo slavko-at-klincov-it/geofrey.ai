@@ -12,4 +12,5 @@ include_personal_context: true
 post_actions:
   - "Run existing tests to verify the fix"
   - "Document the root cause in a brief comment"
+  - "Verify that no function signatures, types, or constants were changed without checking all callers"
 prompt_suffix: "Investigate root cause before fixing. Do not just patch symptoms."

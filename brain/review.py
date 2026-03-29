@@ -78,6 +78,48 @@ def _find_importers(file_path: str, project_path: str) -> list[str]:
         return []
 
 
+def _build_impact_analysis_questions(
+    changed_files: list[str],
+    project_path: str,
+) -> list[str]:
+    """Build impact analysis questions based on what was changed.
+
+    Checks for risky patterns: changed function signatures, modified constants,
+    altered type definitions, config/schema files with high blast radius.
+    """
+    questions: list[str] = []
+
+    if not changed_files:
+        return questions
+
+    # Check if any Python files with class/function definitions were changed
+    py_files = [f for f in changed_files if f.endswith(".py")]
+    if py_files:
+        questions.append(
+            "For each function signature, variable type, or constant you changed: "
+            "did you verify ALL callers and importers are still compatible?"
+        )
+
+    # Check if config/schema files were changed (high blast radius)
+    config_patterns = ("config", "schema", "model", "settings", "types")
+    config_files = [f for f in changed_files if any(p in f.lower() for p in config_patterns)]
+    if config_files:
+        files_str = ", ".join(config_files[:3])
+        questions.append(
+            f"You changed config/schema files ({files_str}). "
+            f"Did you check every consumer of these definitions for compatibility?"
+        )
+
+    # General "big picture" question if many files changed
+    if len(changed_files) > 2:
+        questions.append(
+            "Step back and consider: do all these changes together make the app "
+            "better? Is there anything that could be worse than before?"
+        )
+
+    return questions
+
+
 def _post_actions_to_questions(post_actions: list[str]) -> list[str]:
     """Convert post-action statements into review questions.
 
@@ -152,6 +194,9 @@ def build_review_questions(
                 f"You changed {changed_file}. These files import it: {importer_list}. "
                 f"Did you check them for compatibility?"
             )
+
+    # Source 4: Multi-perspective impact analysis
+    questions.extend(_build_impact_analysis_questions(changed_files, project_path))
 
     return questions
 

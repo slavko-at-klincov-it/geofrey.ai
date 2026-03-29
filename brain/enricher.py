@@ -138,6 +138,7 @@ def _parse_rule_yaml(data: dict) -> EnrichmentRule:
         include_decision_context=data.get("include_decision_context", True),
         include_claude_code_context=data.get("include_claude_code_context", True),
         include_personal_context=data.get("include_personal_context", True),
+        include_code_review=data.get("include_code_review", True),
         post_actions=data.get("post_actions", []),
         prompt_suffix=data.get("prompt_suffix", ""),
     )
@@ -228,6 +229,18 @@ def _build_enriched_prompt(
     # Claude Code best practices
     if rule.include_claude_code_context and context.claude_code_context:
         sections.append("## Claude Code Best Practices\n" + context.claude_code_context)
+
+    # Code safety process (multi-agent review instructions)
+    if rule.include_code_review:
+        from brain.prompts import render_template
+        try:
+            review_process = render_template(
+                "code-review-process",
+                project_name=context.project_name,
+            )
+            sections.append(review_process)
+        except FileNotFoundError:
+            pass  # Template not yet created — graceful degradation
 
     # DACH context
     if rule.include_dach_context and dach_context:

@@ -9,6 +9,7 @@ include_diff_scope: false
 include_decision_context: true
 include_claude_code_context: true
 include_personal_context: true
+include_code_review: false
 post_actions:
   - "Structure findings clearly with concrete examples"
   - "Save key findings for future reference"

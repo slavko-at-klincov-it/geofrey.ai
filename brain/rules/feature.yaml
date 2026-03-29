@@ -13,4 +13,5 @@ post_actions:
   - "Add or update tests for the new feature"
   - "Update architecture docs if structure changed"
   - "Update CLAUDE.md if new patterns introduced"
+  - "Verify that no function signatures, types, or constants were changed without checking all callers"
 prompt_suffix: "Follow existing codebase patterns and conventions."

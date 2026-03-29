@@ -148,6 +148,7 @@ class EnrichmentRule:
     include_decision_context: bool = True     # Decisions always relevant
     include_claude_code_context: bool = True  # Claude Code best practices
     include_personal_context: bool = True    # User profile always included
+    include_code_review: bool = True         # Multi-perspective code safety process
     post_actions: list[str] = field(default_factory=list)
     prompt_suffix: str = ""                   # Always appended to prompt
 
