@@ -138,6 +138,7 @@ def process_queue(config: dict | None = None, max_tasks: int = 10) -> list[dict]
 
             # Handle result
             if agent_result.get("questions"):
+                # Agent explicitly needs user input (blocking questions)
                 update_task(
                     task.id,
                     status=TaskStatus.NEEDS_INPUT,
@@ -148,6 +149,12 @@ def process_queue(config: dict | None = None, max_tasks: int = 10) -> list[dict]
                 logger.info(f"Task {task.id[:8]} needs input — {len(agent_result['questions'])} question(s).")
             else:
                 result_text = agent_result.get("result", "Completed without output.")
+                # Append review questions to result for morning briefing
+                review_qs = agent_result.get("review_questions", [])
+                if review_qs:
+                    review_text = "\n".join(f"  - {q}" for q in review_qs)
+                    result_text += f"\n\n[Review Questions]\n{review_text}"
+                    logger.info(f"Task {task.id[:8]} has {len(review_qs)} review questions for briefing.")
                 update_task(
                     task.id,
                     status=TaskStatus.DONE,

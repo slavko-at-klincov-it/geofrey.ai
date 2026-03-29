@@ -607,7 +607,7 @@ class TestModels:
 
 class TestAgents:
     def test_run_agent_returns_dict(self):
-        """run_agent returns dict with 'result' and 'questions' keys."""
+        """run_agent returns dict with 'result', 'questions', and 'review_questions' keys."""
         from brain.agents.base import run_agent
         from brain.models import AgentType, EnrichedPrompt, Task
 
@@ -624,6 +624,7 @@ class TestAgents:
         assert isinstance(result, dict)
         assert "result" in result
         assert "questions" in result
+        assert "review_questions" in result
         assert result["result"] == "mock output"
         assert result["questions"] == []
 
@@ -831,3 +832,162 @@ class TestBriefingMemory:
 
         summary = get_overnight_summary(self.db_path)
         assert summary["done"] == 2
+
+
+# ---------------------------------------------------------------------------
+# 16. TestCodeReviewProcess — Multi-Agent Code Review Integration
+# ---------------------------------------------------------------------------
+
+class TestCodeReviewProcess:
+    """Tests for the code review process integration across all execution paths."""
+
+    def test_enrichment_rule_has_code_review_flag(self):
+        """EnrichmentRule has include_code_review defaulting to True."""
+        from brain.models import EnrichmentRule
+        rule = EnrichmentRule(task_type="test")
+        assert rule.include_code_review is True
+
+    def test_enrichment_rule_code_review_false(self):
+        """EnrichmentRule respects include_code_review=False."""
+        from brain.models import EnrichmentRule
+        rule = EnrichmentRule(task_type="research", include_code_review=False)
+        assert rule.include_code_review is False
+
+    def test_parse_rule_yaml_defaults_code_review_true(self):
+        """YAML rule without include_code_review defaults to True."""
+        from brain.enricher import _parse_rule_yaml
+        rule = _parse_rule_yaml({"task_type": "test"})
+        assert rule.include_code_review is True
+
+    def test_parse_rule_yaml_code_review_false(self):
+        """YAML rule with include_code_review: false is respected."""
+        from brain.enricher import _parse_rule_yaml
+        rule = _parse_rule_yaml({"task_type": "research", "include_code_review": False})
+        assert rule.include_code_review is False
+
+    def test_build_enriched_prompt_includes_code_review(self):
+        """_build_enriched_prompt includes Code Safety Process when enabled."""
+        from brain.enricher import _build_enriched_prompt
+        from brain.models import EnrichmentRule, ProjectContext
+        ctx = ProjectContext(project_name="testproject", project_path="/tmp")
+        rule = EnrichmentRule(task_type="code-fix", include_code_review=True)
+        result = _build_enriched_prompt("fix something", ctx, rule, "")
+        assert "Code Safety Process" in result
+        assert "Impact Analysis" in result
+        assert "Stability Agent" in result
+        assert "Architecture Agent" in result
+        assert "Regression Agent" in result
+        assert "testproject" in result  # Template variable substituted
+
+    def test_build_enriched_prompt_skips_code_review_when_disabled(self):
+        """_build_enriched_prompt skips Code Safety Process when disabled."""
+        from brain.enricher import _build_enriched_prompt
+        from brain.models import EnrichmentRule, ProjectContext
+        ctx = ProjectContext(project_name="test", project_path="/tmp")
+        rule = EnrichmentRule(task_type="research", include_code_review=False)
+        result = _build_enriched_prompt("research something", ctx, rule, "")
+        assert "Code Safety Process" not in result
+
+    def test_research_rule_has_code_review_disabled(self):
+        """research.yaml has include_code_review: false."""
+        from brain.enricher import load_enrichment_rules
+        rules = load_enrichment_rules()
+        if "research" in rules:
+            assert rules["research"].include_code_review is False
+
+    def test_code_fix_rule_has_code_review_enabled(self):
+        """code-fix.yaml has include_code_review: true (default)."""
+        from brain.enricher import load_enrichment_rules
+        rules = load_enrichment_rules()
+        if "code-fix" in rules:
+            assert rules["code-fix"].include_code_review is True
+
+    def test_code_fix_rule_has_caller_check_post_action(self):
+        """code-fix.yaml includes caller verification post_action."""
+        from brain.enricher import load_enrichment_rules
+        rules = load_enrichment_rules()
+        if "code-fix" in rules:
+            actions_text = " ".join(rules["code-fix"].post_actions)
+            assert "callers" in actions_text.lower()
+
+
+class TestImpactAnalysisQuestions:
+    """Tests for the impact analysis review questions."""
+
+    def test_no_questions_for_empty_files(self):
+        """No impact questions when no files changed."""
+        from brain.review import _build_impact_analysis_questions
+        questions = _build_impact_analysis_questions([], "/tmp")
+        assert questions == []
+
+    def test_python_files_trigger_caller_question(self):
+        """Changed Python files produce caller verification question."""
+        from brain.review import _build_impact_analysis_questions
+        questions = _build_impact_analysis_questions(["brain/enricher.py"], "/tmp")
+        assert len(questions) >= 1
+        assert any("callers" in q.lower() or "importers" in q.lower() for q in questions)
+
+    def test_config_files_trigger_consumer_question(self):
+        """Changed config/schema files produce consumer verification question."""
+        from brain.review import _build_impact_analysis_questions
+        questions = _build_impact_analysis_questions(["config/settings.yaml"], "/tmp")
+        assert any("config/schema" in q.lower() or "consumer" in q.lower() for q in questions)
+
+    def test_many_files_trigger_big_picture_question(self):
+        """More than 2 changed files produce big-picture question."""
+        from brain.review import _build_impact_analysis_questions
+        questions = _build_impact_analysis_questions(
+            ["a.py", "b.py", "c.py"], "/tmp"
+        )
+        assert any("better" in q.lower() for q in questions)
+
+    def test_single_non_python_file_no_caller_question(self):
+        """Single non-Python file does not produce caller question."""
+        from brain.review import _build_impact_analysis_questions
+        questions = _build_impact_analysis_questions(["style.css"], "/tmp")
+        assert not any("callers" in q.lower() for q in questions)
+
+
+class TestAgentReviewIntegration:
+    """Tests for the daemon/agent path review integration."""
+
+    def test_run_agent_returns_review_questions(self):
+        """run_agent returns review questions in 'review_questions' (not blocking 'questions')."""
+        from brain.agents.base import run_agent
+        from brain.models import AgentType, EnrichedPrompt, Task
+
+        task = Task(
+            id="t1", description="fix auth bug",
+            agent_type=AgentType.CODER, project_path="/tmp",
+        )
+        enriched = EnrichedPrompt(
+            original_input="fix auth bug",
+            enriched_prompt="enriched fix auth bug",
+            task_type="code-fix",
+        )
+
+        with patch("brain.agents.base.run_session_sync", return_value="mock output"), \
+             patch("brain.review.build_review_questions", return_value=["Did you run tests?"]), \
+             patch("brain.observer.observe_output"):
+            result = run_agent(task, enriched, config={"model": "opus"})
+
+        assert result["questions"] == []  # No blocking questions
+        assert "review_questions" in result
+        assert "Did you run tests?" in result["review_questions"]
+
+    def test_post_process_sets_task_questions(self):
+        """BaseAgent.post_process() populates task.questions with review questions."""
+        from brain.agents.base import BaseAgent
+        from brain.models import AgentType, Task
+
+        task = Task(
+            id="t1", description="fix bug",
+            agent_type=AgentType.CODER, project_path="/tmp",
+        )
+        agent = BaseAgent(config={"model": "opus"})
+
+        with patch("brain.observer.observe_output"), \
+             patch("brain.review.build_review_questions", return_value=["Q1?", "Q2?"]):
+            agent.post_process(task, "some output")
+
+        assert task.questions == ["Q1?", "Q2?"]

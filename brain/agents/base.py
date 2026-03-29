@@ -45,10 +45,11 @@ class BaseAgent:
         )
 
     def post_process(self, task: Task, output: str) -> None:
-        """Post-process task output: observe result + extract session learnings.
+        """Post-process task output: observe result + quality review + extract learnings.
 
         1. Observe: LLM triages output (success/failure/follow-up)
-        2. Learn: Extract session learnings from JSONL
+        2. Review: Build quality review questions (impact analysis, decisions, deps)
+        3. Learn: Extract session learnings from JSONL
         Fail-safe: errors are logged, never raised.
         """
         # 1. Observe output
@@ -62,6 +63,24 @@ class BaseAgent:
             )
         except Exception as e:
             logger.warning(f"Observation failed for task {task.id[:8]}: {e}")
+
+        # 2. Quality review — build review questions for briefing
+        #    (daemon uses sync mode with no tmux, so questions go to task.questions
+        #    for the morning briefing instead of being sent to Claude mid-session)
+        try:
+            from brain.review import build_review_questions
+            from brain.router import detect_task_type
+
+            project_path = task.project_path or "."
+            project_name = task.project or Path(project_path).name
+            task_type = detect_task_type(task.description)
+
+            questions = build_review_questions(task_type, project_name, project_path, self.config)
+            if questions:
+                task.questions = questions
+                logger.info(f"Task {task.id[:8]} review: {len(questions)} questions for briefing")
+        except Exception as e:
+            logger.warning(f"Review questions failed for task {task.id[:8]}: {e}")
 
         # 2. Extract session learnings
         if not task.project_path:
@@ -128,4 +147,4 @@ def run_agent(task: Task, enriched_prompt: EnrichedPrompt, config: dict) -> dict
     result = agent.execute(task, enriched_prompt)
     agent.post_process(task, output=result)
 
-    return {"result": result, "questions": []}
+    return {"result": result, "questions": [], "review_questions": task.questions}

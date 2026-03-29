@@ -89,6 +89,9 @@ def _show_enrichment_summary(
     if n_decisions > 0:
         _console.print(f"  [dim]decisions:[/dim] {n_decisions} active [dim](injected as warnings)[/dim]")
 
+    if "Code Safety Process" in enriched_prompt:
+        _console.print(f"  [dim]safety:[/dim]    code review process [dim](impact analysis + 3 review agents)[/dim]")
+
     ratio = len(enriched_prompt) / max(len(user_input), 1)
     _console.print(f"  [dim]prompt:[/dim]   {len(user_input)} → {len(enriched_prompt)} chars [dim](x{ratio:.0f})[/dim]")
     _console.print("  [dim]──────────────────────────[/dim]")
@@ -197,8 +200,23 @@ def run_two_phase(spec: CommandSpec, prompt_text: str) -> str:
     """
     print("\n  Plan-Phase: Analysiere Codebase (read-only)...")
 
+    # Include code review process in plan phase so Claude thinks about impact
+    plan_instructions = (
+        "Analyze the codebase and create a detailed implementation plan for the following task. "
+        "Do NOT make any changes. Only read, analyze, and output a structured plan.\n\n"
+    )
+    try:
+        from brain.prompts import render_template
+        project_name = Path(spec.project_path).name
+        review_process = render_template("code-review-process", project_name=project_name)
+        plan_instructions += f"{review_process}\n\n"
+    except FileNotFoundError:
+        pass
+
+    plan_instructions += f"Task: {prompt_text}"
+
     plan_spec = CommandSpec(
-        prompt=f"Analyze the codebase and create a detailed implementation plan for the following task. Do NOT make any changes. Only read, analyze, and output a structured plan.\n\nTask: {prompt_text}",
+        prompt=plan_instructions,
         project_path=spec.project_path,
         model=spec.model,
         max_turns=50,
