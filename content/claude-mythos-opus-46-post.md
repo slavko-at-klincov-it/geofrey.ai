@@ -14,13 +14,23 @@ Und das Internet feiert die nächste Revolution.
 
 Aber ich sitze hier und denke mir: Moment mal.
 
-Ich arbeite jeden Tag mit Claude Code. Opus 4.6 — dem aktuellen Flaggschiff von Anthropic. Und die Realität sieht so aus:
+Ich arbeite jeden Tag mit Claude Code. Opus 4.6 — dem aktuellen Flaggschiff von Anthropic. Und ich baue gerade einen autonomen AI Agent (geofrey) — genau mit diesem Modell.
 
-Das Modell vergisst Anweisungen mitten in der Session.
-Es ändert Dateien, die niemand angefragt hat.
-Es dreht sich in Schleifen und liest dieselben Files fünfmal.
-Es interpretiert Prompts um und beantwortet Fragen, die nie gestellt wurden.
-Und es produziert Code-Duplikate, die in Produktion zu Datenkorruption führen würden.
+Und die Realität?
+
+Ich musste ein komplettes Guardian-System bauen, weil Claude Code seine eigenen Anweisungen nicht einhält. Über 1.999 analysierte Nachrichten in 29 Projekten haben gezeigt: 35% aller meiner Nachrichten sind Korrekturen. Nicht weil ich meine Meinung ändere — sondern weil Claude abdriftet.
+
+Konkret:
+- Claude löscht Dateien die bewusst konsolidiert wurden — und erstellt sie in der nächsten Session neu, weil es die Entscheidung vergessen hat.
+- Es schlägt strukturelle Änderungen vor auf Basis von "Halbwissen" — ohne die Architektur-Entscheidungen zu kennen die dahinterstehen.
+- Es ändert Dateien die niemand angefragt hat. Task: "fix login bug" → Claude ändert 5 Files.
+- Es dreht sich in Schleifen — liest dieselben Files fünfmal, spawnt unnötige Subprozesse.
+- Es interpretiert Prompts um und beantwortet Fragen die nie gestellt wurden.
+- Und das Schlimmste: Es ist dabei maximal selbstsicher. 50+ Sessions dokumentiert wo die Analyse "confident but wrong" war.
+
+Mein Zitat dazu: "Claude macht einen Vorschlag auf Basis von Halbwissen, ich vertraue ihm, sage ja, dann macht er komplett was anderes — und manchmal merke ich's gar nicht."
+
+Deshalb habe ich ein Decision Dependency System gebaut. Weil kein einziger AI Coding Assistant — weder Claude Code, noch Cursor, noch Copilot, noch Aider — maschinenlesbar speichert WARUM eine Entscheidung getroffen wurde und was davon abhängt.
 
 Das bin nicht nur ich. Tausende Entwickler melden dasselbe:
 - 6.000+ offene Issues auf GitHub
@@ -149,19 +159,45 @@ Ich baue jeden Tag mit diesen Tools. Und der Unterschied zwischen Marketing-Vers
 
 ---
 
-### 3. Eigene Erfahrungen (Slavko / geofrey-Projekt)
+### 3. Eigene Erfahrungen (Slavko / geofrey-Projekt — aus Repo dokumentiert)
 
-> **Hinweis:** Ich habe keinen Zugriff auf frühere Konversationen mit dir. Die folgenden Punkte basieren auf dem, was du in dieser Session beschrieben hast und was im Projekt dokumentiert ist. Bitte ergänze spezifische Beispiele aus deiner Erfahrung:
+**Das Kernproblem (DEC-006, dokumentiert über 1.999 Nachrichten in 29 Projekten):**
 
-**Platzhalter für persönliche Beispiele:**
-- [ ] Konkretes Beispiel 1: ___(z.B. "Claude hat meine gates.py gelöscht obwohl nur ein Test gefixt werden sollte")___
-- [ ] Konkretes Beispiel 2: ___(z.B. "Session hat 45 Minuten für einen 5-Zeilen-Fix gebraucht")___
-- [ ] Konkretes Beispiel 3: ___(z.B. "Opus hat Decisions ignoriert und strukturelle Änderungen vorgeschlagen die DEC-006 widersprechen")___
-- [ ] Konkretes Beispiel 4: ___(z.B. "Musste 3x korrigieren weil es den falschen Ansatz gewählt hat")___
+> "Claude macht einen Vorschlag auf Basis von Halbwissen, ich vertraue ihm, sage ja, dann macht er komplett was anderes und manchmal merke ich's gar nicht."
 
-**Aus dem geofrey-Projekt ableitbar:**
-- Das geofrey Guardian-System (DEC-006) wurde GENAU wegen solcher Probleme gebaut — Claude driftet ab, ignoriert Decisions, schlägt strukturelle Änderungen vor die gegen Architektur-Entscheidungen verstoßen
-- Safety Gates prüfen doppelt (Original-Input UND enriched Prompt), weil "LLM kann destructive Intent reinigen" — ein direktes Symptom der Unzuverlässigkeit
+- **35%** aller Nachrichten sind Korrekturen (User holt Claude zurück auf Kurs)
+- **45%** sind Bestätigungen ("ok", "ja") — hohes Vertrauen in Claude
+- **Toxische Kombination:** Hohes Vertrauen + häufige Korrekturen = Claude driftet unbemerkt ab
+
+**Das Loop-Problem (docs/decision-dependency-system.md):**
+- Session A: `safety.py` wird bewusst gelöscht, Safety in `gates.py` konsolidiert (DEC-001)
+- Session B (2 Wochen später): "fix the safety system" → Claude sieht keine safety.py → erstellt eine neue
+- Ergebnis: Arbeit aus Session A rückgängig gemacht. Entwickler merkt es erst später.
+- Claude kann nicht unterscheiden: "Code fehlt weil vergessen" vs. "Code fehlt weil bewusst entfernt"
+
+**Warum geofrey als Guardian gebaut wurde (docs/guardian-architecture.md):**
+- Guardian Monitor überwacht Claude's Output in Echtzeit auf Signalwörter: "I'll move", "I'll restructure", "I'll replace"
+- Prüft gegen dokumentierte Decisions (DEC-001 bis DEC-007)
+- Warnt User BEVOR er blind "ja" sagt
+- Beispiel: Claude will auth in neues Modul verschieben → DEC sagt "auth.py ist Single Source" → Warnung
+
+**Agent-Diskussion Findings (docs/agent-discussion-findings.md):**
+- Guardian, Observer, Review waren DEAD CODE im Interactive Mode — gebaut, getestet, aber nie angebunden
+- Monitor pollt alle 10s, aber Claude committet in 2-3s → Guardian sieht Fehler zu spät (Timing-Lücke)
+- Sessions ohne Timeout → hängende Claude Sessions blockieren gesamten Overnight-Queue
+
+**Decision Dependency System — Weltweit einzigartig:**
+- Kein AI Coding Assistant (Claude Code, Cursor, Copilot, Aider, Windsurf) hat ein System das:
+  - Abhängigkeiten zwischen Entscheidungen trackt
+  - Warnt wenn eine neue Entscheidung eine alte bricht
+  - Maschinenlesbar speichert WARUM etwas entschieden wurde
+- 23% aller Architektur-Entscheidungen hatten innerhalb von 2 Monaten veraltete Evidenz (FPF Framework, arxiv 2601.21116)
+- 86% dieser veralteten Entscheidungen wurden erst bei Incidents entdeckt — nicht präventiv
+
+**Knowledge Erosion (Session Learning 2026-03-24):**
+- Claude generiert wertvolles Wissen während Sessions (Debugging-Findings, Architektur-Entscheidungen)
+- Dieses Wissen geht nach Session-Ende verloren → "Knowledge Erosion" Pattern
+- Deshalb Session Intelligence Pipeline mit Map-Reduce Extraktion gebaut
 
 ---
 
