@@ -336,6 +336,32 @@ class MarktforschungHelferlein:
 
         logger.info(f"Found {len(all_posts)} significant new post(s).")
 
+        # --- Reasoning Phase: local LLM filters findings ---
+        from brain.helferlein import reason_about_findings
+
+        findings_for_reasoning = [
+            {
+                "title": p["title"],
+                "description": p.get("selftext", "")[:300],
+                "score": p["score"],
+                "subreddit": p.get("subreddit", ""),
+                "url": p["url"],
+                "num_comments": p["num_comments"],
+                # Pass through original post data
+                "_post": p,
+            }
+            for p in all_posts
+        ]
+
+        reasoned = reason_about_findings("marktforschung", findings_for_reasoning, config)
+
+        # Replace all_posts with only the ones that survived reasoning
+        all_posts = [f["_post"] for f in reasoned if "_post" in f]
+        logger.info(f"After reasoning: {len(all_posts)} post(s) survived.")
+
+        if not all_posts:
+            return 0
+
         # Cluster similar posts
         clusters = _cluster_by_topic(all_posts)
 
