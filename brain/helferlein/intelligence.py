@@ -148,22 +148,43 @@ PROJECT_CAPABILITIES = {
 }
 
 
+def _get_capabilities() -> dict[str, dict]:
+    """Get project capabilities: auto-discovered cache + hardcoded fallback.
+
+    Auto-discovered capabilities (from discovery.py) are merged with
+    the hardcoded PROJECT_CAPABILITIES. Hardcoded entries take precedence
+    because they have curated keywords and descriptions.
+    """
+    from brain.helferlein.discovery import load_capabilities_cache
+
+    # Start with auto-discovered
+    merged = load_capabilities_cache()
+
+    # Hardcoded entries override (curated quality > auto-detected)
+    for project, info in PROJECT_CAPABILITIES.items():
+        merged[project] = info
+
+    return merged
+
+
 def match_projects(text: str) -> list[dict]:
     """Find which of Slavko's projects match a problem description.
 
-    Returns list of {project, score, beschreibung, keywords_matched}.
-    Score = number of keyword matches.
+    Uses auto-discovered capabilities (from ~/Code/ scan) merged with
+    hardcoded PROJECT_CAPABILITIES. Returns list of matches sorted by score.
     """
+    capabilities = _get_capabilities()
     text_lower = text.lower()
     matches = []
 
-    for project, info in PROJECT_CAPABILITIES.items():
-        matched_keywords = [kw for kw in info["keywords"] if kw in text_lower]
+    for project, info in capabilities.items():
+        keywords = info.get("keywords", [])
+        matched_keywords = [kw for kw in keywords if kw in text_lower]
         if len(matched_keywords) >= 2:  # At least 2 keyword matches
             matches.append({
                 "project": project,
                 "score": len(matched_keywords),
-                "beschreibung": info["beschreibung"],
+                "beschreibung": info.get("beschreibung", ""),
                 "url": info.get("url", ""),
                 "zielgruppe": info.get("zielgruppe", ""),
                 "keywords_matched": matched_keywords,

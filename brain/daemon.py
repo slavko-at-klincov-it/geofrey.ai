@@ -210,6 +210,14 @@ def run_overnight(config: dict | None = None) -> None:
     if not checks["tmux"][0]:
         logger.warning("tmux not found — sessions will use sync mode.")
 
+    # Refresh project capabilities (scan ~/Code/ for changes)
+    try:
+        from brain.helferlein.discovery import refresh_capabilities
+        caps = refresh_capabilities(config.get("workspace", "~/Code"))
+        logger.info(f"Project discovery: {len(caps)} project(s) scanned.")
+    except Exception as e:
+        logger.warning(f"Project discovery failed: {e}")
+
     # Helferlein round -- generate proposals
     try:
         from brain.helferlein import run_all_helferlein
