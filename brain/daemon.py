@@ -210,6 +210,14 @@ def run_overnight(config: dict | None = None) -> None:
     if not checks["tmux"][0]:
         logger.warning("tmux not found — sessions will use sync mode.")
 
+    # Helferlein round -- generate proposals
+    try:
+        from brain.helferlein import run_all_helferlein
+        proposal_count = run_all_helferlein(config)
+        logger.info(f"Helferlein generated {proposal_count} proposal(s).")
+    except Exception as e:
+        logger.warning(f"Helferlein round failed: {e}")
+
     # Overnight research (before task processing)
     try:
         from brain.researcher import run_overnight_research
@@ -284,7 +292,7 @@ def get_launchd_plist() -> str:
 
     <key>ProgramArguments</key>
     <array>
-        <string>python3</string>
+        <string>{project_root / ".venv" / "bin" / "python3"}</string>
         <string>{project_root / "brain" / "daemon.py"}</string>
     </array>
 

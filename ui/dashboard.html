@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>geofrey - Dashboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #0f1117;
+            --surface: #1a1d27;
+            --surface-hover: #22263a;
+            --border: #2a2e3f;
+            --text: #e4e4e7;
+            --text-muted: #8b8d98;
+            --accent: #6c8aff;
+            --accent-hover: #8ba3ff;
+            --green: #4ade80;
+            --red: #f87171;
+            --yellow: #fbbf24;
+            --orange: #fb923c;
+            --radius: 10px;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.5;
+            min-height: 100vh;
+        }
+
+        /* Header */
+        .header {
+            padding: 24px 32px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header h1 {
+            font-size: 20px;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+        }
+        .header h1 span { color: var(--accent); }
+        .header-stats {
+            display: flex;
+            gap: 16px;
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+        .header-stats .stat-value {
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        /* Status bar */
+        .status-bar {
+            padding: 12px 32px;
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            gap: 24px;
+            font-size: 13px;
+        }
+        .status-pill {
+            padding: 4px 12px;
+            border-radius: 20px;
+            background: var(--bg);
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .status-pill:hover { background: var(--surface-hover); }
+        .status-pill.active { background: var(--accent); color: #fff; }
+        .status-pill .count {
+            font-weight: 600;
+            margin-left: 4px;
+        }
+
+        /* Main content */
+        .main {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 24px 32px;
+        }
+
+        /* Proposal card */
+        .proposal {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 20px;
+            margin-bottom: 12px;
+            transition: border-color 0.15s;
+        }
+        .proposal:hover { border-color: var(--accent); }
+
+        .proposal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 8px;
+        }
+        .proposal-title {
+            font-size: 15px;
+            font-weight: 600;
+        }
+        .proposal-meta {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .badge {
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .badge-akquise { background: #1e3a5f; color: #60a5fa; }
+        .badge-content { background: #3b1f4a; color: #c084fc; }
+        .badge-admin { background: #3b2f1a; color: var(--yellow); }
+        .badge-projekt { background: #1a3b2a; color: var(--green); }
+        .badge-high { background: #4a1a1a; color: var(--red); }
+        .badge-normal { background: #2a2a1a; color: var(--yellow); }
+        .badge-low { background: #1a2a2a; color: var(--text-muted); }
+
+        /* Status badges */
+        .badge-pending { background: #2a2a1a; color: var(--yellow); }
+        .badge-approved { background: #1a2a3a; color: var(--accent); }
+        .badge-executing { background: #1a3a2a; color: var(--green); }
+        .badge-done { background: #1a3a2a; color: var(--green); }
+        .badge-rejected { background: #3a1a1a; color: var(--red); }
+        .badge-failed { background: #3a1a1a; color: var(--red); }
+
+        .proposal-desc {
+            color: var(--text-muted);
+            font-size: 14px;
+            margin-bottom: 12px;
+            white-space: pre-wrap;
+        }
+
+        .proposal-plan {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 12px;
+            font-size: 13px;
+            margin-bottom: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            display: none;
+        }
+        .proposal-plan.visible { display: block; }
+
+        .proposal-evidence {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+        }
+        .evidence-tag {
+            font-size: 11px;
+            padding: 2px 6px;
+            background: var(--bg);
+            border-radius: 4px;
+            color: var(--text-muted);
+        }
+
+        .proposal-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .btn {
+            padding: 7px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .btn-approve {
+            background: var(--accent);
+            color: #fff;
+        }
+        .btn-approve:hover { background: var(--accent-hover); }
+        .btn-reject {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+        }
+        .btn-reject:hover { border-color: var(--red); color: var(--red); }
+        .btn-detail {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+        }
+        .btn-detail:hover { border-color: var(--accent); color: var(--accent); }
+        .btn-sm { padding: 4px 10px; font-size: 12px; }
+
+        /* Comment input */
+        .comment-input {
+            flex: 1;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 7px 12px;
+            color: var(--text);
+            font-size: 13px;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.15s;
+        }
+        .comment-input:focus { border-color: var(--accent); }
+        .comment-input::placeholder { color: var(--text-muted); }
+
+        /* Empty state */
+        .empty {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-muted);
+        }
+        .empty-icon { font-size: 48px; margin-bottom: 12px; }
+        .empty-title { font-size: 16px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+
+        /* Toast notification */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            padding: 12px 20px;
+            border-radius: var(--radius);
+            font-size: 13px;
+            font-weight: 500;
+            z-index: 1000;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all 0.3s;
+        }
+        .toast.visible { opacity: 1; transform: translateY(0); }
+        .toast-success { background: #1a3a2a; color: var(--green); border: 1px solid #2a4a3a; }
+        .toast-error { background: #3a1a1a; color: var(--red); border: 1px solid #4a2a2a; }
+
+        /* Loading */
+        .loading {
+            display: flex;
+            justify-content: center;
+            padding: 40px;
+        }
+        .spinner {
+            width: 24px; height: 24px;
+            border: 2px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Responsive */
+        @media (max-width: 640px) {
+            .header { padding: 16px; }
+            .main { padding: 16px; }
+            .status-bar { padding: 8px 16px; overflow-x: auto; }
+            .proposal-actions { flex-wrap: wrap; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1><span>geofrey</span> Dashboard</h1>
+        <div class="header-stats" id="header-stats"></div>
+    </div>
+
+    <div class="status-bar" id="status-bar"></div>
+
+    <div class="main" id="main">
+        <div class="loading"><div class="spinner"></div></div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+    const API = '';
+    let currentFilter = 'pending';
+    let proposals = [];
+
+    async function fetchProposals(status) {
+        const url = status
+            ? `${API}/api/proposals?status=${status}`
+            : `${API}/api/proposals`;
+        const res = await fetch(url);
+        const data = await res.json();
+        return data;
+    }
+
+    function renderStatusBar(summary) {
+        const bar = document.getElementById('status-bar');
+        const filters = [
+            { key: 'pending', label: 'Offen', count: summary.pending || 0 },
+            { key: 'approved', label: 'Genehmigt', count: summary.approved || 0 },
+            { key: 'executing', label: 'Laufend', count: summary.executing || 0 },
+            { key: 'done', label: 'Erledigt', count: summary.done || 0 },
+            { key: 'rejected', label: 'Abgelehnt', count: summary.rejected || 0 },
+            { key: 'failed', label: 'Fehler', count: summary.failed || 0 },
+        ];
+
+        bar.innerHTML = filters.map(f =>
+            `<div class="status-pill ${f.key === currentFilter ? 'active' : ''}"
+                  onclick="setFilter('${f.key}')">
+                ${f.label}<span class="count">${f.count}</span>
+            </div>`
+        ).join('') +
+        `<div class="status-pill" onclick="setFilter('')">
+            Alle<span class="count">${Object.values(summary).reduce((a,b) => a+b, 0)}</span>
+        </div>`;
+    }
+
+    function renderHeaderStats(summary) {
+        const el = document.getElementById('header-stats');
+        const pending = summary.pending || 0;
+        const executing = summary.executing || 0;
+        el.innerHTML = `
+            <span><span class="stat-value">${pending}</span> offen</span>
+            <span><span class="stat-value">${executing}</span> laufend</span>
+        `;
+    }
+
+    function renderProposals(list) {
+        const main = document.getElementById('main');
+        if (!list.length) {
+            main.innerHTML = `
+                <div class="empty">
+                    <div class="empty-icon">&#9745;</div>
+                    <div class="empty-title">Keine Vorschlaege</div>
+                    <div>Alles erledigt oder noch keine Helferlein aktiv.</div>
+                </div>`;
+            return;
+        }
+
+        main.innerHTML = list.map(p => {
+            const isPending = p.status === 'pending';
+            const hasPrompt = p.prepared_prompt && p.prepared_prompt.length > 0;
+            const hasPlan = p.prepared_plan && p.prepared_plan.length > 0;
+
+            return `
+            <div class="proposal" id="proposal-${p.id}">
+                <div class="proposal-header">
+                    <div class="proposal-title">${esc(p.title)}</div>
+                    <div class="proposal-meta">
+                        <span class="badge badge-${p.helferlein}">${p.helferlein}</span>
+                        <span class="badge badge-${p.priority}">${p.priority}</span>
+                        ${!isPending ? `<span class="badge badge-${p.status}">${p.status}</span>` : ''}
+                    </div>
+                </div>
+                <div class="proposal-desc">${esc(p.description)}</div>
+                ${p.evidence && p.evidence.length ? `
+                    <div class="proposal-evidence">
+                        ${p.evidence.map(e => `<span class="evidence-tag">${esc(e)}</span>`).join('')}
+                    </div>
+                ` : ''}
+                ${hasPlan ? `
+                    <div class="proposal-plan" id="plan-${p.id}">${esc(p.prepared_plan)}</div>
+                ` : ''}
+                ${p.result ? `
+                    <div class="proposal-plan visible" style="border-color: #2a4a3a;">
+                        ${esc(p.result)}
+                    </div>
+                ` : ''}
+                ${p.error ? `
+                    <div class="proposal-plan visible" style="border-color: #4a2a2a; color: var(--red);">
+                        ${esc(p.error)}
+                    </div>
+                ` : ''}
+                ${p.user_comment ? `
+                    <div style="font-size: 13px; color: var(--accent); margin-bottom: 12px;">
+                        Kommentar: ${esc(p.user_comment)}
+                    </div>
+                ` : ''}
+                <div class="proposal-actions">
+                    ${isPending ? `
+                        <input type="text" class="comment-input" id="comment-${p.id}"
+                               placeholder="Kommentar (optional)..." />
+                        <button class="btn btn-approve" onclick="approveProposal('${p.id}')">
+                            Bestaetigen
+                        </button>
+                        <button class="btn btn-reject" onclick="rejectProposal('${p.id}')">
+                            Ablehnen
+                        </button>
+                    ` : ''}
+                    ${hasPlan ? `
+                        <button class="btn btn-detail btn-sm" onclick="togglePlan('${p.id}')">
+                            Plan
+                        </button>
+                    ` : ''}
+                    ${hasPrompt ? `
+                        <button class="btn btn-detail btn-sm" onclick="showPrompt('${p.id}')">
+                            Prompt
+                        </button>
+                    ` : ''}
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    function esc(str) {
+        if (!str) return '';
+        const d = document.createElement('div');
+        d.textContent = str;
+        return d.innerHTML;
+    }
+
+    function togglePlan(id) {
+        const el = document.getElementById('plan-' + id);
+        if (el) el.classList.toggle('visible');
+    }
+
+    function showPrompt(id) {
+        const p = proposals.find(x => x.id === id);
+        if (p && p.prepared_prompt) {
+            const el = document.getElementById('plan-' + id);
+            if (el) {
+                el.textContent = p.prepared_prompt;
+                el.classList.add('visible');
+            }
+        }
+    }
+
+    async function approveProposal(id) {
+        const commentEl = document.getElementById('comment-' + id);
+        const comment = commentEl ? commentEl.value.trim() : '';
+
+        try {
+            const res = await fetch(`${API}/api/proposals/${id}/approve`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    comment: comment || null,
+                    model: 'sonnet',
+                    permission_mode: 'default',
+                }),
+            });
+            if (!res.ok) throw new Error('Approval failed');
+            const data = await res.json();
+            toast(data.executed
+                ? 'Genehmigt + Claude Code Session gestartet'
+                : 'Genehmigt', 'success');
+            await refresh();
+        } catch (e) {
+            toast('Fehler: ' + e.message, 'error');
+        }
+    }
+
+    async function rejectProposal(id) {
+        const commentEl = document.getElementById('comment-' + id);
+        const comment = commentEl ? commentEl.value.trim() : '';
+
+        try {
+            await fetch(`${API}/api/proposals/${id}/reject`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ comment: comment || null }),
+            });
+            toast('Abgelehnt', 'success');
+            await refresh();
+        } catch (e) {
+            toast('Fehler: ' + e.message, 'error');
+        }
+    }
+
+    function toast(msg, type) {
+        const el = document.getElementById('toast');
+        el.textContent = msg;
+        el.className = `toast toast-${type} visible`;
+        setTimeout(() => el.classList.remove('visible'), 3000);
+    }
+
+    async function setFilter(status) {
+        currentFilter = status;
+        await refresh();
+    }
+
+    async function refresh() {
+        try {
+            const data = await fetchProposals(currentFilter || undefined);
+            proposals = data.proposals;
+            renderStatusBar(data.summary);
+            renderHeaderStats(data.summary);
+            renderProposals(data.proposals);
+        } catch (e) {
+            document.getElementById('main').innerHTML =
+                `<div class="empty"><div class="empty-title">Verbindungsfehler</div>
+                 <div>${e.message}</div></div>`;
+        }
+    }
+
+    // Initial load
+    refresh();
+
+    // Auto-refresh every 30 seconds
+    setInterval(refresh, 30000);
+    </script>
+</body>
+</html>

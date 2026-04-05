@@ -14,6 +14,11 @@ def main() -> None:
 
     # Brain commands
     subparsers.add_parser("chat", help="Interactive chat with geofrey (orchestrator mode)")
+    ask_parser = subparsers.add_parser("ask", help="Ask geofrey a question (local LLM, with RAG)")
+    ask_parser.add_argument("question", help="Your question")
+    ask_parser.add_argument("--no-search", action="store_true", help="Don't search knowledge base")
+    ask_parser.add_argument("--project", help="Focus search on specific project")
+
     task_parser = subparsers.add_parser("task", help="Single task for geofrey")
     task_parser.add_argument("task_text", help="Task description")
 
@@ -106,6 +111,31 @@ def main() -> None:
     int_add = int_sub.add_parser("add", help="Add a research interest")
     int_add.add_argument("topic", help="Topic to research overnight")
 
+    # Proposals (Helferlein system)
+    prop_parser = subparsers.add_parser("proposals", help="View and manage helferlein proposals")
+    prop_sub = prop_parser.add_subparsers(dest="prop_action")
+
+    prop_list = prop_sub.add_parser("list", help="List proposals")
+    prop_list.add_argument("--status", choices=["pending", "approved", "rejected", "executing", "done", "failed"])
+    prop_list.add_argument("--limit", type=int, default=20)
+
+    prop_approve = prop_sub.add_parser("approve", help="Approve a proposal")
+    prop_approve.add_argument("proposal_id", help="Proposal ID")
+    prop_approve.add_argument("--comment", help="Optional comment")
+    prop_approve.add_argument("--model", default="sonnet", help="Claude model (default: sonnet)")
+
+    prop_reject = prop_sub.add_parser("reject", help="Reject a proposal")
+    prop_reject.add_argument("proposal_id", help="Proposal ID")
+    prop_reject.add_argument("--comment", help="Optional comment")
+
+    prop_show = prop_sub.add_parser("show", help="Show proposal details")
+    prop_show.add_argument("proposal_id", help="Proposal ID")
+
+    # Web UI
+    web_parser = subparsers.add_parser("web", help="Start geofrey web interface")
+    web_parser.add_argument("--port", type=int, default=8000, help="Port to run on (default: 8000)")
+    web_parser.add_argument("--host", default="0.0.0.0", help="Host to bind to (default: 0.0.0.0)")
+
     # Scripts
     subparsers.add_parser("embed", help="Embed Claude Code knowledge base (--reset, --changed)")
 
@@ -119,6 +149,11 @@ def main() -> None:
     elif args.command == "chat":
         from brain.orchestrator import interactive
         interactive()
+
+    elif args.command == "ask":
+        from brain.local_chat import chat_local
+        response = chat_local(args.question, project=args.project, search=not args.no_search)
+        print(response)
 
     elif args.command == "task":
         from brain.orchestrator import single_task
@@ -437,6 +472,84 @@ def main() -> None:
         print(format_preflight(results))
         all_ok = all(ok for ok, _ in results.values())
         sys.exit(0 if all_ok else 1)
+
+    elif args.command == "proposals":
+        from brain.proposals import (
+            get_pending_proposals, get_proposals_by_status,
+            get_recent_proposals, get_proposal, approve_proposal,
+            reject_proposal, init_proposals_table,
+        )
+        init_proposals_table()
+
+        if args.prop_action == "list":
+            if args.status:
+                props = get_proposals_by_status(args.status)
+            else:
+                props = get_recent_proposals(limit=args.limit)
+            if not props:
+                print("No proposals found.")
+            else:
+                for p in props:
+                    desc = p.title[:50] + ("..." if len(p.title) > 50 else "")
+                    print(f"  {p.id}  [{p.status.value:10s}]  {p.helferlein:8s}  {p.priority:6s}  {desc}")
+
+        elif args.prop_action == "approve":
+            p = approve_proposal(args.proposal_id, comment=args.comment)
+            if p is None:
+                print(f"Proposal {args.proposal_id} not found.")
+                sys.exit(1)
+            print(f"Proposal {p.id} approved.")
+            if p.prepared_prompt:
+                from brain.executor import execute_proposal
+                ok = execute_proposal(p.id, model=args.model)
+                if ok:
+                    print(f"Claude Code Session gestartet. Tmux: geofrey-{p.session_id or '...'}")
+                else:
+                    print("Session konnte nicht gestartet werden.")
+
+        elif args.prop_action == "reject":
+            p = reject_proposal(args.proposal_id, comment=args.comment)
+            if p is None:
+                print(f"Proposal {args.proposal_id} not found.")
+                sys.exit(1)
+            print(f"Proposal {p.id} rejected.")
+
+        elif args.prop_action == "show":
+            p = get_proposal(args.proposal_id)
+            if p is None:
+                print(f"Proposal {args.proposal_id} not found.")
+                sys.exit(1)
+            print(f"ID:          {p.id}")
+            print(f"Helferlein:  {p.helferlein}")
+            print(f"Status:      {p.status.value}")
+            print(f"Priority:    {p.priority}")
+            print(f"Action:      {p.action_type.value}")
+            print(f"Project:     {p.project or '-'}")
+            print(f"Created:     {p.created_at}")
+            print(f"\nTitle:       {p.title}")
+            print(f"\nDescription:\n{p.description}")
+            if p.prepared_plan:
+                print(f"\nPlan:\n{p.prepared_plan}")
+            if p.prepared_prompt:
+                print(f"\nPrompt ({len(p.prepared_prompt)} chars): {p.prepared_prompt[:200]}...")
+            if p.user_comment:
+                print(f"\nKommentar:   {p.user_comment}")
+            if p.result:
+                print(f"\nResult:\n{p.result}")
+            if p.error:
+                print(f"\nError:\n{p.error}")
+        else:
+            pending = get_pending_proposals()
+            print(f"{len(pending)} pending proposal(s).")
+            for p in pending[:10]:
+                print(f"  {p.id}  {p.helferlein:8s}  {p.title[:60]}")
+
+    elif args.command == "web":
+        from api import app
+        import uvicorn
+        print(f"geofrey web interface starting on http://{args.host}:{args.port}")
+        print(f"Press Ctrl+C to stop\n")
+        uvicorn.run(app, host=args.host, port=args.port, log_level="info")
 
     elif args.command == "embed":
         import subprocess
