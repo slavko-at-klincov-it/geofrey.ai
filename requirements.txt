@@ -6,3 +6,4 @@ fastapi
 uvicorn[standard]
 requests
 playwright
+python-docx

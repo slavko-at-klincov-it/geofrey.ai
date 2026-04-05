@@ -224,7 +224,34 @@ def _crawl_freelando(query: str) -> list[dict]:
 
 
 def _build_application_prompt(listing: dict) -> str:
-    """Build Claude Code CLI prompt to draft an application text."""
+    """Build Claude Code CLI prompt to draft an application text.
+
+    Uses business knowledge from FBB course (No-Brainer Offer framework,
+    Zielgruppenanalyse) if available in the knowledge base.
+    """
+    # Check if business knowledge exists
+    geofrey_root = Path(__file__).parent.parent.parent
+    business_kb = geofrey_root / "knowledge-base" / "business"
+    business_context = ""
+    if business_kb.exists():
+        # Load key frameworks
+        for filename in ["No-Brainer Offer.md", "Leadfindung - Linkedin & Instagram.md",
+                         "Zielgruppenanalyse.md"]:
+            filepath = business_kb / filename
+            if filepath.exists():
+                content = filepath.read_text(encoding="utf-8")[:2000]
+                business_context += f"\n--- {filename} ---\n{content}\n"
+
+    business_section = ""
+    if business_context:
+        business_section = (
+            f"\n\n--- Business-Strategie (aus Kurs-Materialien) ---\n"
+            f"Nutze diese Frameworks um den Text ueberzeugender zu machen:\n"
+            f"{business_context}\n"
+            f"Wende das 'No-Brainer Offer' Prinzip an: klares Ergebnis, "
+            f"konkreter Zeitrahmen, hoher Wert, Beweise.\n"
+        )
+
     return (
         f"Du bist Slavko Klincov, freiberuflicher Power Platform & KI-Berater.\n"
         f"Website: klincov.it\n\n"
@@ -239,7 +266,8 @@ def _build_application_prompt(listing: dict) -> str:
         f"KI-Projekte wie AIBuchhalter, Meus)\n"
         f"- Kurz (max 200 Worte)\n"
         f"- Kein Emoji, keine Em-Dashes\n"
-        f"- Abschluss: Verfuegbarkeit und Kontaktdaten\n\n"
+        f"- Abschluss: Verfuegbarkeit und Kontaktdaten\n"
+        f"{business_section}\n"
         f"Gib NUR den Bewerbungstext aus, keine Erklaerungen."
     )
 
