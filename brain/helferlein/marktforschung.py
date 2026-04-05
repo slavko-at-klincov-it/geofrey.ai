@@ -262,13 +262,24 @@ class MarktforschungHelferlein:
     name = "marktforschung"
 
     def run(self, config: dict) -> int:
-        """Search Reddit for problems. Returns number of proposals created."""
+        """Search Reddit for problems. Returns number of proposals created.
+
+        Two-phase approach:
+        1. Gather findings → update Knowledge Base (always, free)
+        2. Match against own projects → create Proposals (only when match found)
+        """
+        from brain.helferlein.intelligence import (
+            match_projects,
+            update_knowledge_base,
+            create_opportunity_proposal,
+        )
+
         all_posts: list[dict] = []
 
         # Search across subreddits and queries (limited to avoid rate limits)
         # ~3 subreddits x 3 queries = 9 API calls per run (~18 seconds)
-        subreddits_to_search = SUBREDDITS[:3]  # Max 3 subreddits per run
-        queries_to_search = PROBLEM_QUERIES[:3]  # Max 3 queries per run
+        subreddits_to_search = SUBREDDITS[:3]
+        queries_to_search = PROBLEM_QUERIES[:3]
 
         for subreddit in subreddits_to_search:
             for query in queries_to_search:
@@ -277,7 +288,7 @@ class MarktforschungHelferlein:
                     if _is_seen(post["url"]):
                         continue
                     if not _is_significant(post):
-                        _save_finding(post, query)  # Save but skip
+                        _save_finding(post, query)
                         continue
                     _save_finding(post, query)
                     all_posts.append(post)
@@ -293,45 +304,92 @@ class MarktforschungHelferlein:
 
         count = 0
         for topic_key, posts in clusters.items():
-            # Skip if we already have a proposal about this topic
-            short_title = topic_key[:40]
-            if has_pending_proposal("marktforschung", short_title):
-                continue
-
             total_score = sum(p["score"] for p in posts)
             total_comments = sum(p["num_comments"] for p in posts)
-            subreddits = list(set(p["subreddit"] for p in posts))
+            best_post = max(posts, key=lambda p: p["score"])
 
-            # Build description
-            desc_lines = [
-                f"Problem-Cluster aus {len(posts)} Reddit-Post(s):",
-                f"Subreddits: {', '.join(subreddits)}",
-                f"Gesamt Score: {total_score}, Kommentare: {total_comments}",
-                "",
-            ]
-            for p in posts[:3]:
-                desc_lines.append(f"- [{p['subreddit']}] {p['title']} ({p['score']} pts)")
+            # --- Phase 1: Knowledge Base Update (always) ---
+            thema = _extract_thema(topic_key)
+            for post in posts:
+                update_knowledge_base(
+                    thema=thema,
+                    quelle="reddit",
+                    fund={
+                        "title": post["title"],
+                        "url": post["url"],
+                        "text": post.get("selftext", ""),
+                        "score": post["score"],
+                        "num_comments": post["num_comments"],
+                        "subreddit": post.get("subreddit", ""),
+                    },
+                    config=config,
+                )
 
-            prompt = _build_analysis_prompt(topic_key, posts)
-
-            priority = "high" if total_score >= 50 or len(posts) >= 3 else "normal"
-
-            create_proposal(
-                helferlein="marktforschung",
-                title=f"Reddit: {topic_key[:80]}",
-                description="\n".join(desc_lines),
-                priority=priority,
-                action_type="draft",
-                evidence=[p["url"] for p in posts[:5]],
-                prepared_prompt=prompt,
-                prepared_plan=(
-                    f"1. Problem analysieren (aus {len(posts)} Posts)\n"
-                    f"2. Bestehende Loesungen recherchieren\n"
-                    f"3. App-Idee ausarbeiten wenn Luecke besteht\n"
-                    f"4. Marktpotenzial DACH einschaetzen"
-                ),
+            # --- Phase 2: Match against own projects ---
+            combined_text = " ".join(
+                p["title"] + " " + p.get("selftext", "")[:200] for p in posts
             )
-            count += 1
-            logger.info(f"Proposal: {topic_key[:60]}")
+            project_matches = match_projects(combined_text)
+
+            if project_matches:
+                # Create opportunity proposal for the best matching project
+                best_match = project_matches[0]
+                created = create_opportunity_proposal(
+                    thema=thema,
+                    fund={
+                        "title": best_post["title"],
+                        "url": best_post["url"],
+                        "text": best_post.get("selftext", ""),
+                        "score": best_post["score"],
+                        "num_comments": best_post["num_comments"],
+                        "subreddit": best_post.get("subreddit", ""),
+                    },
+                    project_match=best_match,
+                    quelle="reddit",
+                )
+                if created:
+                    count += 1
+            else:
+                # No project match, but still create analysis proposal
+                # if the problem is significant enough
+                if total_score >= 50 or len(posts) >= 3:
+                    short_title = topic_key[:40]
+                    if not has_pending_proposal("marktforschung", short_title):
+                        prompt = _build_analysis_prompt(topic_key, posts)
+                        create_proposal(
+                            helferlein="marktforschung",
+                            title=f"Reddit: {topic_key[:80]}",
+                            description=(
+                                f"Problem-Cluster ({len(posts)} Posts, "
+                                f"Score: {total_score}, Kommentare: {total_comments}):\n\n"
+                                + "\n".join(
+                                    f"- [{p['subreddit']}] {p['title']} ({p['score']} pts)"
+                                    for p in posts[:3]
+                                )
+                            ),
+                            priority="high" if total_score >= 100 else "normal",
+                            action_type="draft",
+                            evidence=[p["url"] for p in posts[:5]],
+                            prepared_prompt=prompt,
+                            prepared_plan=(
+                                f"1. Problem analysieren\n"
+                                f"2. Bestehende Loesungen recherchieren\n"
+                                f"3. App-Idee wenn Luecke\n"
+                                f"4. Marktpotenzial DACH"
+                            ),
+                        )
+                        count += 1
 
         return count
+
+
+def _extract_thema(title: str) -> str:
+    """Extract a clean topic name from a Reddit post title."""
+    # Remove common prefixes/noise
+    thema = title.strip()
+    for prefix in ["[Rant]", "[OC]", "Frage:", "Hilfe:"]:
+        thema = thema.replace(prefix, "").strip()
+    # Truncate
+    if len(thema) > 80:
+        thema = thema[:77] + "..."
+    return thema
