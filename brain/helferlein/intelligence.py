@@ -96,6 +96,55 @@ PROJECT_CAPABILITIES = {
         "url": "klincov.it",
         "zielgruppe": "KMU und Enterprises im DACH-Raum",
     },
+    "ane-training-iphone": {
+        "keywords": [
+            "ane", "apple neural engine", "iphone training", "on-device training",
+            "coreml", "mlx", "iphone", "neural engine", "ml compile",
+            "mobile training", "on-device ml", "apple silicon training",
+            "transformer training", "fine-tune iphone", "fine-tune mobile",
+            "training on phone", "train on device", "ios ml", "ios training",
+            "mil compiler", "ane kernels",
+        ],
+        "beschreibung": "ANE-Training-iPhone: Erstes Open-Source Transformer-Training "
+                        "direkt auf dem iPhone Neural Engine, ohne Jailbreak. "
+                        "110M Parameter, 2.4 Steps/Sec auf A17 Pro, 72 ANE Kernels.",
+        "url": "github.com/slavko-at-klincov-it/ANE-Training-iPhone",
+        "zielgruppe": "ML/AI Researchers, iOS Developers, On-Device ML Community",
+    },
+    "lael": {
+        "keywords": [
+            "ollama", "lm studio", "llama.cpp", "local llm", "local ai",
+            "gpu monitor", "vram", "ram monitor", "model monitor",
+            "ai monitor", "runtime monitor", "menu bar", "macos ai",
+            "gpt4all", "koboldcpp", "mlx", "localai",
+        ],
+        "beschreibung": "Lael (LocalAIEventLog): Native macOS Menu Bar App die alle "
+                        "lokalen KI-Modelle überwacht. 14+ Runtimes, RAM-Alerts, Widgets.",
+        "url": "github.com/slavko-at-klincov-it/Lael-LocalAIEventLog",
+        "zielgruppe": "Developers die lokale LLMs laufen lassen",
+    },
+    "copyvoice": {
+        "keywords": [
+            "voice clone", "voice cloning", "tts", "text to speech",
+            "stimme klonen", "qwen tts", "speech synthesis",
+            "voice synthesis", "apple silicon tts", "local tts",
+        ],
+        "beschreibung": "copyVoice: Voice Cloning mit Qwen3-TTS auf Apple Silicon. "
+                        "15 Sekunden Referenz-Audio reichen. 100% lokal.",
+        "url": "",
+        "zielgruppe": "Content Creators, Podcaster, Developers",
+    },
+    "transcriptllm": {
+        "keywords": [
+            "whisper", "transkription", "transcription", "meeting notes",
+            "meeting summary", "german llm", "deutsch llm", "speech to text",
+            "meeting protokoll", "audio transcri", "german speech",
+        ],
+        "beschreibung": "TranscriptLLM: Deutsche LLM + Whisper Benchmarks, Meeting-Transkription "
+                        "mit automatischer Zusammenfassung. Qwen 2.5 7B empfohlen.",
+        "url": "",
+        "zielgruppe": "Teams die Meetings transkribieren, German NLP Community",
+    },
 }
 
 

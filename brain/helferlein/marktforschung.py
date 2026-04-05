@@ -26,8 +26,8 @@ logger = logging.getLogger("geofrey.helferlein.marktforschung")
 
 USER_AGENT = "geofrey-marktforschung/1.0 (local research bot, no spam)"
 
-# Focused subreddits where people discuss tools/software/business problems
-SUBREDDITS = [
+# Subreddits: German business/tools + international AI/tech
+SUBREDDITS_DE = [
     "de_EDV",
     "selbststaendig",
     "FragReddit",
@@ -37,8 +37,21 @@ SUBREDDITS = [
     "steuern",
 ]
 
-# Search queries that specifically surface software/tool needs
-PROBLEM_QUERIES = [
+SUBREDDITS_INTERNATIONAL = [
+    "LocalLLaMA",
+    "MachineLearning",
+    "iOSProgramming",
+    "selfhosted",
+    "SideProject",
+    "startups",
+    "SmallBusiness",
+    "Entrepreneur",
+]
+
+SUBREDDITS = SUBREDDITS_DE + SUBREDDITS_INTERNATIONAL
+
+# Search queries: German + English
+PROBLEM_QUERIES_DE = [
     "gibt es eine App",
     "gibt es ein Tool",
     "kennt jemand ein Tool",
@@ -48,6 +61,19 @@ PROBLEM_QUERIES = [
     "Loesung gesucht",
     "gibt es sowas fuer",
 ]
+
+PROBLEM_QUERIES_EN = [
+    "is there a tool",
+    "any app for",
+    "alternative to",
+    "on-device training",
+    "local LLM",
+    "iPhone ML",
+    "Apple Neural Engine",
+    "self-hosted",
+]
+
+PROBLEM_QUERIES = PROBLEM_QUERIES_DE + PROBLEM_QUERIES_EN
 
 # Minimum thresholds for "big enough" problems
 MIN_UPVOTES = 15
@@ -157,8 +183,9 @@ def _save_finding(post: dict, query: str, db_path: str | None = None) -> None:
     conn.close()
 
 
-# Keywords that indicate the post is about a software/tool need (not politics, memes, etc.)
+# Keywords that indicate the post is about a software/tool need
 RELEVANCE_KEYWORDS = [
+    # German
     "app", "tool", "software", "programm", "automatisier", "excel",
     "buchhaltung", "rechnung", "crm", "erp", "dashboard", "workflow",
     "browser", "extension", "plugin", "api", "script", "bot",
@@ -167,6 +194,15 @@ RELEVANCE_KEYWORDS = [
     "termin", "kalender", "projekt", "aufgabe", "task", "todo",
     "dsgvo", "datenschutz", "barrierefrei", "digital", "cloud",
     "backup", "sicher", "passwort", "verschluessel",
+    # English AI/ML/Tech
+    "llm", "model", "training", "fine-tun", "inference", "neural",
+    "transformer", "gpu", "vram", "gguf", "quantiz", "mlx",
+    "ollama", "llama", "whisper", "tts", "stt", "speech",
+    "on-device", "local ai", "self-host", "open source",
+    "iphone", "ios", "macos", "apple silicon", "coreml", "ane",
+    "monitor", "benchmark", "voice clon", "transcri",
+    "rag", "vector", "embedding", "knowledge base",
+    "automat", "agent", "orchestrat", "pipeline",
 ]
 
 
@@ -277,9 +313,10 @@ class MarktforschungHelferlein:
         all_posts: list[dict] = []
 
         # Search across subreddits and queries (limited to avoid rate limits)
-        # ~3 subreddits x 3 queries = 9 API calls per run (~18 seconds)
-        subreddits_to_search = SUBREDDITS[:3]
-        queries_to_search = PROBLEM_QUERIES[:3]
+        # Overnight: more coverage. Each API call = 2sec wait.
+        # 5 subreddits x 4 queries = 20 calls = ~40 seconds
+        subreddits_to_search = SUBREDDITS[:5]
+        queries_to_search = PROBLEM_QUERIES[:4]
 
         for subreddit in subreddits_to_search:
             for query in queries_to_search:
